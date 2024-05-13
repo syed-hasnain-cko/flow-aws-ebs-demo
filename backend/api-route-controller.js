@@ -1,13 +1,16 @@
 const axios = require('axios');
-const router = require('express').Router()
+const router = require('express').Router();
+const path = require('path');
+require('dotenv').config()
 
-const SECREY_KEY = 'Bearer sk_sbox_dqmcmja373yetcnwkrwi6x6biyv'
+const API_SECRET_KEY = process.env.SECRET_KEY;
 router.post('/payment-sessions', async (req, res) => {
 
     try {
-        const response = await axios.post(`https://api.sandbox.checkout.com/payment-sessions`, req.body, {
+    
+        const response = await axios.post(`${process.env.GW_URL}/payment-sessions`, req.body, {
             headers: {
-                Authorization: SECREY_KEY,
+                Authorization: `Bearer ${API_SECRET_KEY}`,
             },
         });
         res.send(response.data);
