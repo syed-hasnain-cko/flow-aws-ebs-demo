@@ -1,4 +1,6 @@
+
 (function(){
+   
     const paymentSessionBody = {
         currency: 'EUR',
         amount: 2000,
@@ -50,7 +52,7 @@ let initializeFlow = async (paymentSession) => {
     console.log(paymentSession)
     
             const checkout = await CheckoutWebComponents({
-                publicKey: 'pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t',
+                publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
                 environment: "sandbox",
                 locale: "en-GB",
                 paymentSession,
