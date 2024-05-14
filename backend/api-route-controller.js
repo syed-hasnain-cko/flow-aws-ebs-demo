@@ -22,4 +22,16 @@ router.post('/payment-sessions', async (req, res) => {
 
 })
 
+router.post('/webhook-receiver', async(req,res) =>{
+    try{
+    console.log(req.body)       
+    res.send(200);
+    }
+    catch(error){
+        res.status(500).send({
+            error: error,
+        });
+    }
+})
+
 module.exports = router;
