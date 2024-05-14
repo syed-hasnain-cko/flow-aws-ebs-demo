@@ -18,12 +18,15 @@
             }
         },
         processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
-        success_url: 'https://flow-demo-syed-env.eba-6sufbpqc.us-east-1.elasticbeanstalk.com/',
-        failure_url: 'https://flow-demo-syed-env.eba-6sufbpqc.us-east-1.elasticbeanstalk.com/',
+        success_url: `${window.location.protocol}//${window.location.host}/success.html`,
+        failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
         customer:{
             email:'smhasnain@gmail.com',
             name:'Syed'
-        }
+        },
+        '3ds':{
+          enabled : true
+        },
     };
     const renderFlowButton = document.getElementById("flow-button")
     const container = document.querySelector('.container');
@@ -50,6 +53,7 @@
             console.error(error);
         } 
     });
+
 })();
 
 
@@ -62,11 +66,11 @@ let initializeFlow = async (paymentSession) => {
                 locale: "en-GB",
                 paymentSession,
                 onReady: () => {
-                  console.log("onReady");
+                  
                 },
                 onPaymentCompleted: (_component, paymentResponse) => {
-                  console.log("Create Payment with PaymentId: ", paymentResponse.id);
-                  displayStatus('Payment completed successfully. Payment Status: ' + paymentResponse.status);
+                  console.log("Create Payment with PaymentId: ", paymentResponse);
+                  window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
                   console.log(
@@ -76,7 +80,8 @@ let initializeFlow = async (paymentSession) => {
                   );
                 },
                 onError: (component, error) => {
-                  console.log("onError", error, "Component", component.type);
+                  console.log("onError", error, "Component", component);
+                  window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
                 },
               });
         
@@ -86,10 +91,3 @@ let initializeFlow = async (paymentSession) => {
             
      
         }
-
-        const displayStatus = (message) => {
-          const statusContainer = document.getElementById("status-container");
-          const statusMessage = document.getElementById("status-message");
-          statusMessage.innerText = message;
-          statusContainer.style.display = 'block';
-      }
