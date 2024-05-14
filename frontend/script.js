@@ -30,6 +30,9 @@
     renderFlowButton.addEventListener('click', async () => {
 
         try {
+          const statusContainer = document.getElementById("status-container");
+          statusContainer.style.display = 'none';
+
             const getResponse = await fetch('/payment-sessions', {
                 method: 'POST',
                 headers: {
