@@ -1,7 +1,10 @@
+
+
 body {
     font-family: 'Roboto', sans-serif;
     margin: 0;
     padding: 0;
+    background-color: #f4f4f4;
 }
 
 header {
@@ -13,22 +16,26 @@ header {
 
 .wrapper {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     min-height: 100vh;
+    padding: 20px;
+    background-color: #fff;
 }
 
 .context-area {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 10px;
+    margin-bottom: 20px;
 }
 
 .button-group {
     display: flex;
     flex-direction: column;
     margin-top: 20px;
+    align-items: center;
 }
 
 .context-area button {
@@ -43,14 +50,50 @@ header {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.container {
-    flex: 1;
-    display: flex;
-    align-items: center;
+.context-area button:hover {
+    background-color: #005bb5;
 }
 
-/* #flow-container {
+.container {
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    display: none; 
+    box-sizing: border-box; 
+}
+
+#flow-container {
+    width: 100%;
+    max-width: 100%;
     border: 1px solid #ccc;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-} */
+    border-radius: 8px;
+    box-sizing: border-box; 
+}
+
+.status-container {
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+    margin-top: 20px;
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    box-sizing: border-box; /* Ensure padding is included in the width */
+}
+
+.status-container h2 {
+    margin-top: 0;
+}
+
+.status-container #status-message {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #e0f7fa;
+    border: 1px solid #4caf50;
+    border-radius: 4px;
+}

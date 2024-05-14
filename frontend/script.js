@@ -26,6 +26,7 @@
         }
     };
     const renderFlowButton = document.getElementById("flow-button")
+    const container = document.querySelector('.container');
     renderFlowButton.addEventListener('click', async () => {
 
         try {
@@ -41,6 +42,7 @@
     
             console.log('Get request completed:', getData);
             await initializeFlow(getData);
+            container.style.display = 'block';
         } catch (error) {
             console.error(error);
         } 
@@ -61,6 +63,7 @@ let initializeFlow = async (paymentSession) => {
                 },
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse.id);
+                  displayStatus('Payment completed successfully. Payment Status: ' + paymentResponse.status);
                 },
                 onChange: (component) => {
                   console.log(
@@ -80,3 +83,10 @@ let initializeFlow = async (paymentSession) => {
             
      
         }
+
+        const displayStatus = (message) => {
+          const statusContainer = document.getElementById("status-container");
+          const statusMessage = document.getElementById("status-message");
+          statusMessage.innerText = message;
+          statusContainer.style.display = 'block';
+      }
