@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Success</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>Payment Success</h1>
+    </header>
+    <main class="wrapper">
+        <div class="status-container success">
+            <img src="https://www.clipartmax.com/png/middle/214-2143792_success-png-icon-free-download-success-icon-png.png" alt="Success" class="status-image">
+            <h2>Thank you for your payment!</h2>
+            <p>Your payment was successful.</p>
+            <p id="payment-details">Payment ID: <span id="payment-id"></span></p>
+            <a href="index.html" class="main-button">Return to Home</a>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentId = urlParams.get('paymentId');
+            if (paymentId) {
+                document.getElementById('payment-id').innerText = paymentId;
+            }
+            else{
+                const paymentId = urlParams.get('cko-payment-id');
+                document.getElementById('payment-id').innerText = paymentId;
+            }
+        });
+    </script>
+</body>
+
+</html>

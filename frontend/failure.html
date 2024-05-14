@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Failed</title>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>Payment Failed</h1>
+    </header>
+    <main class="wrapper">
+        <div class="status-container failure">
+            <img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png" alt="Failure" class="status-image">
+            <h2>Sorry, something went wrong.</h2>
+            <p>Your payment could not be processed. Please try again.</p>
+            <p id="error-details">Error for payment: <span id="error-message"></span></p>
+            <a href="index.html" class="main-button">Return to Home</a>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentId = urlParams.get('cko-payment-id');
+            if (paymentId) {
+                document.getElementById('error-message').innerText = paymentId;
+            }
+        });
+    </script>
+</body>
+
+</html>
