@@ -1,4 +1,10 @@
-const ws = new WebSocket(`wss://${window.location.host}`);
+
+let ws;
+if(window.location.hostname.includes('localhost'))
+ ws = new WebSocket(`wss://${window.location.hostname}:4244`);
+else{
+    ws = new WebSocket(`wss://${window.location.hostname}`);
+}
 
 ws.onopen = () => {
     console.log('Connected to WebSocket server');
