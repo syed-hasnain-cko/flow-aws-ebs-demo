@@ -25,7 +25,7 @@
             name:'Syed'
         },
         '3ds':{
-          enabled : true
+          enabled : false
         },
     };
     const renderFlowButton = document.getElementById("flow-button")
