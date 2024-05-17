@@ -24,16 +24,22 @@ let wss;
 let httpServer;
 
 app.post('/webhook', (req, res) => {
-    const event = req.body;
-    console.log('Received webhook event:', event);
+    if(req.headers.authorization == process.env.WEBHOOK_SECRET){
+        const event = req.body;
+        console.log('Received webhook event:', event);
+    
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(event));
+            }
+        });
+    
+        res.sendStatus(200);
+    }
+    else{
+        res.sendStatus(403);
+    }
 
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(event));
-        }
-    });
-
-    res.sendStatus(200);
 });
 
 app.get('*', (req, res) => {
