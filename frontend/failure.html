@@ -23,6 +23,14 @@
         </div>
     </main>
 
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Webhook Event</h2>
+            <pre id="status-message"></pre>
+        </div>
+    </div>
+
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
