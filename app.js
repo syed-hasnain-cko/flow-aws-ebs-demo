@@ -73,18 +73,19 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'frontend/index.html'));
 });
 
-if(process.env.ENV == "DEV"){
-    const privateKey = fs.readFileSync('AWS-EBS-SSL-CERTIFICATES/private-key.pem', 'utf8');
-    const certificate = fs.readFileSync('AWS-EBS-SSL-CERTIFICATES/certificate.pem', 'utf8');
-    const credentials = { key: privateKey, cert: certificate };
-    server = https.createServer(credentials, app);
-    wss = new WebSocket.Server({ server });
-}
-else{
-    server = https.createServer(app);
-    wss = new WebSocket.Server({ server });
-}
-
+// if(process.env.ENV == "DEV"){
+//     const privateKey = fs.readFileSync('AWS-EBS-SSL-CERTIFICATES/private-key.pem', 'utf8');
+//     const certificate = fs.readFileSync('AWS-EBS-SSL-CERTIFICATES/certificate.pem', 'utf8');
+//     const credentials = { key: privateKey, cert: certificate };
+//     server = https.createServer(credentials, app);
+//     wss = new WebSocket.Server({ server });
+// }
+// else{
+//     server = https.createServer(app);
+//     wss = new WebSocket.Server({ server });
+// }
+server = https.createServer(app);
+wss = new WebSocket.Server({ server });
 
 wss.on('connection', ws => {
     console.log('Client connected');
