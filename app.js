@@ -24,6 +24,8 @@ let wss;
 let httpServer;
 
 app.post('/webhook', (req, res) => {
+    console.log(req.headers)
+    console.log(process.env.WEBHOOK_SECRET)
     if(req.headers.authorization == process.env.WEBHOOK_SECRET){
         const event = req.body;
         console.log('Received webhook event:', event);
