@@ -1,7 +1,7 @@
 
 let ws;
 if(window.location.hostname.includes('localhost'))
- ws = new WebSocket(`wss://${window.location.hostname}:4244`);
+ ws = new WebSocket(`ws://${window.location.hostname}:4244`);
 else{
     ws = new WebSocket(`wss://${window.location.hostname}`);
 }
