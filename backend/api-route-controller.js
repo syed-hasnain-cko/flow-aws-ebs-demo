@@ -36,7 +36,7 @@ router.get('/get-payment-details', async(req, res) => {
 })
 
 router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
-    res.sendFile(path.join(__dirname, "../front-end/apple-developer-merchantid-domain-association.txt"));
+    res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association.txt"));
   });
   
 
