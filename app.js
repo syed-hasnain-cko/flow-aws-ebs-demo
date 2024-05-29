@@ -6,7 +6,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const routes = require('./backend/api-route-controller');
 const http = require('http');
-const fs = require('fs');
 const WebSocket = require('ws');
 
 const app = express();
