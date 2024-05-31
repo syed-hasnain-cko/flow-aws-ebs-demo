@@ -299,3 +299,59 @@ input:checked + .slider:before {
     display: inline-block;
     margin-right: 10px;
 }
+
+.details-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.detail-box {
+    width: 48%;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.detail-box.full-width {
+    width: 100%;
+}
+
+.detail-box h3 {
+    margin-top: 0;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+ul.json-list {
+    list-style-type: none;
+    padding-left: 20px;
+}
+
+ul.json-list li {
+    margin-bottom: 5px;
+    line-height: 1.5;
+}
+
+ul.json-list li strong {
+    color: #333;
+}
+
+ul.json-list ul {
+    padding-left: 20px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    border-left: 2px solid #ddd;
+    padding-left: 10px;
+}
+
+
