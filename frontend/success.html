@@ -15,11 +15,24 @@
     </header>
     <main class="wrapper">
         <div class="status-container success">
-            <img src="https://www.clipartmax.com/png/middle/214-2143792_success-png-icon-free-download-success-icon-png.png" alt="Success" class="status-image">
+            <img src="https://cdn.dribbble.com/userupload/13699651/file/original-94a7295388c54008d79a9bee8ca5c0d4.png" alt="Success" class="status-image">
             <h2>Thank you for your payment!</h2>
             <p>Your payment was successful.</p>
             <p id="payment-details">Payment ID: <span id="payment-id"></span></p>
-            <a href="index.html" class="main-button">Return to Home</a>
+            <div class="button-group">
+                <a href="index.html" class="main-button">Return to Home</a>
+                <button id="fetch-details-button" class="main-button">Fetch Payment Details</button>
+            </div>
+            <div id="details-container" class="details-container" style="display: none;">
+                <div id="payment-details-container" class="detail-box">
+                    <h3>Payment Details</h3>
+                    <pre id="payment-details-response"></pre>
+                </div>
+                <div id="payment-actions-container" class="detail-box">
+                    <h3>Payment Actions</h3>
+                    <pre id="payment-actions-response"></pre>
+                </div>
+            </div>
         </div>
     </main>
     <div id="modal" class="modal">
@@ -31,16 +44,58 @@
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
+            function formatJSON(data) {
+                let formatted = '<ul class="json-list">';
+                for (const key in data) {
+                    if (typeof data[key] === 'object' && data[key] !== null) {
+                        formatted += `<li><strong>${key}:</strong> ${formatJSON(data[key])}</li>`;
+                    } else {
+                        formatted += `<li><strong>${key}:</strong> ${data[key]}</li>`;
+                    }
+                }
+                formatted += '</ul>';
+                return formatted;
+            }
+        document.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const paymentId = urlParams.get('paymentId');
+            let paymentId = urlParams.get('paymentId');
+            if (!paymentId) {
+                paymentId = urlParams.get('cko-payment-id');
+            }
             if (paymentId) {
                 document.getElementById('payment-id').innerText = paymentId;
             }
-            else{
-                const paymentId = urlParams.get('cko-payment-id');
-                document.getElementById('payment-id').innerText = paymentId;
-            }
+
+            document.getElementById('fetch-details-button').addEventListener('click', async () => {
+                if (paymentId) {
+                    const queryParams = new URLSearchParams({
+                        paymentId: paymentId,
+                    });
+
+                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    const paymentData = await paymentResponse.json();
+                    document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
+
+                    const actionsResponse = await fetch(`/get-payment-actions?${queryParams.toString()}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    const actionsData = await actionsResponse.json();
+                    document.getElementById('payment-actions-response').innerHTML = formatJSON(actionsData);
+                    document.getElementById('payment-actions-container').style.display = 'block';
+                    document.getElementById('payment-details-container').classList.remove('full-width');
+                    document.getElementById('details-container').style.display = 'flex';
+                   
+
+                }
+            });
         });
     </script>
     <script src="./websocket.js"></script>

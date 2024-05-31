@@ -19,7 +19,16 @@
             <h2>Sorry, something went wrong.</h2>
             <p>Your payment could not be processed. Please try again.</p>
             <p id="error-details">Error for payment: <span id="error-message"></span></p>
-            <a href="index.html" class="main-button">Return to Home</a>
+            <div class="button-group">
+                <a href="index.html" class="main-button">Return to Home</a>
+                <button id="fetch-details-button" class="main-button">Fetch Payment Details</button>
+            </div>
+            <div id="details-container" class="details-container" style="display: none;">
+                <div id="payment-details-container" class="detail-box">
+                    <h3>Payment Details</h3>
+                    <pre id="payment-details-response"></pre>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -32,12 +41,45 @@
     </div>
 
     <script>
+            function formatJSON(data) {
+                let formatted = '<ul class="json-list">';
+                for (const key in data) {
+                    if (typeof data[key] === 'object' && data[key] !== null) {
+                        formatted += `<li><strong>${key}:</strong> ${formatJSON(data[key])}</li>`;
+                    } else {
+                        formatted += `<li><strong>${key}:</strong> ${data[key]}</li>`;
+                    }
+                }
+                formatted += '</ul>';
+                return formatted;
+            }
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
             const paymentId = urlParams.get('cko-payment-id');
             if (paymentId) {
                 document.getElementById('error-message').innerText = paymentId;
             }
+
+            document.getElementById('fetch-details-button').addEventListener('click', async () => {
+                if (paymentId) {
+                    const queryParams = new URLSearchParams({
+                        paymentId: paymentId,
+                    });
+
+                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    const paymentData = await paymentResponse.json();
+                    document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
+                    document.getElementById('payment-details-container').classList.add('full-width');
+                    document.getElementById('details-container').style.display = 'flex';
+
+                }
+            });
+            
         });
     </script>
     <script src="./websocket.js"></script>

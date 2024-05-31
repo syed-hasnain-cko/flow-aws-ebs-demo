@@ -23,7 +23,22 @@ router.post('/payment-sessions', async (req, res) => {
 
 router.get('/get-payment-details', async(req, res) => {
     try {
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.params}`, {
+        const response = await axios.get(`${process.env.GW_URL}/payments/${req.query.paymentId}`, {
+            headers: {
+                Authorization: `Bearer ${API_SECRET_KEY}`,
+            },
+        });
+        res.send(response.data);
+    } catch (error) {
+        res.status(500).send({
+            error: error,
+        });
+    } 
+})
+
+router.get('/get-payment-actions', async(req, res) => {
+    try {
+        const response = await axios.get(`${process.env.GW_URL}/payments/${req.query.paymentId}/actions`, {
             headers: {
                 Authorization: `Bearer ${API_SECRET_KEY}`,
             },
