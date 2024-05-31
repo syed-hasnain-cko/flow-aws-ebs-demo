@@ -161,7 +161,7 @@
     amountInput.addEventListener('input', (e) => {
       
         paymentSessionBody.amount = parseInt(amountInput.value*currency.base);
-        paymentSessionBody.products[0].price = parseInt(amountInput.value*currency.base);
+        paymentSessionBody.items[0].unit_price = parseInt(amountInput.value*currency.base);
       
   });
   
