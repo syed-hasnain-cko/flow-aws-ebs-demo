@@ -88,8 +88,6 @@
     const nameInput = document.getElementById('name-input');
     const emailInput = document.getElementById('email-input');
     const amountInput = document.getElementById('amount-input');
-
-
    
    let paymentSessionBody;
     document.addEventListener('DOMContentLoaded', function() {
