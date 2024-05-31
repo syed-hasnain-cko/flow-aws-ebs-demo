@@ -99,7 +99,7 @@
           amount: parseInt(amountInput.value*currency.base),
           payment_type: paymentTypeSelect.value,
           capture: captureToggle.value == 'on' ? false : true,
-          reference: 'Order_' + Math.floor(Math.random() * 1000) + 1,
+          reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
           billing: {
               address: {
                   country: countrySelect.value
