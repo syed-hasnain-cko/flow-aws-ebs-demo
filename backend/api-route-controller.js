@@ -69,7 +69,7 @@ router.post('/capture-payment', async(req,res) => {
 
 router.post('/void-payment', async(req,res) => {
     try{
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/voids`, {
+        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/voids`,{}, {
             headers: {
                 Authorization: `Bearer ${API_SECRET_KEY}`,
             },
@@ -85,7 +85,7 @@ router.post('/void-payment', async(req,res) => {
 
 router.post('/refund-payment', async(req,res) => {
     try{
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/refunds`, {
+        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/refunds`, {}, {
             headers: {
                 Authorization: `Bearer ${API_SECRET_KEY}`,
             },

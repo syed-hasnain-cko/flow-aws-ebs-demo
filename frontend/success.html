@@ -13,13 +13,14 @@
     <header>
         <h1>Payment Success</h1>
     </header>
-    <div id="toast-container" class="toast-container"></div>
+    
     <main class="wrapper">
+        <div id="toast-container" class="toast-container"></div>
         <div class="status-container success">
             <img src="https://cdn.dribbble.com/userupload/13699651/file/original-94a7295388c54008d79a9bee8ca5c0d4.png" alt="Success" class="status-image">
             <h2>Thank you for your payment!</h2>
             <p>Your payment was successful.</p>
-            <p id="payment-details">Payment ID: <span id="payment-id"></span></p>
+            <p id="payment-details">Order ID: <span id="payment-id"></span></p>
             <div class="button-group">
                 <a href="index.html" class="main-button">Return to Home</a>
                 <button id="fetch-details-button" class="main-button">Fetch Payment Details</button>
@@ -68,22 +69,18 @@
             toastContainer.style.display = 'block';
             setTimeout(() => {
             toastContainer.style.display = 'none';
-            }, 3000);
+            }, 6000);
             }
         document.addEventListener("DOMContentLoaded", async () => {
-            
+            let paymentData;
+            let queryParams;
             const urlParams = new URLSearchParams(window.location.search);
             let paymentId = urlParams.get('paymentId');
             if (!paymentId) {
                 paymentId = urlParams.get('cko-payment-id');
             }
             if (paymentId) {
-                document.getElementById('payment-id').innerText = paymentId;
-            }
-
-            document.getElementById('fetch-details-button').addEventListener('click', async () => {
-                if (paymentId) {
-                    const queryParams = new URLSearchParams({
+                     queryParams = new URLSearchParams({
                         paymentId: paymentId,
                     });
 
@@ -93,7 +90,12 @@
                             'Content-Type': 'application/json',
                         }
                     });
-                    const paymentData = await paymentResponse.json();
+                     paymentData = await paymentResponse.json();
+                }
+                document.getElementById('payment-id').innerText = paymentData.reference;
+        
+            document.getElementById('fetch-details-button').addEventListener('click', async () => {
+            
                     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
 
                     const actionsResponse = await fetch(`/get-payment-actions?${queryParams.toString()}`, {
@@ -108,12 +110,13 @@
                     document.getElementById('payment-details-container').classList.remove('full-width');
                     document.getElementById('details-container').style.display = 'flex';
                    
-                }
+                
             });
+
             document.getElementById('further-actions-button').addEventListener('click', async () => {
-                let paymentData;
+
                 if (paymentId) {
-                    const queryParams = new URLSearchParams({
+                     queryParams = new URLSearchParams({
                         paymentId: paymentId,
                     });
 
