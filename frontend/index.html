@@ -1,99 +1,3 @@
-<!-- 
-
- <!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flow Demo</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-    <header>
-        <h1>Welcome to CKO where integrations -> Flow</h1>
-    </header>
-    <main class="wrapper">
-        <div class="context-area">
-          
-            <div class="button-group">
-                <button id="flow-button" class="main-button">Render Checkout Flow</button>
-                <button id="get-button">Render Google Pay</button>
-                <button id="capture-button">Render Apple Pay</button>
-                <button id="refund-button" style="display: none;">Refund</button>
-            </div>
-
-        </div>
-        <div class="container">
-            <div id="flow-container"></div>
-        </div>
-    </main>
-
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Webhook Event</h2>
-            <pre id="status-message"></pre>
-        </div>
-    </div>
-
-    <script src="https://checkout-web-components.checkout.com/index.js"></script>
-    <script src="./script.js"></script>
-    <script src="./websocket.js"></script>
-</body>
-
-</html>
- -->
-
- <!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flow Demo</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <header>
-        <h1>Welcome to CKO where integrations -> Flow</h1>
-    </header>
-    <main class="wrapper">
-        <div class="tab-container">
-            <button class="tab-link active" onclick="openTab(event, 'flow-tab')">Checkout Flow</button>
-            <button class="tab-link" onclick="openTab(event, 'google-tab')">Google Pay</button>
-            <button class="tab-link" onclick="openTab(event, 'apple-tab')">Apple Pay</button>
-        </div>
-        <div id="flow-tab" class="tab-content">
-            <button id="flow-button" class="main-button">Render Checkout Flow</button>
-            <div id="flow-container" class="payment-container" style="display: none;"></div>
-        </div>
-        <div id="google-tab" class="tab-content">
-            <button id="google-button" class="main-button">Render Google Pay</button>
-            <div id="google-container" class="payment-container" style="display: none;"></div>
-        </div>
-        <div id="apple-tab" class="tab-content">
-            <button id="apple-button" class="main-button">Render Apple Pay</button>
-            <div id="apple-container" class="payment-container" style="display: none;"></div>
-        </div>
-    </main>
-
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Webhook Event</h2>
-            <pre id="status-message"></pre>
-        </div>
-    </div>
-
-    <script src="https://checkout-web-components.checkout.com/index.js"></script>
-    <script src="./script.js"></script>
-    <script src="./websocket.js"></script>
-</body>
-</html> -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -115,6 +19,55 @@
         </div>
         <div id="flow-tab" class="tab-content active">
             <div class="context-area">
+                <div class="inline-form">
+                    <div class="form-group">
+                        <label for="name-input" class="text-label">Name</label>
+                        <input type="text" id="name-input" class="text-input" value="Syed">
+                    </div>
+                    <div class="form-group">
+                        <label for="email-input" class="text-label">Email</label>
+                        <input type="email" id="email-input" class="text-input" value="smhasnain@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="amount-input" class="text-label">Amount</label>
+                        <input type="text" id="amount-input" class="text-input" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-type-select" class="select-label">Payment Type</label>
+                        <select id="payment-type-select" class="select-input">
+                            <option value="Regular" selected>Regular</option>
+                            <option value="Recurring">Recurring</option>
+                            <option value="Unscheduled">Unscheduled</option>
+                            <option value="Installment">Installment</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="inline-form">
+                    <div class="form-group">
+                        <label for="3ds-toggle" class="toggle-label">3DS</label>
+                        <label class="switch">
+                            <input type="checkbox" id="3ds-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="capture-toggle" class="toggle-label">Capture</label>
+                        <label class="switch">
+                            <input type="checkbox" id="capture-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="country-select" class="select-label">Country</label>
+                        <select id="country-select" class="select-input">
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="currency-select" class="select-label">Currency</label>
+                        <select id="currency-select" class="select-input">
+                        </select>
+                    </div>
+                </div>
                 <button id="flow-button" class="main-button">Render Checkout Flow</button>
             </div>
             <div id="flow-container" class="payment-container"></div>
@@ -127,11 +80,18 @@
         </div>
         <div id="apple-tab" class="tab-content">
             <div class="context-area">
-                <button id="apple-button" >Render Apple Pay</button>
+                <button id="apple-button" class="main-button">Render Apple Pay</button>
             </div>
             <div id="apple-container" class="payment-container"></div>
         </div>
     </main>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Webhook Event</h2>
+            <pre id="status-message"></pre>
+        </div>
+    </div>
     <script src="https://checkout-web-components.checkout.com/index.js"></script>
     <script src="script.js"></script>
     <script src="websocket.js"></script>
