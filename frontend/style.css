@@ -196,7 +196,7 @@ header {
 
 .status-container {
     width: 100%;
-    max-width: 800px;
+    max-width: 1300px;
     padding: 20px;
     margin-top: 20px;
     background-color: #f9f9f9;
@@ -249,7 +249,9 @@ header {
     border-radius: 4px;
     transition: background-color 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    margin-right: 10px;
 }
+
 
 /* Toggle Switch Styles */
 .switch {
@@ -352,6 +354,31 @@ ul.json-list ul {
     margin-bottom: 5px;
     border-left: 2px solid #ddd;
     padding-left: 10px;
+}
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: none;
+    max-width: 300px;
+    width: 100%;
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toast-success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.toast-error {
+    background-color: #f44336;
+    color: white;
 }
 
 
