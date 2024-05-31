@@ -94,9 +94,11 @@
    let paymentSessionBody;
     document.addEventListener('DOMContentLoaded', function() {
 
+      let currency = CURRENCIES.find(c => c.iso4217 == currencySelect.value);
+
        paymentSessionBody = {
           currency: currencySelect.value,
-          amount: 10,
+          amount: parseInt(amountInput.value*currency.base),
           payment_type: paymentTypeSelect.value,
           capture: captureToggle.value == 'on' ? false : true,
           reference: 'Order_' + Math.floor(Math.random() * 1000) + 1,
@@ -119,7 +121,14 @@
           },
           '3ds': {
               enabled: threeDSToggle.value == 'on' ? false : true
-          }
+          },
+          items:[
+            {
+              name: "Digital Goods",
+              quantity: 1,
+              unit_price: parseInt(amountInput.value*currency.base)
+            }
+          ]
       };
   
       currencySelect.addEventListener('change', function() {
@@ -150,10 +159,10 @@
         paymentSessionBody.customer.email = e.target.value;
     });
     amountInput.addEventListener('input', (e) => {
-      let currency = CURRENCIES.find(c => c.iso4217 == currencySelect.value);
-      if(currency){
+      
         paymentSessionBody.amount = parseInt(amountInput.value*currency.base);
-      }
+        paymentSessionBody.products[0].price = parseInt(amountInput.value*currency.base);
+      
   });
   
   });
@@ -191,11 +200,11 @@
   
   
       renderGoogleButton.addEventListener("click", async () => {
-          // Your Google Pay integration logic
+          // Google Pay integration logic
       });
   
       renderAppleButton.addEventListener("click", async () => {
-          // Your Apple Pay integration logic
+          //  Apple Pay integration logic
       });
   
       window.openTab = function(evt, tabName) {
