@@ -15,8 +15,9 @@
     </header>
     
     <main class="wrapper">
-        <div id="toast-container" class="toast-container"></div>
+       
         <div class="status-container success">
+            <div id="toast-container" class="toast-container"></div>
             <img src="https://cdn.dribbble.com/userupload/13699651/file/original-94a7295388c54008d79a9bee8ca5c0d4.png" alt="Success" class="status-image">
             <h2>Thank you for your payment!</h2>
             <p>Your payment was successful.</p>
@@ -71,6 +72,20 @@
             toastContainer.style.display = 'none';
             }, 6000);
             }
+
+            async function fetchPaymentDetails(id){
+                queryParams = new URLSearchParams({
+                        paymentId: id,
+                    });
+
+                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                     return await paymentResponse.json();
+            }
         document.addEventListener("DOMContentLoaded", async () => {
             let paymentData;
             let queryParams;
@@ -80,25 +95,17 @@
                 paymentId = urlParams.get('cko-payment-id');
             }
             if (paymentId) {
-                     queryParams = new URLSearchParams({
-                        paymentId: paymentId,
-                    });
-
-                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                     paymentData = await paymentResponse.json();
+                paymentData = await fetchPaymentDetails(paymentId)
                 }
                 document.getElementById('payment-id').innerText = paymentData.reference;
         
-            document.getElementById('fetch-details-button').addEventListener('click', async () => {
-            
+                document.getElementById('fetch-details-button').addEventListener('click', async () => {
+
+                    paymentData = await fetchPaymentDetails(paymentId);
+
                     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
 
-                    const actionsResponse = await fetch(`/get-payment-actions?${queryParams.toString()}`, {
+                    const actionsResponse = await fetch(`/get-payment-actions?paymentId=${paymentData.id}`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
@@ -115,25 +122,19 @@
 
             document.getElementById('further-actions-button').addEventListener('click', async () => {
 
-                if (paymentId) {
-                     queryParams = new URLSearchParams({
-                        paymentId: paymentId,
-                    });
-
-                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                     paymentData = await paymentResponse.json();
-                }
-                document.getElementById('action-buttons').style.display = 'block';
+            paymentData = await fetchPaymentDetails(paymentId);
+                
+            document.getElementById('action-buttons').style.display = 'block';
     // Clear previous action buttons
-    document.getElementById('action-buttons').innerHTML = '';
+            document.getElementById('action-buttons').innerHTML = '';
 
     // Display action buttons based on the returned data
-    if (paymentData._links?.capture) {
+    if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
+        document.getElementById('further-actions-button').disabled = true
+        document.getElementById('further-actions-button').classList.add('disabled-button');
+    }
+    else{
+        if (paymentData._links?.capture) {
         const captureButton = document.createElement('button');
         captureButton.textContent = 'Capture';
         captureButton.classList.add('main-button');
@@ -148,7 +149,6 @@
                             'Content-Type': 'application/json',
                         }
                     });
-                     captureData = await captureResponse.json();
                      if (captureResponse.ok) {
                                 showToast('Payment captured successfully!');
                             } else {
@@ -162,29 +162,62 @@
         });
         document.getElementById('action-buttons').appendChild(captureButton);
     }
-
     if (paymentData._links?.void) {
         const voidButton = document.createElement('button');
         voidButton.textContent = 'Void';
         voidButton.classList.add('main-button');
         voidButton.addEventListener('click', async () => {
-            // Implement void action here
+            const queryParams = new URLSearchParams({
+                        paymentId: paymentId,
+                    });
+                    try{
+                        const voidResponse = await fetch(`/void-payment?${queryParams.toString()}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                     if (voidResponse.ok) {
+                                showToast('Payment voided successfully!');
+                            } else {
+                                showToast('Failed to void payment', false);
+                            }
+                    }
+                    catch(error){
+                        howToast('Failed to void payment', false);
+                    }
         });
         document.getElementById('action-buttons').appendChild(voidButton);
     }
-
     if (paymentData._links?.refund) {
         const refundButton = document.createElement('button');
         refundButton.textContent = 'Refund';
         refundButton.classList.add('main-button');
         refundButton.addEventListener('click', async () => {
-            // Implement refund action here
+            const queryParams = new URLSearchParams({
+                        paymentId: paymentId,
+                    });
+                    try{
+                        const refundResponse = await fetch(`/refund-payment?${queryParams.toString()}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                     if (refundResponse.ok) {
+                                showToast('Payment refunded successfully!');
+                            } else {
+                                showToast('Failed to refund payment', false);
+                            }
+                    }
+                    catch(error){
+                        howToast('Failed to refund payment', false);
+                    }
         });
         document.getElementById('action-buttons').appendChild(refundButton);
     }
-    
+    }  
 });
-
         });
     </script>
     <script src="./websocket.js"></script>
