@@ -33,3 +33,75 @@ async function fetchPaymentDetails(id){
         });
          return await paymentResponse.json();
 }
+
+async function voidPayment(id){
+    const queryParams = new URLSearchParams({
+        paymentId: id,
+    });
+    try{
+        const voidResponse = await fetch(`/void-payment?${queryParams.toString()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+     if (voidResponse.ok) {
+                showToast('Payment voided successfully!');
+            } else {
+                showToast('Failed to void payment', false);
+            }
+    }
+    catch(error){
+        showToast('Failed to void payment', false);
+    }
+}
+
+async function capturePayment(id){
+    const queryParams = new URLSearchParams({
+        paymentId: id,
+    });
+    try{
+        const captureResponse = await fetch(`/capture-payment?${queryParams.toString()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+     if (captureResponse.ok) {
+                showToast('Payment captured successfully!');
+            } else {
+                showToast('Failed to capture payment', false);
+            }
+    }
+    catch(error){
+        showToast('Failed to capture payment', false);
+    }
+}
+
+async function refundPayment(id){
+    const queryParams = new URLSearchParams({
+        paymentId: id,
+    });
+    try{
+        const refundResponse = await fetch(`/refund-payment?${queryParams.toString()}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+     if (refundResponse.ok) {
+                showToast('Payment refunded successfully!');
+            } else {
+                showToast('Failed to refund payment', false);
+            }
+    }
+    catch(error){
+        showToast('Failed to refund payment', false);
+    }
+}
+
+function disableActionButtons(){
+    document.getElementById('further-actions-button').disabled = true
+    document.getElementById('further-actions-button').classList.add('disabled-button');
+    document.getElementById('action-buttons').style.display = 'none';
+}
