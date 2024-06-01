@@ -66,19 +66,15 @@
                 document.getElementById('payment-id').innerText = paymentData.reference;
 
                 if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
-        document.getElementById('further-actions-button').disabled = true
-        document.getElementById('further-actions-button').classList.add('disabled-button');
-        document.getElementById('action-buttons').style.display = 'none';
-    }
+                    disableActionButtons();
+                }
         
                 document.getElementById('fetch-details-button').addEventListener('click', async () => {
 
                     paymentData = await fetchPaymentDetails(paymentId);
 
                     if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
-                        document.getElementById('further-actions-button').disabled = true
-                        document.getElementById('further-actions-button').classList.add('disabled-button');
-                        document.getElementById('action-buttons').style.display = 'none';
+                        disableActionButtons()
                     }
 
                     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
@@ -108,8 +104,7 @@
 
     // Display action buttons based on the returned data
     if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
-        document.getElementById('further-actions-button').disabled = true
-        document.getElementById('further-actions-button').classList.add('disabled-button');
+        disableActionButtons();
     }
     else{
         if (paymentData._links?.capture) {
@@ -117,26 +112,7 @@
         captureButton.textContent = 'Capture';
         captureButton.classList.add('main-button');
         captureButton.addEventListener('click', async () => {
-            const queryParams = new URLSearchParams({
-                        paymentId: paymentId,
-                    });
-                    try{
-                        const captureResponse = await fetch(`/capture-payment?${queryParams.toString()}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                     if (captureResponse.ok) {
-                                showToast('Payment captured successfully!');
-                            } else {
-                                showToast('Failed to capture payment', false);
-                            }
-                    }
-                    catch(error){
-                        howToast('Failed to capture payment', false);
-                    }
-
+            await capturePayment(paymentData.id)
         });
         document.getElementById('action-buttons').appendChild(captureButton);
     }
@@ -145,25 +121,7 @@
         voidButton.textContent = 'Void';
         voidButton.classList.add('main-button');
         voidButton.addEventListener('click', async () => {
-            const queryParams = new URLSearchParams({
-                        paymentId: paymentId,
-                    });
-                    try{
-                        const voidResponse = await fetch(`/void-payment?${queryParams.toString()}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                     if (voidResponse.ok) {
-                                showToast('Payment voided successfully!');
-                            } else {
-                                showToast('Failed to void payment', false);
-                            }
-                    }
-                    catch(error){
-                        howToast('Failed to void payment', false);
-                    }
+            await voidPayment(paymentData.id);
         });
         document.getElementById('action-buttons').appendChild(voidButton);
     }
@@ -172,25 +130,7 @@
         refundButton.textContent = 'Refund';
         refundButton.classList.add('main-button');
         refundButton.addEventListener('click', async () => {
-            const queryParams = new URLSearchParams({
-                        paymentId: paymentId,
-                    });
-                    try{
-                        const refundResponse = await fetch(`/refund-payment?${queryParams.toString()}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                     if (refundResponse.ok) {
-                                showToast('Payment refunded successfully!');
-                            } else {
-                                showToast('Failed to refund payment', false);
-                            }
-                    }
-                    catch(error){
-                        howToast('Failed to refund payment', false);
-                    }
+            await refundPayment(paymentData.id)
         });
         document.getElementById('action-buttons').appendChild(refundButton);
     }
