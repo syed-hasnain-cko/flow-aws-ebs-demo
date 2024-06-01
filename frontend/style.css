@@ -381,4 +381,10 @@ ul.json-list ul {
     color: white;
 }
 
+.disabled-button {
+    background-color: grey;
+    color: white;
+    cursor: not-allowed;
+}
+
 
