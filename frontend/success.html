@@ -50,45 +50,11 @@
         </div>
     </div>
 
+    <script src="utils.js"></script>
     <script>
-            function formatJSON(data) {
-                let formatted = '<ul class="json-list">';
-                for (const key in data) {
-                    if (typeof data[key] === 'object' && data[key] !== null) {
-                        formatted += `<li><strong>${key}:</strong> ${formatJSON(data[key])}</li>`;
-                    } else {
-                        formatted += `<li><strong>${key}:</strong> ${data[key]}</li>`;
-                    }
-                }
-                formatted += '</ul>';
-                return formatted;
-            }
-            function showToast(message, isSuccess = true) {
-            const toastContainer = document.getElementById('toast-container');
-            toastContainer.className = isSuccess ? 'toast-container toast-success' : 'toast-container toast-error';
-            toastContainer.textContent = message;
-            toastContainer.style.display = 'block';
-            setTimeout(() => {
-            toastContainer.style.display = 'none';
-            }, 6000);
-            }
-
-            async function fetchPaymentDetails(id){
-                queryParams = new URLSearchParams({
-                        paymentId: id,
-                    });
-
-                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                     return await paymentResponse.json();
-            }
+            
         document.addEventListener("DOMContentLoaded", async () => {
             let paymentData;
-            let queryParams;
             const urlParams = new URLSearchParams(window.location.search);
             let paymentId = urlParams.get('paymentId');
             if (!paymentId) {
@@ -98,10 +64,22 @@
                 paymentData = await fetchPaymentDetails(paymentId)
                 }
                 document.getElementById('payment-id').innerText = paymentData.reference;
+
+                if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
+        document.getElementById('further-actions-button').disabled = true
+        document.getElementById('further-actions-button').classList.add('disabled-button');
+        document.getElementById('action-buttons').style.display = 'none';
+    }
         
                 document.getElementById('fetch-details-button').addEventListener('click', async () => {
 
                     paymentData = await fetchPaymentDetails(paymentId);
+
+                    if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
+                        document.getElementById('further-actions-button').disabled = true
+                        document.getElementById('further-actions-button').classList.add('disabled-button');
+                        document.getElementById('action-buttons').style.display = 'none';
+                    }
 
                     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
 
