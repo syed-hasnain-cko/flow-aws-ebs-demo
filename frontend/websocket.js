@@ -14,7 +14,7 @@ ws.onmessage = event => {
     const message = JSON.parse(event.data);
     console.log('Received message:', message);
 
-    updatePaymentDetailsData(message.id);
+    updatePaymentDetailsData(message.data.id);
 
 };
 
