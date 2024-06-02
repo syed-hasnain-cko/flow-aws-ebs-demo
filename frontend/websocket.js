@@ -11,7 +11,14 @@ ws.onopen = () => {
 };
 
 ws.onmessage = event => {
-    const message = JSON.parse(event.data);
+    let message;
+    try{
+         message = JSON.parse(event.data);
+    }
+    catch(e){
+        console.error(e)
+    }
+    
     console.log('Received message:', message);
 if(message.type != 'payment_declined' || message.type != 'payment_canceled' || message.type != 'payment_void_declined' 
 || message.type != 'payment_capture_declined' || message.type != 'payment_refund_declined' || message.type != 'payout_declined'
