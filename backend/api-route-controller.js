@@ -2,8 +2,13 @@ const axios = require('axios');
 const router = require('express').Router();
 const path = require('path');
 require('dotenv').config()
+const {Checkout} = require('checkout-sdk-node');
+const config = require('../config');
 
-const API_SECRET_KEY = process.env.SECRET_KEY;
+const cko = new Checkout(config.sk, { pk: config.pk, timeout: 10000 });
+
+const API_SECRET_KEY = config.sk;
+
 router.post('/payment-sessions', async (req, res) => {
 
     try {
@@ -102,6 +107,48 @@ router.post('/refund-payment', async(req,res) => {
 router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association.txt"));
   });
+
+router.post("/google-pay", async (req, res) => {
+    const { signature, protocolVersion, signedMessage, currency, price } =
+      req.body;
+    try {
+      const token = await cko.tokens.request({
+        type: "googlepay",
+        token_data: {
+          signature,
+          protocolVersion,
+          signedMessage,
+        },
+      });
   
+      console.log("Google Pay tokenization outcome", token);
+  
+      const payment = await cko.payments.request({
+        source: {
+          type: "token",
+          token: token.token,
+        },
+        amount: req.body.amount,
+        currency : currency,
+        reference: req.body.reference,
+        customer:req.body.customer,
+        '3ds':req.body['3ds'],
+        capture: req.body.capture,
+        processing_channel_id:req.body.processing_channel_id,
+        success_url:req.body.success_url,
+        failure_url:req.body.failure_url,
+        payment_type:req.body.payment_type
+
+      });
+      res.send(payment);
+    } catch (error) {
+      console.log(error);
+      res.sendStatus(500)(error);
+    }
+  });
+  
+  router.get("/config", (req, res) => {
+    res.send(config);
+  });
 
 module.exports = router;

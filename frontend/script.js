@@ -70,6 +70,18 @@
     option.text = currency;
     currencySelect.appendChild(option);
   });
+
+  const currencySelectGooglePay = document.getElementById('currency-select-google-pay');
+  Currencies.forEach(currency => {
+    const option = document.createElement('option');
+    if (currency === 'EUR') {
+      option.selected = true;
+  }
+    option.value = currency;
+    option.text = currency;
+    currencySelectGooglePay.appendChild(option);
+  });
+  
   
   const countrySelect = document.getElementById('country-select');
   COUNTRIES.forEach(country => {
@@ -80,6 +92,17 @@
     option.value = country.alpha2Code;
     option.text = country.name;
     countrySelect.appendChild(option);
+  });
+
+  const countrySelectGoogle = document.getElementById('country-select-google-pay');
+  COUNTRIES.forEach(country => {
+    const option = document.createElement('option');
+    if (country.alpha2Code === 'DE') {
+      option.selected = true;
+  }
+    option.value = country.alpha2Code;
+    option.text = country.name;
+    countrySelectGoogle.appendChild(option);
   });
 
     const threeDSToggle = document.getElementById('3ds-toggle');
@@ -157,10 +180,8 @@
         paymentSessionBody.customer.email = e.target.value;
     });
     amountInput.addEventListener('input', (e) => {
-      
         paymentSessionBody.amount = parseInt(amountInput.value*currency.base);
-        paymentSessionBody.items[0].unit_price = parseInt(amountInput.value*currency.base);
-      
+        paymentSessionBody.items[0].unit_price = parseInt(amountInput.value*currency.base); 
   });
   
   });
@@ -198,7 +219,7 @@
   
   
       renderGoogleButton.addEventListener("click", async () => {
-          // Google Pay integration logic
+          onGooglePayLoaded();
       });
   
       renderAppleButton.addEventListener("click", async () => {
@@ -219,15 +240,17 @@
   
           document.getElementById(tabName).classList.add("active");
           evt.currentTarget.classList.add("active");
+
+          if (tabName === 'google-tab') {
+            loadGooglePayScript();
+        } else {
+            removeGooglePayScript();
+        }
       };
   
       // Initialize the first tab as active
       document.querySelector(".tab-link").click();
   });
-
-  
-
-  
 
 })();
 
@@ -321,3 +344,18 @@ let initializeFlow = async (paymentSession) => {
             
      
         }
+
+        function loadGooglePayScript() {
+          const script = document.createElement('script');
+          script.src = "https://pay.google.com/gp/p/js/pay.js";
+          script.async = true;
+          document.head.appendChild(script);
+          script.id = "google-pay-sdk";
+      }
+  
+      function removeGooglePayScript() {
+          const script = document.getElementById("google-pay-sdk");
+          if (script) {
+              script.remove();
+          }
+      }
