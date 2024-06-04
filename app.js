@@ -67,12 +67,12 @@ httpServer.listen(PORT, () => {
     console.log(`HTTP Server is listening on port: ${PORT}`);
     });
 
-    process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err) => {
         console.error('There was an uncaught error', err);
         process.exit(1);
     });
     
-    process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, promise) => {
         console.error('Unhandled Rejection at:', promise, 'reason:', reason);
         process.exit(1);
     });

@@ -162,3 +162,29 @@ function disableActionButtons(){
     document.getElementById('action-buttons').style.display = 'none';
 }
 
+function getMultiSelectSelectedValues(id) {
+    return Array.prototype.slice
+      .call(document.querySelectorAll(id + " option:checked"), 0)
+      .map(function (v, i, a) {
+        return v.value;
+      });
+  }
+
+  function getConfig(callback) {
+    fetch(window.location.origin + "/config", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        let env;
+        if (data.isLive) env = "Production";
+        callback(data);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  }
+

@@ -81,9 +81,90 @@
          <!-- Google Pay Tab-->
         <div id="google-tab" class="tab-content">
             <div class="context-area">
+                
+                <div class="inline-form">
+                    <div class="form-group">
+                        <label for="name-input-google" class="text-label">Name</label>
+                        <input type="text" class="text-input" name="name-input-google" id="name-input-google" value="Syed">
+                    </div>
+                    <div class="form-group">
+                        <label for="email-input-google" class="text-label">Email</label>
+                        <input type="email" id="email-input-google" class="text-input" value="smhasnain@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="amount-input-google" class="text-label">Amount</label>
+                        <input type="text" id="amount-input-google" class="text-input" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="payment-type-select-google" class="select-label">Payment Type</label>
+                        <select id="payment-type-select-google" class="select-input">
+                            <option value="Regular" selected>Regular</option>
+                            <option value="Recurring">Recurring</option>
+                            <option value="Unscheduled">Unscheduled</option>
+                            <option value="Installment">Installment</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="inline-form">
+                    <div class="form-group">
+                        <label for="3ds-toggle-google" class="toggle-label">3DS</label>
+                        <label class="switch">
+                            <input type="checkbox" id="3ds-toggle-google">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="capture-toggle-google" class="toggle-label">Capture</label>
+                        <label class="switch">
+                            <input type="checkbox" id="capture-toggle-google">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-group">
+                            <label for="country-select-google-pay" class="select-label">Country</label>
+                            <select id="country-select-google-pay" class="select-input">
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-group">
+                            <label for="currency-select-google-pay" class="select-label">Currency</label>
+                            <select id="currency-select-google-pay" class="select-input">
+                            </select>
+                        </div>
+                    </div>
+        
+                </div>
+                <div class="inline-form">
+                    <div class="form-group">
+                        <label for="auth-methods" class="select-label">Auth Methods</label>
+                        <select name="auth-methods" id="auth-methods" class="multi select-input" multiple>
+                            <option selected>PAN_ONLY</option>
+                            <option selected>CRYPTOGRAM_3DS</option>
+                        </select>
+                    </div>
+        
+                    <div class="form-group">
+                        <label for="schemes" class="select-label">Allowed Schemes</label>
+                        <select name="schemes" id="schemes" class="multi select-input" multiple>
+                            <option selected>AMEX</option>
+                            <option selected>DISCOVER</option>
+                            <option selected>JCB</option>
+                            <option selected>MASTERCARD</option>
+                            <option selected>VISA</option>
+                        </select>
+                    
+                    </div>
+                    <div class="form-group"></div>
+                    <div class="form-group"></div>
+                    
+                </div>
+
                 <button id="google-button" class="main-button">Render Google Pay</button>
             </div>
             <div id="google-container" class="payment-container"></div>
+ 
         </div>
         <!-- Google Pay Tab Ends-->
 
@@ -98,19 +179,12 @@
     </main>
     <!--Main Page Content Ends-->
 
-    <!--Incoming Webhook Dialog-->
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Webhook Event</h2>
-            <pre id="status-message"></pre>
-        </div>
-    </div>
-    <!--Incoming Webhook Dialog Ends-->
-
     <!--Scripts/Modules-->
+    <script src="utils.js"></script>
     <script src="https://checkout-web-components.checkout.com/index.js"></script>
     <script src="script.js"></script>
+    <script src="./google-pay.js"></script>
+    
     <!--Scripts/Modules Ends-->
 </body>
 </html>

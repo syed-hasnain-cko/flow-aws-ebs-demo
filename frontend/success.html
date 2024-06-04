@@ -58,7 +58,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             let paymentId = urlParams.get('paymentId');
             if (!paymentId) {
-                paymentId = urlParams.get('cko-payment-id');
+                paymentId = urlParams.get('cko-payment-id') || urlParams.get('cko-session-id')
             }
             if (paymentId) {
                 paymentData = await fetchPaymentDetails(paymentId)

@@ -14,21 +14,22 @@ ws.onmessage = event => {
     let message;
     try{
          message = JSON.parse(event.data);
+         console.log('Received message:', message);
+         if(message.type != 'payment_declined' || message.type != 'payment_canceled' || message.type != 'payment_void_declined' 
+         || message.type != 'payment_capture_declined' || message.type != 'payment_refund_declined' || message.type != 'payout_declined'
+         || message.type != 'payment_expired'){
+             updatePaymentDetailsData(message.data.id);
+             showToast(`${message.type} success confirmation`)
+         }
+             else{
+                 showToast(`${message.type} action - Failure`,false)
+             }
     }
     catch(e){
         console.error(e)
     }
     
-    console.log('Received message:', message);
-if(message.type != 'payment_declined' || message.type != 'payment_canceled' || message.type != 'payment_void_declined' 
-|| message.type != 'payment_capture_declined' || message.type != 'payment_refund_declined' || message.type != 'payout_declined'
-|| message.type != 'payment_expired'){
-    updatePaymentDetailsData(message.data.id);
-    showToast(`${message.type} success confirmation`)
-}
-    else{
-        showToast(`${message.type} action - Failure`,false)
-    }
+
 
 };
 
