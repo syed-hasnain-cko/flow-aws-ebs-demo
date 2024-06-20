@@ -77,12 +77,11 @@ function addApplePayButton() {
                         console.log(
                             "Apple Pay: You can do Apple Pay with the merchant id you have configured, and the cards you have in your wallet"
                         );
-
+                        container.innerHTML = '';
                         // Add the Apple Pay button
                         const button = document.createElement('button');
                         button.onclick = startApplePaySession;
                         container.classList.add('apple-pay-button');
-                        container.classList.add('apple-pay-button-black');
                         container.appendChild(button);
 
                     } else {
