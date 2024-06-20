@@ -6,6 +6,8 @@ var config = {
       sk: process.env.SECRET_KEY,
       appleMerchantId: "merchant.sandbox.syed", 
       googleMerchantId: "12345678901234567890",
+      subdomain: "ecommerce.eu", 
+      ngrokToken: "***REMOVED-SECRET-1***"
   };
   
 module.exports = config;
