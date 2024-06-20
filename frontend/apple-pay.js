@@ -83,6 +83,7 @@ function addApplePayButton() {
                         button.onclick = startApplePaySession;
                         container.appendChild(button);
                         //container.classList.add('apple-pay-button');
+                        container.style.display = 'block';
 
                     } else {
                         console.error(
