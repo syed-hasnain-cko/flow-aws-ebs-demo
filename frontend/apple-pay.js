@@ -197,7 +197,7 @@ function addApplePayButton() {
                         const button = document.createElement('button');
                         button = 'Apple Pay';
                         button.onclick = startApplePaySession;
-                        container.classList.add('apple-button');
+                        container.classList.add('apple-pay-button');
                         container.classList.add('apple-pay-button-black');
                         container.appendChild(button);
 
