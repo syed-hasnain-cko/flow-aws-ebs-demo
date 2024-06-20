@@ -16,8 +16,8 @@
         <!--Tabs-->
         <div class="tab-container">
             <button class="tab-link active" onclick="openTab(event, 'flow-tab')">Checkout Flow</button>
-            <button class="tab-link" onclick="openTab(event, 'google-tab')">Google Pay</button>
-            <button class="tab-link" onclick="openTab(event, 'apple-tab')">Apple Pay</button>
+            <button class="tab-link" onclick="openTab(event, 'google-tab')">Wallets</button>
+            <!-- <button class="tab-link" onclick="openTab(event, 'apple-tab')">Apple Pay</button> -->
         </div>
          <!--Tabs End-->
           <!-- Flow Tab-->
@@ -160,8 +160,11 @@
                     <div class="form-group"></div>
                     
                 </div>
-
+                <div class="button-group">
                 <button id="google-button" class="main-button">Render Google Pay</button>
+                <button id="apple-button" class="main-button">Render Apple Pay</button>
+                </div>
+
             </div>
             <div id="google-container" class="payment-container"></div>
  
@@ -171,6 +174,7 @@
         <!-- Apple Pay Tab-->
         <div id="apple-tab" class="tab-content">
             <div class="context-area">
+
                 <button id="apple-button" class="main-button">Render Apple Pay</button>
             </div>
             <div id="apple-container" class="payment-container"></div>
@@ -184,6 +188,7 @@
     <script src="https://checkout-web-components.checkout.com/index.js"></script>
     <script src="script.js"></script>
     <script src="./google-pay.js"></script>
+    <script src="apple-pay.js"></script>
     
     <!--Scripts/Modules Ends-->
 </body>

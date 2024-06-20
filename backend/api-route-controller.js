@@ -106,7 +106,11 @@ router.post('/refund-payment', async(req,res) => {
 
 router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association.txt"));
-  });
+});
+
+router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association-dev.txt"));
+});
 
 router.post("/google-pay", async (req, res) => {
     const { signature, protocolVersion, signedMessage, currency, price } =
@@ -146,9 +150,105 @@ router.post("/google-pay", async (req, res) => {
       res.sendStatus(500)(error);
     }
   });
+
+  router.post("/validate-apple-session", async (req, res) => {
+  const { appleUrl } = req.body;
+
+  let httpsAgent, cert, key;
+
+  if (config.isLive) {
+    cert = path.join(__dirname, "./certificates/certificate_live.pem");
+    key = path.join(__dirname, "./certificates/certificate_live.key");
+  } else {
+    cert = path.join(__dirname, "./certificates/certificate_sandbox-syed.pem");
+    key = path.join(__dirname, "./certificates/certificate_sandbox-syed.key");
+   }
+
+  httpsAgent = new https.Agent({
+    rejectUnauthorized: false,
+    cert: fs.readFileSync(cert),
+    key: fs.readFileSync(key),
+  });
+
+  try {
+    response = await axios.post(
+      appleUrl,
+      {
+        merchantIdentifier: config.appleMerchantId,
+        //subDomain : `${config.subdomain}.ngrok.io`,
+        displayName: "Syed Demo Store",
+      },
+      {
+        httpsAgent,
+      }
+    );
+    res.send(response.data);
+  } catch (err) {
+    console.log(err);
+    
+  }
+});
+
+router.post("/apple-pay", async (req, res) => {  
+  const { version, data, signature, header } =
+    req.body.details.token.paymentData;
+
+  const { currency, price } = req.body
+  
+  console.log({
+    token_data: {
+      version: version,
+      data: data,
+      signature: signature,
+      header: {
+        ephemeralPublicKey: header.ephemeralPublicKey,
+        publicKeyHash: header.publicKeyHash,
+        transactionId: header.transactionId,
+      },
+    },
+  });
+
+  try {
+    const token = await cko.tokens.request({
+      token_data: {
+        version: version,
+        data: data,
+        signature: signature,
+        header: {
+          ephemeralPublicKey: header.ephemeralPublicKey,
+          publicKeyHash: header.publicKeyHash,
+          transactionId: header.transactionId,
+        },
+      },
+    });
+
+    console.log("Apple Pay tokenization outcome", token);
+
+  //   const payment = await cko.payments.request({
+  //     source: {
+  //       type: "token",
+  //       token: token.token,
+  //     },
+  //     "3ds": {
+  //       enabled: true,
+  //       attempt_n3d: true,
+  //     },
+  //     amount: Math.floor(price * 100),
+  //     currency,
+  //     reference: "APPLE PAY",
+  //   });
+
+  //   console.log("Apple Pay payment outcome", payment);
+    res.send(token);
+  } catch (err) {
+    // res.status(500).send(err);
+  }
+});
   
   router.get("/config", (req, res) => {
     res.send(config);
   });
+
+
 
 module.exports = router;
