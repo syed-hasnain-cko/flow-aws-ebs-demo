@@ -120,6 +120,7 @@ function onGooglePayLoaded() {
 function addGooglePayButton() {
 
   const googleContainer = document.getElementById("google-container");
+  googleContainer.innerHTML = '';
 
   while (googleContainer.firstChild) {
       googleContainer.removeChild(googleContainer.firstChild);
