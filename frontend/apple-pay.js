@@ -104,6 +104,7 @@ function addApplePayButton() {
 }
 
 function startApplePaySession() {
+  try{
     let allowedCardNetworksApple = getMultiSelectSelectedValues("#schemes");
     let appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
     let appleTotalPrice = document.querySelector("#amount-input-google").value;
@@ -138,11 +139,16 @@ function startApplePaySession() {
     };
 
     session.begin();
+  }
+  catch(e){
+    console.error(e)
+  }
+
 }
 
-function validateApplePaySession(appleUrl, callback) {
+async function validateApplePaySession(appleUrl, callback) {
   console.log(appleUrl)
-    fetch("/validate-apple-session", {
+    await fetch(window.location.url+"/validate-apple-session", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -152,7 +158,10 @@ function validateApplePaySession(appleUrl, callback) {
             appleUrl,
         }),
     })
-    .then((response) => response.json())
+    .then((response) => {
+      console.log(response)
+      console.log(response.json())
+      response.json()})
     .then((data) => {
         callback(data);
     })
