@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config()
 const {Checkout} = require('checkout-sdk-node');
 const config = require('../config');
+const fs = require("fs");
 
 const cko = new Checkout(config.sk, { pk: config.pk, timeout: 10000 });
 
@@ -156,13 +157,9 @@ router.post("/google-pay", async (req, res) => {
 
   let httpsAgent, cert, key;
 
-  if (config.isLive) {
-    cert = path.join(__dirname, "./certificates/certificate_live.pem");
-    key = path.join(__dirname, "./certificates/certificate_live.key");
-  } else {
     cert = path.join(__dirname, "./certificates/certificate_sandbox-syed.pem");
     key = path.join(__dirname, "./certificates/certificate_sandbox-syed.key");
-   }
+
 
   httpsAgent = new https.Agent({
     rejectUnauthorized: false,
