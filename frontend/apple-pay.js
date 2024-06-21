@@ -82,7 +82,7 @@ function addApplePayButton() {
                         const button = document.createElement('button');
                         button.onclick = startApplePaySession;
                         container.appendChild(button);
-                        container.classList.add('apple-pay-button');
+                        button.classList.add('apple-pay-button');
                         container.style.display = 'block';
 
                     } else {
@@ -111,7 +111,7 @@ function startApplePaySession() {
     var request = {
         countryCode: countryCodeApple,
         currencyCode: appleCurrency,
-        supportedNetworks: allowedCardNetworksApple,
+        supportedNetworks: ['visa','masterCard', 'amex'],
         merchantCapabilities: ["supports3DS"],
         total: { label: "Syed Demo Store", amount: appleTotalPrice },
     };
@@ -144,6 +144,7 @@ function validateApplePaySession(appleUrl, callback) {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
         },
         body: JSON.stringify({
             appleUrl,

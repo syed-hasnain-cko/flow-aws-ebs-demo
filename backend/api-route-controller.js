@@ -175,7 +175,7 @@ router.post("/google-pay", async (req, res) => {
       appleUrl,
       {
         merchantIdentifier: config.appleMerchantId,
-        //subDomain : `${config.subdomain}.ngrok.io`,
+        domainName : `demo-syed.de`,
         displayName: "Syed Demo Store",
       },
       {
