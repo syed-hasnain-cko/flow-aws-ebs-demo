@@ -82,7 +82,7 @@ function addApplePayButton() {
                         const button = document.createElement('button');
                         button.onclick = startApplePaySession;
                         container.appendChild(button);
-                        button.classList.add('apple-pay-button');
+                        button.classList.add('apple-pay-button-black');
                         container.style.display = 'block';
 
                     } else {
@@ -140,6 +140,7 @@ function startApplePaySession() {
 }
 
 function validateApplePaySession(appleUrl, callback) {
+  console.log(appleUrl)
     fetch("/validate-apple-session", {
         method: "POST",
         headers: {
