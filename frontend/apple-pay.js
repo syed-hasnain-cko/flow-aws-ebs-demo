@@ -121,6 +121,7 @@ function startApplePaySession() {
     var session = new ApplePaySession(6, request);
 
     session.onvalidatemerchant = function(event) {
+      console.log(event)
         validateApplePaySession(event.validationURL, function(merchantSession) {
             session.completeMerchantValidation(merchantSession);
         });
