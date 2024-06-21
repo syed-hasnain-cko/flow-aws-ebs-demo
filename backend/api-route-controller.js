@@ -175,7 +175,7 @@ router.post("/google-pay", async (req, res) => {
       appleUrl,
       {
         merchantIdentifier: config.appleMerchantId,
-        domainName : `demo-syed.de`,
+        domainName : `www.demo-syed.de`,
         displayName: "Syed Demo Store",
       },
       {
