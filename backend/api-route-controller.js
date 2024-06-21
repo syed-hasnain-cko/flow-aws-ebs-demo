@@ -171,7 +171,7 @@ router.post("/google-pay", async (req, res) => {
   });
 
   try {
-    response = await axios.post(
+    const response = await axios.post(
       appleUrl,
       {
         merchantIdentifier: config.appleMerchantId,

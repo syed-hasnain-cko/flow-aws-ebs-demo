@@ -160,11 +160,7 @@ async function validateApplePaySession(appleUrl, callback) {
     })
     .then((response) => {
       console.log(response)
-      console.log(response.json())
-      response.json()})
-    .then((data) => {
-        callback(data);
-    })
+      callback(response)})
     .catch((error) => {
         console.error("Error:", error);
     });
