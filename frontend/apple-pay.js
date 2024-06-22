@@ -148,7 +148,7 @@ function startApplePaySession() {
 }
 
  function validateApplePaySession(appleUrl, callback) {
-     fetch('/validate-apple-session', {
+     fetch('/validateAppleSession', {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
