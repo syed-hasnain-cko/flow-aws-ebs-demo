@@ -118,7 +118,7 @@ function startApplePaySession() {
         total: { label: "Syed Demo Store", amount: appleTotalPrice },
     };
 
-    var session = new ApplePaySession(6, request);
+    var session = new ApplePaySession(3, request);
 
     session.onvalidatemerchant = function(event) {
       console.log(event)
