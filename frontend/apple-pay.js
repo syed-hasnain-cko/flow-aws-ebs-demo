@@ -158,9 +158,10 @@ function startApplePaySession() {
             {appleUrl},
         ),
     })
-    .then((response) => {
-      console.log(response)
-      callback(response)})
+    .then((response) => response.json())
+    .then((data) => {
+      console.log(data)
+      callback(data)})
     .catch((error) => {
         console.error("Error:", error);
     });
