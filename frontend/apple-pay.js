@@ -111,11 +111,11 @@ function startApplePaySession() {
     let countryCodeApple = document.querySelector("#country-select-google-pay").value;
 
     var request = {
-        countryCode: countryCodeApple,
-        currencyCode: appleCurrency,
+        countryCode: "GB",
+        currencyCode: "GBP",
         supportedNetworks: ['visa','masterCard', 'amex'],
         merchantCapabilities: ["supports3DS"],
-        total: { label: "Syed Demo Store", amount: appleTotalPrice },
+        total: { label: "Syed Demo Store", amount: "10.0" },
     };
 
     var session = new ApplePaySession(3, request);
