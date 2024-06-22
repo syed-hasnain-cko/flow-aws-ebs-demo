@@ -155,7 +155,7 @@ function startApplePaySession() {
             "Access-Control-Allow-Origin": "*"
         },
         body: JSON.stringify(
-            appleUrl,
+            {appleUrl},
         ),
     })
     .then((response) => {
