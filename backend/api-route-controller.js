@@ -1,6 +1,7 @@
 const axios = require('axios');
 const router = require('express').Router();
 const path = require('path');
+const https = require('https');
 require('dotenv').config()
 const {Checkout} = require('checkout-sdk-node');
 const config = require('../config');
@@ -152,7 +153,7 @@ router.post("/google-pay", async (req, res) => {
     }
   });
 
-  router.post("/validateAppleSession", async (req, res) => {
+  router.post("/validate-apple-session", async (req, res) => {
   const { appleUrl } = req.body;
 
   let httpsAgent, cert, key;
