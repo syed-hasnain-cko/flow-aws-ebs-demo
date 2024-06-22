@@ -147,17 +147,16 @@ function startApplePaySession() {
 
 }
 
-async function validateApplePaySession(appleUrl, callback) {
-  console.log(appleUrl)
-    await fetch(window.location.href+"validate-apple-session", {
+ function validateApplePaySession(appleUrl, callback) {
+     fetch('/validate-apple-session', {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*"
         },
-        body: JSON.stringify({
+        body: JSON.stringify(
             appleUrl,
-        }),
+        ),
     })
     .then((response) => {
       console.log(response)
