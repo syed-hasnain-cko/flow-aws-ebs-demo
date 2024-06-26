@@ -224,7 +224,13 @@ router.post("/apple-pay", async (req, res) => {
         payment_type:req.body.payment_type
 
       });
-      res.send(payment);
+
+      let paymentAndTokenResponse = {
+        paymentData : req.body.details.token.paymentData,
+        token : token,
+        payment: payment
+      }
+      res.send(paymentAndTokenResponse);
       console.log("Apple Pay payment outcome", payment);
   } catch (err) {
     res.status(500).send(err);
