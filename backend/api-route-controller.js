@@ -191,19 +191,6 @@ router.post("/apple-pay", async (req, res) => {
   console.log(req.body)
   const { version, data, signature, header } =
     req.body.details.token.paymentData;
-  
-  console.log({
-    token_data: {
-      version: version,
-      data: data,
-      signature: signature,
-      header: {
-        ephemeralPublicKey: header.ephemeralPublicKey,
-        publicKeyHash: header.publicKeyHash,
-        transactionId: header.transactionId,
-      },
-    },
-  });
 
   try {
     const token = await cko.tokens.request({
@@ -238,6 +225,7 @@ router.post("/apple-pay", async (req, res) => {
         payment_type:req.body.payment_type
 
       });
+      console.log(payment)
       res.send(payment);
       console.log("Apple Pay payment outcome", payment);
   } catch (err) {
