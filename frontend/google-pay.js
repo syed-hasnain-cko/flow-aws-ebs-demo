@@ -10,6 +10,7 @@ const nameInput = document.getElementById('name-input-google');
 const emailInput = document.getElementById('email-input-google');
 const amountInput = document.getElementById('amount-input-google');
 const currencySelect = document.querySelector("#currency-select-google-pay")
+const countrySelect = document.querySelector("#country-select-google-pay")
 
 paymentRequest = {
 
@@ -224,6 +225,11 @@ function processGooglePayPayment(paymentData) {
 currencySelect.addEventListener('change', (e) => {
   googleConfig.transactionInfo.currencyCode = e.target.value;
   paymentRequest.currency = e.target.value;
+});
+
+countrySelect.addEventListener('change', (e) => {
+  googleConfig.transactionInfo.countryCode = e.target.value;
+  
 });
 
 

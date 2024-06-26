@@ -106,8 +106,8 @@ function addApplePayButton() {
 function startApplePaySession() {
   try{
     let allowedCardNetworksApple = getMultiSelectSelectedValues("#schemes");
-    let appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
-    let appleTotalPrice = document.querySelector("#amount-input-google").value;
+     appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
+     appleTotalPrice = document.querySelector("#amount-input-google").value;
     let countryCodeApple = document.querySelector("#country-select-google-pay").value;
 
     let allowedNetworks = modifyCardNetworks(allowedCardNetworksApple)
@@ -181,7 +181,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     details : details,
     currency: appleCurrency,
     price: appleTotalPrice,
-    amount: parseInt(amountInputApple.value*currency.base),
+    amount: parseInt(amountInputApple.value*currency?.base),
     payment_type: paymentTypeSelectApple.value,
     capture: captureToggleApple.checked ? true : false,
     reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
@@ -247,6 +247,6 @@ applePaymentRequest.customer.email = e.target.value;
 });
 
 amountInputApple.addEventListener('input', (e) => {
-let currency = CURRENCIES_APPLE.find(c => c.iso4217 == googleCurrency);
+let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
 applePaymentRequest.amount = parseInt(amountInput.value*currency?.base);
 });
