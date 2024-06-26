@@ -188,6 +188,7 @@ router.post("/google-pay", async (req, res) => {
 });
 
 router.post("/apple-pay", async (req, res) => {  
+  console.log(req.body)
   const { version, data, signature, header } =
     req.body.details.token.paymentData;
   
