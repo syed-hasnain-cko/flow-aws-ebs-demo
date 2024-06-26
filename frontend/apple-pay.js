@@ -1,6 +1,7 @@
 let appleCurrency = undefined;
 let appleTotalPrice = undefined;
 let applePaymentRequest;
+let request;
 
 const threeDSToggleApple = document.getElementById('3ds-toggle-google');
 const captureToggleApple = document.getElementById('capture-toggle-google');
@@ -78,7 +79,6 @@ function addApplePayButton() {
                             "Apple Pay: You can do Apple Pay with the merchant id you have configured, and the cards you have in your wallet"
                         );
                         container.innerHTML = '';
-                        // Add the Apple Pay button
                         const button = document.createElement('button');
                         button.onclick = startApplePaySession;
                         container.appendChild(button);
@@ -110,15 +110,17 @@ function startApplePaySession() {
     let appleTotalPrice = document.querySelector("#amount-input-google").value;
     let countryCodeApple = document.querySelector("#country-select-google-pay").value;
 
-    var request = {
-        countryCode: "GB",
-        currencyCode: "GBP",
-        supportedNetworks: ['visa','masterCard', 'amex'],
+    let allowedNetworks = modifyCardNetworks(allowedCardNetworksApple)
+
+     request = {
+        countryCode: countryCodeApple,
+        currencyCode: appleCurrency,
+        supportedNetworks: allowedNetworks,
         merchantCapabilities: ["supports3DS"],
-        total: { label: "Syed Demo Store", amount: "10.0" },
+        total: { label: "Syed Demo Store", amount: appleTotalPrice },
     };
 
-    var session = new ApplePaySession(3, request);
+    var session = new ApplePaySession(6, request);
 
     session.onvalidatemerchant = function(event) {
       console.log(event)
@@ -173,24 +175,78 @@ function performPayment(details, callback) {
         JSON.stringify(details.token.paymentData)
     );
 
+let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
+
+  applePaymentRequest = {
+    details : details,
+    currency: appleCurrency,
+    price: appleTotalPrice,
+    amount: parseInt(amountInputApple.value*currency.base),
+    payment_type: paymentTypeSelectApple.value,
+    capture: captureToggleApple.checked ? true : false,
+    reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
+    processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
+    success_url: `${window.location.protocol}//${window.location.host}/success.html`,
+    failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
+    customer: {
+        email: emailInputApple.value,
+        name: nameInputApple.value
+    },
+    '3ds': {
+        enabled: threeDSToggleApple.checked ? true : false
+    }
+  }
+
     fetch("/apple-pay", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-            details: details,
-            currency: appleCurrency,
-            price: appleTotalPrice,
-        }),
+        body: JSON.stringify(paymentRequest),
     })
     .then((response) => response.json())
     .then((data) => {
-        var tokenId = document.getElementById('tokenId')
-        tokenId.innerHTML = data.type + ' : ' + data.token;
-        callback(data);
+       callback(data);
+      if(data.status == 'Authorized' || data.status == 'Captured'){
+        window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.id}`
+      }
+      else{
+        window.location.href = `${window.location.protocol}//${window.location.host}/failure.html?paymentId=${data.id}`
+      }
     })
     .catch((error) => {
         console.error("Error:", error);
     });
 }
+
+currencySelectApple.addEventListener('change', (e) => {
+  applePaymentRequest.currency = e.target.value;
+});
+
+
+threeDSToggleApple.addEventListener('change', (e) =>{
+  console.log(e.target.checked)
+  applePaymentRequest['3ds'].enabled = e.target.checked;
+});
+
+captureToggleApple.addEventListener('change', (e) =>{
+  console.log(e.target.checked)
+  applePaymentRequest.capture = e.target.checked;
+});
+
+paymentTypeSelectApple.addEventListener('change', (e) => {
+applePaymentRequest.payment_type = e.target.value;
+});
+
+nameInputApple.addEventListener('input', (e) => {
+applePaymentRequest.customer.name = e.target.value;
+});
+
+emailInputApple.addEventListener('input', (e) => {
+applePaymentRequest.customer.email = e.target.value;
+});
+
+amountInputApple.addEventListener('input', (e) => {
+let currency = CURRENCIES_APPLE.find(c => c.iso4217 == googleCurrency);
+applePaymentRequest.amount = parseInt(amountInput.value*currency?.base);
+});

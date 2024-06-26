@@ -190,8 +190,6 @@ router.post("/google-pay", async (req, res) => {
 router.post("/apple-pay", async (req, res) => {  
   const { version, data, signature, header } =
     req.body.details.token.paymentData;
-
-  const { currency, price } = req.body
   
   console.log({
     token_data: {
@@ -222,24 +220,27 @@ router.post("/apple-pay", async (req, res) => {
 
     console.log("Apple Pay tokenization outcome", token);
 
-  //   const payment = await cko.payments.request({
-  //     source: {
-  //       type: "token",
-  //       token: token.token,
-  //     },
-  //     "3ds": {
-  //       enabled: true,
-  //       attempt_n3d: true,
-  //     },
-  //     amount: Math.floor(price * 100),
-  //     currency,
-  //     reference: "APPLE PAY",
-  //   });
+      const payment = await cko.payments.request({
+        source: {
+          type: "token",
+          token: token.token,
+        },
+        amount: req.body.amount,
+        currency : currency,
+        reference: req.body.reference,
+        customer:req.body.customer,
+        '3ds':req.body['3ds'],
+        capture: req.body.capture,
+        processing_channel_id:req.body.processing_channel_id,
+        success_url:req.body.success_url,
+        failure_url:req.body.failure_url,
+        payment_type:req.body.payment_type
 
-  //   console.log("Apple Pay payment outcome", payment);
-    res.send(token);
+      });
+      res.send(payment);
+      console.log("Apple Pay payment outcome", payment);
   } catch (err) {
-    // res.status(500).send(err);
+    res.status(500).send(err);
   }
 });
   
