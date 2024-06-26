@@ -170,6 +170,16 @@ function getMultiSelectSelectedValues(id) {
       });
   }
 
+function modifyCardNetworks(cardNetworks) {
+    return cardNetworks.map(network => {
+        let lowerCaseNetwork = network.toLowerCase();
+        if (lowerCaseNetwork === 'mastercard') {
+            return 'masterCard';
+        }
+        return lowerCaseNetwork;
+    });
+}
+
   function getConfig(callback) {
     fetch(window.location.origin + "/config", {
       method: "GET",
