@@ -207,12 +207,12 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     })
     .then((response) => response.json())
     .then((data) => {
-      // if(data.status == 'Authorized' || data.status == 'Captured'){
-      //   window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.id}`
-      // }
-      // else{
-      //   window.location.href = `${window.location.protocol}//${window.location.host}/failure.html?paymentId=${data.id}`
-      // }
+      if(data.status == 'Authorized' || data.status == 'Captured'){
+        window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.id}`
+      }
+      else{
+        window.location.href = `${window.location.protocol}//${window.location.host}/failure.html?paymentId=${data.id}`
+      }
       callback(data)
     })
     .catch((error) => {
