@@ -188,7 +188,6 @@ router.post("/google-pay", async (req, res) => {
 });
 
 router.post("/apple-pay", async (req, res) => {  
-  console.log(req.body)
   const { version, data, signature, header } =
     req.body.details.token.paymentData;
 
@@ -214,7 +213,7 @@ router.post("/apple-pay", async (req, res) => {
           token: token.token,
         },
         amount: req.body.amount,
-        currency : currency,
+        currency : req.body.currency,
         reference: req.body.reference,
         customer:req.body.customer,
         '3ds':req.body['3ds'],
@@ -225,7 +224,6 @@ router.post("/apple-pay", async (req, res) => {
         payment_type:req.body.payment_type
 
       });
-      console.log(payment)
       res.send(payment);
       console.log("Apple Pay payment outcome", payment);
   } catch (err) {
