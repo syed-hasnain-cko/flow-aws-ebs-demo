@@ -202,7 +202,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
         headers: {
             "Content-Type": "application/json",
         },
-        body: JSON.stringify(paymentRequest),
+        body: JSON.stringify(applePaymentRequest),
     })
     .then((response) => response.json())
     .then((data) => {
