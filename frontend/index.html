@@ -17,7 +17,7 @@
         <div class="tab-container">
             <button class="tab-link active" onclick="openTab(event, 'flow-tab')">Checkout Flow</button>
             <button class="tab-link" onclick="openTab(event, 'google-tab')">Wallets</button>
-            <!-- <button class="tab-link" onclick="openTab(event, 'apple-tab')">Apple Pay</button> -->
+        
         </div>
          <!--Tabs End-->
           <!-- Flow Tab-->
@@ -26,7 +26,7 @@
                 <div class="inline-form">
                     <div class="form-group">
                         <label for="name-input" class="text-label">Name</label>
-                        <input type="text" id="name-input" class="text-input" value="Syed">
+                        <input type="text" id="name-input" class="text-input" value="Syed Hasnain">
                     </div>
                     <div class="form-group">
                         <label for="email-input" class="text-label">Email</label>
@@ -72,9 +72,18 @@
                         </select>
                     </div>
                 </div>
-                <button id="flow-button" class="main-button">Checkout</button>
+                <div class="button-group">
+                <button id="flow-button" class="main-button">Render Standard Flow</button>
+                <button id="tokenize-only-button" class="main-button">Render Tokenize Only</button>
             </div>
-            <div id="flow-container" class="payment-container"></div>
+            </div>
+            <div id="flow-container" class="payment-container">
+             
+                <button id="tokenize-button" class="main-button" style="display: none;">Tokenize</button>
+
+                   <p class="success-payment-message"></p>
+                
+            </div>
         </div>
          <!-- Flow Tab Ends-->
 
@@ -170,6 +179,7 @@
  
         </div>
         <!-- Google Pay Tab Ends-->
+ 
 
         <!-- Apple Pay Tab-->
         <div id="apple-tab" class="tab-content">
@@ -184,9 +194,10 @@
     <!--Main Page Content Ends-->
 
     <!--Scripts/Modules-->
+       <script src="script.js"></script>
     <script src="utils.js"></script>
     <script src="https://checkout-web-components.checkout.com/index.js"></script>
-    <script src="script.js"></script>
+ 
     <script src="./google-pay.js"></script>
     <script src="apple-pay.js"></script>
     

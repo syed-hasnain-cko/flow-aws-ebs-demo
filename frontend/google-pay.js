@@ -207,15 +207,16 @@ function processGooglePayPayment(paymentData) {
     .then((response) => response.json())
     .then((data) => {
       console.log("Payment Response:", data);
-      if(data.status == 'Pending' && data._links?.redirect){
-        window.location.href = data._links?.redirect?.href;
+      if(data.payment.status == 'Pending' && data.payment._links?.redirect){
+        window.location.href = data.payment._links?.redirect?.href;
       }
-      else if(data.status == 'Authorized' || data.status == 'Captured'){
-        window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.id}`
+      else if(data.payment.status == 'Authorized' || data.payment.status == 'Captured'){
+        window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.payment.id}`
       }
       else{
-        window.location.href = `${window.location.protocol}//${window.location.host}/failure.html?paymentId=${data.id}`
+        window.location.href = `${window.location.protocol}//${window.location.host}/failure.html?paymentId=${data.payment.id}`
       }
+
     })
     .catch((error) => {
       console.error("Error:", error);
@@ -229,7 +230,7 @@ currencySelect.addEventListener('change', (e) => {
 
 countrySelect.addEventListener('change', (e) => {
   googleConfig.transactionInfo.countryCode = e.target.value;
-  
+
 });
 
 

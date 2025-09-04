@@ -407,4 +407,45 @@ ul.json-list ul {
     -apple-pay-button-style: white-outline;
 }
 
+/* Existing styles... */
+
+/* APM Styles */
+#apm-methods label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+#apm-methods label img {
+  width: 50px;
+  height: auto;
+  margin-right: 10px;
+}
+
+#apm-pay-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+#apm-pay-btn:hover {
+  background-color: #45a049;
+}
+
+        .success-payment-message {
+            color: #13395E;
+            line-height: 1.4
+        }
+
+        .token {
+            color: #b35e14;
+            font-size: 0.9rem;
+            font-family: monospace
+        }
 
