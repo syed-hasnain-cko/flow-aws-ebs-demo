@@ -113,6 +113,8 @@
     const amountInput = document.getElementById('amount-input');
    
    let paymentSessionBody;
+   let isTokenizeOnly = false;
+   const walletsTCs = false;
     document.addEventListener('DOMContentLoaded', function() {
 
       let currency = CURRENCIES.find(c => c.iso4217 == currencySelect.value);
@@ -133,12 +135,13 @@
                   store_payment_details: 'enabled'
               }
           },
+          //enabled_payment_methods: ["googlepay"],
           processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
           success_url: `${window.location.protocol}//${window.location.host}/success.html`,
           failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
           customer: {
               email: emailInput.value,
-              name: nameInput.value
+              name: nameInput.value 
           },
           '3ds': {
               enabled: threeDSToggle.value == 'on' ? false : true
@@ -147,7 +150,8 @@
             {
               name: "Digital Goods",
               quantity: 1,
-              unit_price: parseInt(amountInput.value*currency.base)
+              unit_price: parseInt(amountInput.value*currency.base),
+              total_amount: parseInt(amountInput.value*currency.base)
             }
           ]
       };
@@ -187,11 +191,12 @@
   });
   
     const renderFlowButton = document.getElementById("flow-button")
-    
+    const renderTokenizeOnlyButton = document.getElementById("tokenize-only-button")
     const flowContainer = document.getElementById("flow-container");
     renderFlowButton.addEventListener('click', async () => {
 
         try {
+          isTokenizeOnly = false;
             const getResponse = await fetch('/payment-sessions', {
                 method: 'POST',
                 headers: {
@@ -209,14 +214,31 @@
             console.error(error);
         } 
     });
+     renderTokenizeOnlyButton.addEventListener('click', async () => {
+
+        try {
+           isTokenizeOnly = true;
+            const getResponse = await fetch('/payment-sessions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(paymentSessionBody),
+            });
+    
+            let getData = await getResponse.json();
+    
+            console.log('Get request completed:', getData);
+            await initializeFlow(getData, isTokenizeOnly);
+            flowContainer.style.display = 'block';
+        } catch (error) {
+            console.error(error);
+        } 
+    });
 
     document.addEventListener("DOMContentLoaded", function() {
       const renderGoogleButton = document.getElementById("google-button");
       const renderAppleButton = document.getElementById("apple-button");
-      const flowContainer = document.getElementById("flow-container");
-      const googleContainer = document.getElementById("google-container");
-      const appleContainer = document.getElementById("apple-container");
-  
   
       renderGoogleButton.addEventListener("click", async () => {
           onGooglePayLoaded();
@@ -255,7 +277,7 @@
 })();
 
 
-let initializeFlow = async (paymentSession) => {
+let initializeFlow = async (paymentSession, isTokenizeOnly) => {
     console.log(paymentSession)
 
     const appearance = {
@@ -311,15 +333,82 @@ let initializeFlow = async (paymentSession) => {
           letterSpacing: 0
       }
   }
-    
+  const tokenizeButton = document.getElementById("tokenize-button")
+   const tokenizedDataContainer = document.querySelector(".success-payment-message");
+    if(!isTokenizeOnly){
+      tokenizeButton.style.display = 'none';
+      tokenizedDataContainer.style.display = 'none';
             const checkout = await CheckoutWebComponents({
+                publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
+                environment: "sandbox",
+                locale: "fr-FR",
+                paymentSession,
+                appearance: appearance,
+                showPayButton: true,
+                  handleClick: (_self) => {
+                  if (true) {
+                return { continue: true };
+                }
+                return { continue: false };
+                },
+                onReady: () => {
+                  
+                },
+                onPaymentCompleted: (_component, paymentResponse) => {
+                  console.log("Create Payment with PaymentId: ", paymentResponse);
+                  console.log("Create Payment with PaymentId: ", _component);
+                  //window.location.href = `success.html?paymentId=${paymentResponse.id}`;
+                },
+                onChange: (component) => {
+                  // console.log(
+                  //   `onChange() -> isValid: "${component.isValid()}" for "${
+                  //     component.type
+                  //   }"`,
+                  // );
+                },
+                onError: (component, error) => {
+                  console.log(error.details);
+                  //window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
+                },
+              });
+        
+              const flowComponent = checkout.create("flow");
+            
+              flowComponent.mount(document.getElementById("flow-container"));
+              console.log(flowComponent)
+             // flowComponent.unselect();
+              // const googlepay = checkout.create("googlepay");
+              // if(await googlepay.isAvailable()){
+              //   googlepay.mount(document.getElementById("flow-container"));
+              // }
+            
+}
+else{
+
+
+  tokenizeButton.addEventListener('click', async() =>{
+    if(await cardComponent.isValid()){
+    const {data} = await cardComponent.tokenize();
+    console.log(data)
+    
+          tokenizedDataContainer.innerHTML = "Card tokenization completed.<br>" + "Card Token: <span class=\"token\">" + data.token + "</span></br>"
+  + "Issuer: <span class=\"token\">" + data.issuer + "</span></br>"
+    + "Card Type: <span class=\"token\">" + data.card_type + "</span></br>"
+      + "Cardholder Name: <span class=\"token\">" + data.name + "</span></br>"
+      + "Scheme: <span class=\"token\">" + data.scheme + "</span></br>"
+      + "BIN: <span class=\"token\">" + data.bin + "</span></br>"
+      + "Last4: <span class=\"token\">" + data.last4 + "</span></br>";
+    }
+    tokenizedDataContainer.style.display = 'block';
+  })
+  tokenizeButton.style.display = 'inline-block';
+   const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
                 environment: "sandbox",
                 locale: "en-GB",
                 paymentSession,
                 appearance: appearance,
-                onReady: () => {
-                  
+                onReady: () => {  
                 },
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse);
@@ -338,11 +427,13 @@ let initializeFlow = async (paymentSession) => {
                 },
               });
         
-              const flowComponent = checkout.create("flow");
-            
-              flowComponent.mount(document.getElementById("flow-container"));
-            
-     
+              const cardComponent = checkout.create("card",{
+                showPayButton : false
+              });
+             if(await cardComponent.isAvailable()){
+                cardComponent.mount(document.getElementById("flow-container"));
+             }
+}
         }
 
         function loadGooglePayScript() {

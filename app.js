@@ -53,6 +53,11 @@ wss = new WebSocket.Server({ server: httpServer });
 
 wss.on('connection', ws => {
     console.log('Client connected');
+      const interval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    }
+  }, 2000);
 
     ws.on('message', message => {
         console.log('Received message:', message);
@@ -62,37 +67,6 @@ wss.on('connection', ws => {
         console.log('Client disconnected');
     });
 });
-
-const startServer = async (port) => {
-  try {
-   
-    const url = await ngrok.connect({
-      port, 
-      subdomain: config.subdomain,
-      onStatusChange: status => {
-        console.log(`Ngrok status: ${status}`);
-      },
-      onLogEvent: data => {
-        console.log(`Ngrok log: ${JSON.stringify(data)}`);
-      }
-    });
-    console.log("Ngrok tunnel established at:", url);
-    app.listen(port, () => {
-      console.log(`HTTP Server is listening on port: ${port}`);
-    });
-
-    const open = (await import('open')).default;
-    open(url, { app: "safari" });
-  } catch (error) {
-    console.error("Failed to start Ngrok tunnel:", error);
-  }
-};
-
-const openSafari = async (url) => {
-  const openModule =  await import('open');
-  const open = await openModule.default;
-   open(url, { app: 'safari' });
-}
 
 
 httpServer.listen(PORT, () => {

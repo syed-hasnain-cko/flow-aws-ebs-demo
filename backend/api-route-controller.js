@@ -146,7 +146,18 @@ router.post("/google-pay", async (req, res) => {
         payment_type:req.body.payment_type
 
       });
-      res.send(payment);
+      res.send({
+        payment: payment,
+        token_info: {
+       token: token,
+        token_data: {
+          signature,
+          protocolVersion,
+          signedMessage,
+        }
+        }
+ 
+        });
     } catch (error) {
       console.log(error);
       res.sendStatus(500)(error);

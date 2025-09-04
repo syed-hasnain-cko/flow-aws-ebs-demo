@@ -140,7 +140,7 @@ async function updatePaymentDetailsData(id){
         document.getElementById('action-buttons').appendChild(refundButton);
     }
     }  
-
+    console.log(paymentData)
     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
 
     const actionsResponse = await fetch(`/get-payment-actions?paymentId=${paymentData.id}`, {
@@ -150,10 +150,20 @@ async function updatePaymentDetailsData(id){
         }
     });
     const actionsData = await actionsResponse.json();
+    console.log(actionsData)
     document.getElementById('payment-actions-response').innerHTML = formatJSON(actionsData);
     document.getElementById('payment-actions-container').style.display = 'block';
     document.getElementById('payment-details-container').classList.remove('full-width');
     document.getElementById('details-container').style.display = 'flex';
+}
+
+function updateWalletDetailsData(data){
+    document.getElementById('wallet-token-details-response').innerHTML = formatJSON(data);
+    document.getElementById('wallet-details-response').innerHTML = formatJSON(data);
+    document.getElementById('wallet-details-container').style.display = 'block';
+    document.getElementById('wallet-token-details-container').style.display = 'block';
+    document.getElementById('wallet-details-container').classList.remove('full-width');
+    document.getElementById('wallet-details-data-container').style.display = 'flex';
 }
 
 function disableActionButtons(){
