@@ -106,13 +106,13 @@ router.post('/refund-payment', async(req,res) => {
     }
 })
 
-router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association.txt"));
-});
+// router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
+//     res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association.txt"));
+// });
 
-router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association-dev.txt"));
-});
+// router.get("/.well-known/apple-developer-merchantid-domain-association.txt", (req, res) => {
+//     res.sendFile(path.join(__dirname, "../frontend/apple-developer-merchantid-domain-association-dev.txt"));
+// });
 
 router.post("/google-pay", async (req, res) => {
     const { signature, protocolVersion, signedMessage, currency, price } =
@@ -169,8 +169,8 @@ router.post("/google-pay", async (req, res) => {
 
   let httpsAgent, cert, key;
 
-    cert = path.join(__dirname, "/certificates/certificate_sandbox-syed.pem");
-    key = path.join(__dirname, "/certificates/certificate_sandbox-syed.key");
+    cert = path.join(__dirname, "../certificates/certificate_sandbox-syed.pem");
+    key = path.join(__dirname, "../certificates/certificate_sandbox-syed.key");
 
 
   httpsAgent = new https.Agent({
