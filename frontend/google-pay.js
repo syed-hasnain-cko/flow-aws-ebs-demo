@@ -197,7 +197,7 @@ function processGooglePayPayment(paymentData) {
     }
   }
 
-  fetch('/google-pay', {
+  fetch('http://flow-demo-backend-env.eba-mt9fijq4.us-east-1.elasticbeanstalk.com/google-pay', {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

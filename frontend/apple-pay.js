@@ -151,7 +151,7 @@ function startApplePaySession() {
 }
 
  function validateApplePaySession(appleUrl, callback) {
-     fetch('/validate-apple-session', {
+     fetch('http://flow-demo-backend-env.eba-mt9fijq4.us-east-1.elasticbeanstalk.com/validate-apple-session', {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -198,7 +198,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     }
   }
 
-    fetch("/apple-pay", {
+    fetch("http://flow-demo-backend-env.eba-mt9fijq4.us-east-1.elasticbeanstalk.com/apple-pay", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

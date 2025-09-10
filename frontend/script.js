@@ -197,7 +197,7 @@
 
         try {
           isTokenizeOnly = false;
-            const getResponse = await fetch('/payment-sessions', {
+            const getResponse = await fetch('http://flow-demo-backend-env.eba-mt9fijq4.us-east-1.elasticbeanstalk.com/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -210,6 +210,7 @@
             console.log('Get request completed:', getData);
             await initializeFlow(getData);
             flowContainer.style.display = 'block';
+           
         } catch (error) {
             console.error(error);
         } 
@@ -218,7 +219,7 @@
 
         try {
            isTokenizeOnly = true;
-            const getResponse = await fetch('/payment-sessions', {
+            const getResponse = await fetch('http://flow-demo-backend-env.eba-mt9fijq4.us-east-1.elasticbeanstalk.com/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -333,30 +334,100 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
           letterSpacing: 0
       }
   }
+  let isInjectedCheckboxAccepted = false;
   const tokenizeButton = document.getElementById("tokenize-button")
+  const payButton = document.getElementById("pay-button")
    const tokenizedDataContainer = document.querySelector(".success-payment-message");
     if(!isTokenizeOnly){
+
       tokenizeButton.style.display = 'none';
       tokenizedDataContainer.style.display = 'none';
+       payButton.style.display = 'inline';
+
+//       const handlePaymentAdditionalContentMount = (component, containerElement) => {
+//    const merchantName = "Sony";
+//         const text = `I agree to the terms and conditions and authorize ${merchantName} to use my payment details to process the payment.`;
+        
+//         containerElement.innerHTML = `
+//             <div class="checkbox-container">
+//                 <input type="checkbox" id="payment-agreement" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mr-2 required">
+//                 <label for="payment-agreement" class="text-sm text-gray-700">${text}</label>
+//             </div>
+//         `;
+
+//         const identifier = seTuptnc(component.type);
+//         return identifier;
+// };
+
+payButton.addEventListener('click', () => {
+  if (isInjectedCheckboxAccepted) {
+    flowComponent.submit();
+  }
+});
+const handlePaymentAdditionalContentMount = (_component, element) => {
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.name = 'injected-payment-agreement-message';
+  checkbox.addEventListener('click', () => {
+    isInjectedCheckboxAccepted = checkbox.checked;
+    console.log(isInjectedCheckboxAccepted)
+  });
+
+  const label = document.createElement('label');
+      const merchantName = "Sony";
+         const text = `I agree to the terms and conditions and authorize ${merchantName} to use my payment details to process the payment.`;
+  label.innerHTML = text;
+
+  element.appendChild(checkbox);
+  element.appendChild(label);
+         const identifier = setupTnc(component.type);
+        return identifier;
+ 
+};
+const handlePaymentAdditionalContentUnmount = (component, containerElement, mountIdentifier) => {
+  containerElement.innerHTML = '';
+
+  cleanupTnc(mountIdentifier);
+};
             const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
                 environment: "sandbox",
-                locale: "fr-FR",
+                locale: "en-GB",
                 paymentSession,
                 appearance: appearance,
-                showPayButton: true,
+                showPayButton: false,
+                  componentOptions: {
+                      flow: {
+                            handlePaymentAdditionalContentMount,
+                            handlePaymentAdditionalContentUnmount
+                 }
+                  },
                   handleClick: (_self) => {
                   if (true) {
                 return { continue: true };
                 }
                 return { continue: false };
                 },
-                onReady: () => {
-                  
+                onSubmit: (_self) => {
+                  console.log("OnSubmit() Result: ",_self)
                 },
+                 onCardBinChanged: (_self, cardMetadata) => {
+                  console.log("OnCardBinChanged() Result: ", cardMetadata)
+                 },
+                 onTokenized: (_self, tokenizeResult) => {
+                  console.log("OnTokenized() Result: ", tokenizeResult.data)
+                    if (tokenizeResult.data.card_type === 'DEBIT') {
+                            return {
+                                continue: false,
+                                errorMessage: `Credit cards are not accepted`,
+                            };
+                          }
+                            return { continue: true };
+                }
+                 ,
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse);
-                  console.log("Create Payment with PaymentId: ", _component);
+                  //console.log("Create Payment with PaymentId: ", _component);
                   //window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
@@ -366,6 +437,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                   //   }"`,
                   // );
                 },
+
                 onError: (component, error) => {
                   console.log(error.details);
                   //window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
@@ -385,7 +457,8 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
 }
 else{
 
-
+   payButton.style.display = 'none';
+   
   tokenizeButton.addEventListener('click', async() =>{
     if(await cardComponent.isValid()){
     const {data} = await cardComponent.tokenize();
