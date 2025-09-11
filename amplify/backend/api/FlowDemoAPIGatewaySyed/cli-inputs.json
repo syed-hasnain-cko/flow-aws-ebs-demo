@@ -1,9 +1,9 @@
 {
   "version": 1,
   "paths": {
-    "/": {
-      "name": "/",
-      "lambdaFunction": "myBackendAPI",
+    "/api": {
+      "name": "/api",
+      "lambdaFunction": "FlowDemoLambdaSyed",
       "permissions": {
         "setting": "open"
       }

@@ -47,12 +47,12 @@
         "FunctionName": {
           "Fn::If": [
             "ShouldNotCreateEnvResources",
-            "myBackendAPI",
+            "FlowDemoLambdaSyed",
             {
               "Fn::Join": [
                 "",
                 [
-                  "myBackendAPI",
+                  "FlowDemoLambdaSyed",
                   "-",
                   {
                     "Ref": "env"
@@ -89,12 +89,12 @@
         "RoleName": {
           "Fn::If": [
             "ShouldNotCreateEnvResources",
-            "backendLambdaRole220c2830",
+            "flowdemobackendsyedLambdaRole54d193f7",
             {
               "Fn::Join": [
                 "",
                 [
-                  "backendLambdaRole220c2830",
+                  "flowdemobackendsyedLambdaRole54d193f7",
                   "-",
                   {
                     "Ref": "env"
