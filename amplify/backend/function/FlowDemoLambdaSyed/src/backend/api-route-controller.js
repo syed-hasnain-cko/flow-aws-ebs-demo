@@ -169,8 +169,8 @@ router.post("/google-pay", async (req, res) => {
 
   let httpsAgent, cert, key;
 
-    cert = path.join(__dirname, "../certificates/certificate_sandbox-syed.pem");
-    key = path.join(__dirname, "../certificates/certificate_sandbox-syed.key");
+    cert = path.join(__dirname, "./certificates/certificate_sandbox-syed.pem");
+    key = path.join(__dirname, "./certificates/certificate_sandbox-syed.key");
 
 
   httpsAgent = new https.Agent({

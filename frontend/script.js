@@ -197,7 +197,7 @@
 
         try {
           isTokenizeOnly = false;
-            const getResponse = await fetch('https://axzepxqz10.execute-api.us-east-1.amazonaws.com/dev/payment-sessions', {
+            const getResponse = await fetch('https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -219,7 +219,7 @@
 
         try {
            isTokenizeOnly = true;
-            const getResponse = await fetch('https://axzepxqz10.execute-api.us-east-1.amazonaws.com/dev/payment-sessions', {
+            const getResponse = await fetch('https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

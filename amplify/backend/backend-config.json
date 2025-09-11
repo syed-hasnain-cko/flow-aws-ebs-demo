@@ -1,6 +1,6 @@
 {
   "api": {
-    "BackendAPIGateway": {
+    "FlowDemoAPIGatewaySyed": {
       "dependsOn": [
         {
           "attributes": [
@@ -8,7 +8,7 @@
             "Arn"
           ],
           "category": "function",
-          "resourceName": "myBackendAPI"
+          "resourceName": "FlowDemoLambdaSyed"
         }
       ],
       "providerPlugin": "awscloudformation",
@@ -16,26 +16,26 @@
     }
   },
   "function": {
-    "myBackendAPI": {
+    "FlowDemoLambdaSyed": {
       "build": true,
       "providerPlugin": "awscloudformation",
       "service": "Lambda"
     }
   },
   "parameters": {
-    "AMPLIFY_function_myBackendAPI_deploymentBucketName": {
+    "AMPLIFY_function_FlowDemoLambdaSyed_deploymentBucketName": {
       "usedBy": [
         {
           "category": "function",
-          "resourceName": "myBackendAPI"
+          "resourceName": "FlowDemoLambdaSyed"
         }
       ]
     },
-    "AMPLIFY_function_myBackendAPI_s3Key": {
+    "AMPLIFY_function_FlowDemoLambdaSyed_s3Key": {
       "usedBy": [
         {
           "category": "function",
-          "resourceName": "myBackendAPI"
+          "resourceName": "FlowDemoLambdaSyed"
         }
       ]
     }
