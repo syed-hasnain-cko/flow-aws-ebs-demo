@@ -1,8 +1,8 @@
 {
   "version": 1,
   "paths": {
-    "/items": {
-      "name": "/items",
+    "/": {
+      "name": "/",
       "lambdaFunction": "myBackendAPI",
       "permissions": {
         "setting": "open"
