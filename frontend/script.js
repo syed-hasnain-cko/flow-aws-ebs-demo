@@ -141,7 +141,11 @@
           failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
           customer: {
               email: emailInput.value,
-              name: nameInput.value 
+              name: nameInput.value,
+              phone: {
+                country_code: "+49",
+                number: "17670805174"
+    }
           },
           '3ds': {
               enabled: threeDSToggle.value == 'on' ? false : true
@@ -197,7 +201,7 @@
 
         try {
           isTokenizeOnly = false;
-            const getResponse = await fetch('https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/payment-sessions', {
+            const getResponse = await fetch('/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -219,7 +223,7 @@
 
         try {
            isTokenizeOnly = true;
-            const getResponse = await fetch('https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/payment-sessions', {
+            const getResponse = await fetch('/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -343,24 +347,13 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
       tokenizeButton.style.display = 'none';
       tokenizedDataContainer.style.display = 'none';
        payButton.style.display = 'inline';
-
-//       const handlePaymentAdditionalContentMount = (component, containerElement) => {
-//    const merchantName = "Sony";
-//         const text = `I agree to the terms and conditions and authorize ${merchantName} to use my payment details to process the payment.`;
-        
-//         containerElement.innerHTML = `
-//             <div class="checkbox-container">
-//                 <input type="checkbox" id="payment-agreement" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mr-2 required">
-//                 <label for="payment-agreement" class="text-sm text-gray-700">${text}</label>
-//             </div>
-//         `;
-
-//         const identifier = seTuptnc(component.type);
-//         return identifier;
-// };
+      payButton.classList.add('main-button');
+      payButton.textContent = 'Pay Now';
 
 payButton.addEventListener('click', () => {
   if (isInjectedCheckboxAccepted) {
+            payButton.classList.add('disabled-button');
+            payButton.textContent = 'Processing...';
     flowComponent.submit();
   }
 });
@@ -370,6 +363,12 @@ const handlePaymentAdditionalContentMount = (_component, element) => {
   checkbox.name = 'injected-payment-agreement-message';
   checkbox.addEventListener('click', () => {
     isInjectedCheckboxAccepted = checkbox.checked;
+    if(isInjectedCheckboxAccepted){
+      payButton.classList.remove("disabled-button")
+    }
+    else{
+      payButton.classList.add("disabled-button")
+    }
     console.log(isInjectedCheckboxAccepted)
   });
 
@@ -419,7 +418,7 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                     if (tokenizeResult.data.card_type === 'DEBIT') {
                             return {
                                 continue: false,
-                                errorMessage: `Credit cards are not accepted`,
+                                errorMessage: `Debit cards are not accepted`,
                             };
                           }
                             return { continue: true };
@@ -427,19 +426,31 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                  ,
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse);
+                             payButton.classList.add("disabled-button")
+                              payButton.textContent = 'Pay Now';
                   //console.log("Create Payment with PaymentId: ", _component);
                   //window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
-                  // console.log(
-                  //   `onChange() -> isValid: "${component.isValid()}" for "${
-                  //     component.type
-                  //   }"`,
-                  // );
+                  if(!component.isValid() || !isInjectedCheckboxAccepted){
+                                  payButton.classList.add('disabled-button');       
+                                               
+                  }
+                  else{
+                      payButton.classList.remove('disabled-button');
+                  }
+                 
+                  console.log(
+                    `onChange() -> isValid: "${component.isValid()}" for "${
+                      component.type
+                    }"`,
+                  );
                 },
 
                 onError: (component, error) => {
                   console.log(error.details);
+                        payButton.classList.add('main-button');
+                        payButton.textContent = 'Pay Now';
                   //window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
                 },
               });

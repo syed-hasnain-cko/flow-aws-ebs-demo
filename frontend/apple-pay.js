@@ -151,7 +151,7 @@ function startApplePaySession() {
 }
 
  function validateApplePaySession(appleUrl, callback) {
-     fetch('https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/validate-apple-session', {
+     fetch('/validate-apple-session', {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -198,7 +198,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     }
   }
 
-    fetch("https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/apple-pay", {
+    fetch("/apple-pay", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
