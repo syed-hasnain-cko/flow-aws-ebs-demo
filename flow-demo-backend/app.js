@@ -9,7 +9,6 @@ const routes = require('./api-route-controller');
 const app = express();
 const router = express.Router();
 
-// Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
