@@ -13,9 +13,8 @@ const router = express.Router();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
-app.use('/', router); // Mount all API routes under the /api path
+app.use('/', router); 
 
-// Mount your routes from api-route-controller.js
 router.use(routes);
 
 
