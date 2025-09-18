@@ -25,7 +25,7 @@ async function fetchPaymentDetails(id){
             paymentId: id,
         });
 
-        const paymentResponse = await fetch(`https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/get-payment-details?${queryParams.toString()}`, {
+        const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -39,7 +39,7 @@ async function voidPayment(id){
         paymentId: id,
     });
     try{
-        const voidResponse = await fetch(`https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/void-payment?${queryParams.toString()}`, {
+        const voidResponse = await fetch(`/void-payment?${queryParams.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -61,7 +61,7 @@ async function capturePayment(id){
         paymentId: id,
     });
     try{
-        const captureResponse = await fetch(`https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/capture-payment?${queryParams.toString()}`, {
+        const captureResponse = await fetch(`/capture-payment?${queryParams.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ async function refundPayment(id){
         paymentId: id,
     });
     try{
-        const refundResponse = await fetch(`https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/refund-payment?${queryParams.toString()}`, {
+        const refundResponse = await fetch(`/refund-payment?${queryParams.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ async function updatePaymentDetailsData(id){
     console.log(paymentData)
     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
 
-    const actionsResponse = await fetch(`https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/get-payment-actions?paymentId=${paymentData.id}`, {
+    const actionsResponse = await fetch(`/get-payment-actions?paymentId=${paymentData.id}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -191,7 +191,7 @@ function modifyCardNetworks(cardNetworks) {
 }
 
   function getConfig(callback) {
-    fetch("https://lxqp09nxv2.execute-api.us-east-1.amazonaws.com/dev/api/config", {
+    fetch("/config", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
