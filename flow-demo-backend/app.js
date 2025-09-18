@@ -18,7 +18,7 @@ app.use('/', router);
 router.use(routes);
 
 
-// Error Handling
+
 process.on('uncaughtException', (err) => {
     console.error('Uncaught error:', err);
 });
