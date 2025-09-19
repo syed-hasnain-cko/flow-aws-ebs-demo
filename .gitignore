@@ -10,8 +10,7 @@
 /EBS-Backend-1.1
 /EBS-Backend-1.1.zip
 /frontend.zip
-
-
+/backend-local
 #amplify-do-not-edit-begin
 amplify/\#current-cloud-backend
 amplify/.config/local-*
