@@ -243,7 +243,6 @@
 
     document.addEventListener("DOMContentLoaded", function() {
       const renderGoogleButton = document.getElementById("google-button");
-      const renderAppleButton = document.getElementById("apple-button");
   
       renderGoogleButton.addEventListener("click", async () => {
           onGooglePayLoaded();
@@ -426,7 +425,7 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                              payButton.classList.add("disabled-button")
                               payButton.textContent = 'Pay Now';
                   //console.log("Create Payment with PaymentId: ", _component);
-                  //window.location.href = `success.html?paymentId=${paymentResponse.id}`;
+                  window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
                   if(!component.isValid() || !isInjectedCheckboxAccepted){
