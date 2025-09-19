@@ -1,0 +1,34 @@
+# This file should be placed at the root of your repository.
+
+version: 1
+applications:
+  - appRoot: frontend
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            - npm i
+      artifacts:
+        baseDirectory: /
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
+  - appRoot: backend
+    backend:
+      phases:
+        build:
+          commands:
+            - amplifyPush --simple
+      artifacts:
+        files:
+          - "**/*"
+        baseDirectory: .
+        type: zip
+      service:
+        type: LambdaFunction
+        entryPoint: server.js
