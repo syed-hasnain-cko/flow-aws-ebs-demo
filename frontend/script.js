@@ -248,10 +248,7 @@
       renderGoogleButton.addEventListener("click", async () => {
           onGooglePayLoaded();
       });
-  
-      renderAppleButton.addEventListener("click", async () => {
-          //  Apple Pay integration logic
-      });
+
   
       window.openTab = function(evt, tabName) {
           const tabLinks = document.getElementsByClassName("tab-link");
