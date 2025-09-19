@@ -151,7 +151,7 @@ function startApplePaySession() {
 }
 
  function validateApplePaySession(appleUrl, callback) {
-     fetch('/validate-apple-session', {
+     fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/validate-apple-session', {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -198,7 +198,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     }
   }
 
-    fetch("/apple-pay", {
+    fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/apple-pay", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
