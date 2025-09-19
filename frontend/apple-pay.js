@@ -117,7 +117,7 @@ function startApplePaySession() {
         currencyCode: appleCurrency,
         supportedNetworks: allowedNetworks,
         merchantCapabilities: ["supports3DS"],
-        total: { label: "Syed Demo Store", amount: appleTotalPrice },
+        total: { label: "Syed Demo Shop", amount: appleTotalPrice },
     };
 
     var session = new ApplePaySession(6, request);
@@ -161,7 +161,7 @@ function startApplePaySession() {
             {appleUrl},
         ),
     })
-    .then((response) => response.json())
+    .then((response) => response.data.json())
     .then((data) => {
       console.log(data)
       callback(data)})
