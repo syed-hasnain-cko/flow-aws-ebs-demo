@@ -201,7 +201,7 @@
 
         try {
           isTokenizeOnly = false;
-            const getResponse = await fetch('/payment-sessions', {
+            const getResponse = await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -223,7 +223,7 @@
 
         try {
            isTokenizeOnly = true;
-            const getResponse = await fetch('/payment-sessions', {
+            const getResponse = await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/payment-sessions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
