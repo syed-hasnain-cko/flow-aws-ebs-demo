@@ -153,10 +153,10 @@ function startApplePaySession() {
  function validateApplePaySession(appleUrl, callback) {
      fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/validate-apple-session', {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
-        },
+        // headers: {
+        //     "Content-Type": "application/json",
+        //     "Access-Control-Allow-Origin": "*"
+        // },
         body: JSON.stringify(
             {appleUrl},
         ),
