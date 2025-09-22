@@ -394,7 +394,8 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                   componentOptions: {
                       flow: {
                             handlePaymentAdditionalContentMount,
-                            handlePaymentAdditionalContentUnmount
+                            handlePaymentAdditionalContentUnmount,
+                            expandFirstPaymentMethod: false
                  }
                   },
                   handleClick: (_self) => {
@@ -455,10 +456,10 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
             
               flowComponent.mount(document.getElementById("flow-container"));
               console.log(flowComponent)
-             // flowComponent.unselect();
-              // const googlepay = checkout.create("googlepay");
-              // if(await googlepay.isAvailable()){
-              //   googlepay.mount(document.getElementById("flow-container"));
+            //  flowComponent.unselect();
+              // const individualComponent = checkout.create("card");
+              // if(await individualComponent.isAvailable()){
+              //   individualComponent.mount(document.getElementById("flow-container"));
               // }
             
 }
