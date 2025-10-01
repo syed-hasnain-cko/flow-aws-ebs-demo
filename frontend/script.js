@@ -1,4 +1,5 @@
 
+
 (function(){
 
   const CURRENCIES = [
@@ -114,12 +115,55 @@
    
    let paymentSessionBody;
    let isTokenizeOnly = false;
-   const walletsTCs = false;
+   
     document.addEventListener('DOMContentLoaded', function() {
 
       let currency = CURRENCIES.find(c => c.iso4217 == currencySelect.value);
 
-       paymentSessionBody = {
+    //    paymentSessionBody = {
+    //       currency: currencySelect.value,
+    //       amount: parseInt(amountInput.value*currency.base),
+    //       payment_type: paymentTypeSelect.value,
+    //       capture: captureToggle.value == 'on' ? false : true,
+    //       reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
+    //       billing: {
+    //           address: {
+    //               country: countrySelect.value
+    //           }
+    //       },
+    //       payment_method_configuration: {
+    //           card: {
+    //              // store_payment_details: 'enabled'
+    //             store_payment_details: 'collect_consent'
+    //             //customer_id : "cus_korriakiszvubcuzaqpv5ujusm"
+    //           }
+    //       },
+    //       //enabled_payment_methods: ["googlepay"],
+    //       processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
+    //       success_url: `${window.location.protocol}//${window.location.host}/success.html`,
+    //       failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
+    //       customer: {
+    //           email: emailInput.value,
+    //           name: nameInput.value,
+    //           phone: {
+    //             country_code: "+49",
+    //             number: "17670805174"
+    // }
+    //       },
+    //       '3ds': {
+    //           enabled: threeDSToggle.value == 'on' ? false : true
+    //       },
+    //       items:[
+    //         {
+    //           name: "Digital Goods",
+    //           quantity: 1,
+    //           unit_price: parseInt(amountInput.value*currency.base),
+    //           total_amount: parseInt(amountInput.value*currency.base)
+    //         }
+    //       ]
+    //   };
+
+            paymentSessionBody = {
           currency: currencySelect.value,
           amount: parseInt(amountInput.value*currency.base),
           payment_type: paymentTypeSelect.value,
@@ -132,21 +176,22 @@
           },
           payment_method_configuration: {
               card: {
-                  store_payment_details: 'enabled'
-              }
+                 
+                store_payment_details: 'collect_consent'
+               
+              },
+               stored_card: {
+                customer_id : "cus_korriakiszvubcuzaqpv5ujusm"
+               }
           },
           //enabled_payment_methods: ["googlepay"],
           processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
           success_url: `${window.location.protocol}//${window.location.host}/success.html`,
           failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
           customer: {
-              email: emailInput.value,
-              name: nameInput.value,
-              phone: {
-                country_code: "+49",
-                number: "17670805174"
+             id: "cus_korriakiszvubcuzaqpv5ujusm"
     }
-          },
+          ,
           '3ds': {
               enabled: threeDSToggle.value == 'on' ? false : true
           },
@@ -336,36 +381,30 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
   }
   let isInjectedCheckboxAccepted = false;
   const tokenizeButton = document.getElementById("tokenize-button")
-  const payButton = document.getElementById("pay-button")
+  //const payButton = document.getElementById("pay-button")
    const tokenizedDataContainer = document.querySelector(".success-payment-message");
     if(!isTokenizeOnly){
 
       tokenizeButton.style.display = 'none';
       tokenizedDataContainer.style.display = 'none';
-       payButton.style.display = 'inline';
-      payButton.classList.add('main-button');
-      payButton.textContent = 'Pay Now';
+      //  payButton.style.display = 'inline';
+      // payButton.classList.add('main-button');
+      // payButton.textContent = 'Pay Now';
 
-payButton.addEventListener('click', () => {
-  if (isInjectedCheckboxAccepted) {
-            payButton.classList.add('disabled-button');
-            payButton.textContent = 'Processing...';
-    flowComponent.submit();
-  }
-});
+// payButton.addEventListener('click', () => {
+//   if (isInjectedCheckboxAccepted) {
+//             payButton.classList.add('disabled-button');
+//             payButton.textContent = 'Processing...';
+//     flowComponent.submit();
+//   }
+// });
 const handlePaymentAdditionalContentMount = (_component, element) => {
+  console.log("handle mount", _component)
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.name = 'injected-payment-agreement-message';
   checkbox.addEventListener('click', () => {
     isInjectedCheckboxAccepted = checkbox.checked;
-    if(isInjectedCheckboxAccepted){
-      payButton.classList.remove("disabled-button")
-    }
-    else{
-      payButton.classList.add("disabled-button")
-    }
-    console.log(isInjectedCheckboxAccepted)
   });
 
   const label = document.createElement('label');
@@ -375,14 +414,14 @@ const handlePaymentAdditionalContentMount = (_component, element) => {
 
   element.appendChild(checkbox);
   element.appendChild(label);
-         const identifier = setupTnc(component.type);
-        return identifier;
  
 };
 const handlePaymentAdditionalContentUnmount = (component, containerElement, mountIdentifier) => {
-  containerElement.innerHTML = '';
+   console.log("handle unmount", component)
 
-  cleanupTnc(mountIdentifier);
+   console.log(mountIdentifier)
+  containerElement.innerHTML = '';
+ 
 };
             const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
@@ -390,16 +429,24 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                 locale: "en-GB",
                 paymentSession,
                 appearance: appearance,
-                showPayButton: false,
+                showPayButton: true,
                   componentOptions: {
                       flow: {
                             handlePaymentAdditionalContentMount,
                             handlePaymentAdditionalContentUnmount,
                             expandFirstPaymentMethod: false
+                 },
+                 card:{
+                        displayCardholderName: "hidden"
                  }
+           
+                //  data: {
+                //   email: "syed.hasnain@checkout.com"
+                //  }
                   },
                   handleClick: (_self) => {
-                  if (true) {
+                    console.log("inside handle click" + isInjectedCheckboxAccepted)
+                  if (isInjectedCheckboxAccepted) {
                 return { continue: true };
                 }
                 return { continue: false };
@@ -423,31 +470,31 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                  ,
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse);
-                             payButton.classList.add("disabled-button")
-                              payButton.textContent = 'Pay Now';
+                            //  payButton.classList.add("disabled-button")
+                            //   payButton.textContent = 'Pay Now';
                   //console.log("Create Payment with PaymentId: ", _component);
                   window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
                   if(!component.isValid() || !isInjectedCheckboxAccepted){
-                                  payButton.classList.add('disabled-button');       
+                                  //payButton.classList.add('disabled-button');       
                                                
                   }
                   else{
-                      payButton.classList.remove('disabled-button');
+                      //payButton.classList.remove('disabled-button');
                   }
                  
-                  console.log(
-                    `onChange() -> isValid: "${component.isValid()}" for "${
-                      component.type
-                    }"`,
-                  );
+                  // console.log(
+                  //   `onChange() -> isValid: "${component.isValid()}" for "${
+                  //     component.type
+                  //   }"`,
+                  // );
                 },
 
                 onError: (component, error) => {
                   console.log(error.details);
-                        payButton.classList.add('main-button');
-                        payButton.textContent = 'Pay Now';
+                        // payButton.classList.add('main-button');
+                        // payButton.textContent = 'Pay Now';
                   //window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
                 },
               });
@@ -465,7 +512,7 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
 }
 else{
 
-   payButton.style.display = 'none';
+  //  payButton.style.display = 'none';
    
   tokenizeButton.addEventListener('click', async() =>{
     if(await cardComponent.isValid()){
