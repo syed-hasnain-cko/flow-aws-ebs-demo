@@ -106,6 +106,7 @@
     countrySelectGoogle.appendChild(option);
   });
 
+const rememberMeToggle = document.getElementById('remember-me-toggle');
     const threeDSToggle = document.getElementById('3ds-toggle');
     const captureToggle = document.getElementById('capture-toggle');
     const paymentTypeSelect = document.getElementById('payment-type-select');
@@ -115,6 +116,7 @@
    
    let paymentSessionBody;
    let isTokenizeOnly = false;
+   
    
     document.addEventListener('DOMContentLoaded', function() {
 
@@ -185,13 +187,14 @@
                }
           },
           //enabled_payment_methods: ["googlepay"],
+          disabled_payment_methods: ["remember_me"],
           processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
           success_url: `${window.location.protocol}//${window.location.host}/success.html`,
           failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
           customer: {
              id: "cus_korriakiszvubcuzaqpv5ujusm"
     }
-          ,
+         ,
           '3ds': {
               enabled: threeDSToggle.value == 'on' ? false : true
           },
@@ -219,6 +222,17 @@
   
       captureToggle.addEventListener('change', function() {
           paymentSessionBody.capture = this.checked;
+      });
+
+         rememberMeToggle.addEventListener('change', async function() {
+          console.log('rememberMeEnabled' , this.checked)
+          console.log('rememberMeEnabled' , this.value)
+          if(await !this.checked){
+            paymentSessionBody['disabled_payment_methods'] = ['remember_me']
+          }else{
+            delete paymentSessionBody['disabled_payment_methods'];
+          }
+         
       });
 
       paymentTypeSelect.addEventListener('change', (e) => {
@@ -322,6 +336,22 @@
 
 })();
 
+const performPaymentSubmission = async (submitData) => {
+  try {
+    const response = await fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/submit-payment-session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(submitData),
+    });
+    return response.json();
+  } catch (error) {
+    console.error("❌ Submit error:", error);
+  }
+};
+let showPayButtonLogic = true;
+let showCVVField = true;
 
 let initializeFlow = async (paymentSession, isTokenizeOnly) => {
     console.log(paymentSession)
@@ -379,74 +409,96 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
           letterSpacing: 0
       }
   }
-  let isInjectedCheckboxAccepted = false;
+
   const tokenizeButton = document.getElementById("tokenize-button")
-  //const payButton = document.getElementById("pay-button")
+  const payButton = document.getElementById("pay-button")
    const tokenizedDataContainer = document.querySelector(".success-payment-message");
     if(!isTokenizeOnly){
 
       tokenizeButton.style.display = 'none';
       tokenizedDataContainer.style.display = 'none';
-      //  payButton.style.display = 'inline';
-      // payButton.classList.add('main-button');
-      // payButton.textContent = 'Pay Now';
+      if(!showPayButtonLogic){
+    payButton.style.display = 'inline';
+      payButton.classList.add('main-button');
+      payButton.textContent = 'Pay Now';
 
-// payButton.addEventListener('click', () => {
-//   if (isInjectedCheckboxAccepted) {
-//             payButton.classList.add('disabled-button');
-//             payButton.textContent = 'Processing...';
-//     flowComponent.submit();
-//   }
-// });
+payButton.addEventListener('click', () => {
+
+  const isTnCChecked = (handleTnCValidation(flowComponent.type))
+  if (isTnCChecked) {
+            payButton.classList.add('disabled-button');
+            payButton.textContent = 'Processing...';
+            flowComponent.submit();
+  }
+});
+      }
+   
+
 const handlePaymentAdditionalContentMount = (_component, element) => {
-  console.log("handle mount", _component)
+  console.log("handle mount", _component);
+
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
   checkbox.name = 'injected-payment-agreement-message';
-  checkbox.addEventListener('click', () => {
-    isInjectedCheckboxAccepted = checkbox.checked;
+  checkbox.id = _component.type; 
+  checkbox.checked = false;
+
+    checkbox.addEventListener('click', () => {
+    handleTnCValidation(checkbox.id);
   });
 
   const label = document.createElement('label');
-      const merchantName = "Sony";
-         const text = `I agree to the terms and conditions and authorize ${merchantName} to use my payment details to process the payment.`;
+  const merchantName = "Syed's Shop";
+  const text = `I agree to the terms and conditions and authorize ${merchantName} to use my payment details to process the payment.`;
+  label.id = `${_component.type}-label`;
   label.innerHTML = text;
-
   element.appendChild(checkbox);
   element.appendChild(label);
- 
 };
-const handlePaymentAdditionalContentUnmount = (component, containerElement, mountIdentifier) => {
-   console.log("handle unmount", component)
 
-   console.log(mountIdentifier)
-  containerElement.innerHTML = '';
- 
+/**
+ * Checks a single T&C checkbox and updates the label's color for visual feedback.
+ * @param {string} checkboxId - The unique ID of the checkbox (e.g., 'stored_card-1').
+ * @returns {boolean} True if the T&C is checked, false otherwise.
+ */
+const handleTnCValidation = (checkboxId) => {
+  //console.log('checkbox Id inside handle validation event', checkboxId)
+  const checkboxElement = document.getElementById(checkboxId);
+  const labelElement = document.getElementById(`${checkboxId}-label`);
+  
+  if (checkboxElement && !checkboxElement.checked) {
+    labelElement.style.color = 'red';
+    return false;
+  } else if (checkboxElement) {
+    labelElement.style.color = ''; 
+    return true;
+  }
+  return true; 
 };
+
+
             const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
                 environment: "sandbox",
                 locale: "en-GB",
                 paymentSession,
                 appearance: appearance,
-                showPayButton: true,
+                showPayButton: showPayButtonLogic,
                   componentOptions: {
                       flow: {
                             handlePaymentAdditionalContentMount,
-                            handlePaymentAdditionalContentUnmount,
-                            expandFirstPaymentMethod: false
+                            displayPaymentAdditionalContent: "above_pay_button",
+                            expandFirstPaymentMethod: true,
+                            captureCardCvv:showCVVField
                  },
                  card:{
                         displayCardholderName: "hidden"
                  }
-           
-                //  data: {
-                //   email: "syed.hasnain@checkout.com"
-                //  }
+  
                   },
                   handleClick: (_self) => {
-                    console.log("inside handle click" + isInjectedCheckboxAccepted)
-                  if (isInjectedCheckboxAccepted) {
+                    let isTnCChecked = handleTnCValidation(_self.type)
+                  if (isTnCChecked) {
                 return { continue: true };
                 }
                 return { continue: false };
@@ -470,18 +522,23 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                  ,
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse);
-                            //  payButton.classList.add("disabled-button")
-                            //   payButton.textContent = 'Pay Now';
+                  if(!showPayButtonLogic)
+                           {
+                              payButton.classList.add("disabled-button")
+                              payButton.textContent = 'Pay Now';
+                           }
                   //console.log("Create Payment with PaymentId: ", _component);
                   window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
-                  if(!component.isValid() || !isInjectedCheckboxAccepted){
-                                  //payButton.classList.add('disabled-button');       
+                  if(!component.isValid()){
+                     if(!showPayButtonLogic)
+                                  payButton.classList.add('disabled-button');       
                                                
                   }
                   else{
-                      //payButton.classList.remove('disabled-button');
+                     if(!showPayButtonLogic)
+                      payButton.classList.remove('disabled-button');
                   }
                  
                   // console.log(
@@ -491,18 +548,34 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
                   // );
                 },
 
+                // handleSubmit: async (component, { session_data }) => {
+                //   console.log("Component Handle Submit",component.type)
+                //   if(component.type == 'card')
+
+                //   return performPaymentSubmission({
+                //           amount: 2500,
+                //           session_data,
+                //           paymentSessionId: paymentSession.id,
+                //   });
+                // },
+
                 onError: (component, error) => {
                   console.log(error.details);
-                        // payButton.classList.add('main-button');
-                        // payButton.textContent = 'Pay Now';
+                   if(!showPayButtonLogic){
+payButton.classList.add('main-button');
+                        payButton.textContent = 'Pay Now';
+                   }
+                        
                   //window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
                 },
               });
+
         
               const flowComponent = checkout.create("flow");
+    
             
               flowComponent.mount(document.getElementById("flow-container"));
-              console.log(flowComponent)
+             // console.log(flowComponent)
             //  flowComponent.unselect();
               // const individualComponent = checkout.create("card");
               // if(await individualComponent.isAvailable()){
@@ -511,8 +584,10 @@ const handlePaymentAdditionalContentUnmount = (component, containerElement, moun
             
 }
 else{
-
-  //  payButton.style.display = 'none';
+ if(!showPayButtonLogic){
+  payButton.style.display = 'none';
+ }
+  
    
   tokenizeButton.addEventListener('click', async() =>{
     if(await cardComponent.isValid()){

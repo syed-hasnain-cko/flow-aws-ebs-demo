@@ -61,6 +61,7 @@ const googleConfig = {
     {
       type: "CARD",
       parameters: {
+     
         allowedAuthMethods: ["PAN_ONLY", "CRYPTOGRAM_3DS"],
         allowedCardNetworks: [
           "AMEX",
@@ -69,7 +70,9 @@ const googleConfig = {
           "JCB",
           "MASTERCARD",
           "VISA",
-        ],
+        ]
+      //  allowCreditCards: false,   
+   // allowDebitCards: true
       },
       tokenizationSpecification: {
         type: "PAYMENT_GATEWAY",

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flow Demo</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+    <link rel="preload" href="https://checkout-web-components.checkout.com/index.js" as="script" />
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -50,7 +51,7 @@
                     <div class="form-group">
                         <label for="3ds-toggle" class="toggle-label">3DS</label>
                         <label class="switch">
-                            <input type="checkbox" id="3ds-toggle">
+                            <input type="checkbox" id="3ds-toggle" value="false">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -72,6 +73,15 @@
                         </select>
                     </div>
                 </div>
+                  <div class="inline-form">
+                    <div class="form-group">
+                        <label for="remember-me-toggle" class="toggle-label">Enable Remember Me</label>
+                        <label class="switch">
+                            <input type="checkbox" id="remember-me-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                  </div>
                 <div class="button-group">
                 <button id="flow-button" class="main-button">Render Standard Flow</button>
                 <button id="tokenize-only-button" class="main-button">Render Tokenize Only</button>
