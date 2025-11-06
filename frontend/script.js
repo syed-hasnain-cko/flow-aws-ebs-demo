@@ -270,7 +270,6 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
     
             let getData = await getResponse.json();
     
-            console.log('Get request completed:', getData);
             await initializeFlow(getData);
             flowContainer.style.display = 'block';
            
@@ -292,7 +291,6 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
     
             let getData = await getResponse.json();
     
-            console.log('Get request completed:', getData);
             await initializeFlow(getData, isTokenizeOnly);
             flowContainer.style.display = 'block';
         } catch (error) {
@@ -336,12 +334,13 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
 
 })();
 
+
 const performPaymentSubmission = async (submitData) => {
   try {
     const response = await fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/submit-payment-session", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+          'Content-Type': 'application/json' 
       },
       body: JSON.stringify(submitData),
     });
@@ -350,11 +349,11 @@ const performPaymentSubmission = async (submitData) => {
     console.error("❌ Submit error:", error);
   }
 };
+
 let showPayButtonLogic = true;
 let showCVVField = true;
 
 let initializeFlow = async (paymentSession, isTokenizeOnly) => {
-    console.log(paymentSession)
 
     const appearance = {
       colorAction: "#E05650",
@@ -435,12 +434,11 @@ payButton.addEventListener('click', () => {
    
 
 const handlePaymentAdditionalContentMount = (_component, element) => {
-  console.log("handle mount", _component);
 
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
-  checkbox.name = 'injected-payment-agreement-message';
-  checkbox.id = _component.type; 
+  checkbox.name = 'injected-payment-agreement-message'; 
+  checkbox.id = _component.selectedPaymentMethodId; 
   checkbox.checked = false;
 
     checkbox.addEventListener('click', () => {
@@ -450,11 +448,40 @@ const handlePaymentAdditionalContentMount = (_component, element) => {
   const label = document.createElement('label');
   const merchantName = "Syed's Shop";
   const text = `I agree to the terms and conditions and authorize ${merchantName} to use my payment details to process the payment.`;
-  label.id = `${_component.type}-label`;
+  label.id = `${_component.selectedPaymentMethodId}-label`;
   label.innerHTML = text;
   element.appendChild(checkbox);
   element.appendChild(label);
 };
+
+const handleSubmit = async (self, sessionData) => {
+
+  if(self.type == "card" || self.type == "stored_card"){
+  // 1. Send the 'submitData' to your server-side endpoint
+  const submitResponse = await performPaymentSubmission({
+                          amount: 2500,
+                          sessionData,
+                          paymentSessionId: paymentSession.id,
+                          items: [
+                            {
+                              name: "Order Total",
+                              unit_price: 2500, 
+                              quantity: 1,
+                              total_amount: 2500 
+                            }
+                          ],
+                          "3ds":{
+                            enabled:threeDSToggle.checked
+                          },
+                          payment_type: "Unscheduled"
+                  });
+
+  // 2. Return the unmodified response body from the server to Flow
+  return submitResponse;
+  }
+ 
+};
+
 
 /**
  * Checks a single T&C checkbox and updates the label's color for visual feedback.
@@ -462,7 +489,7 @@ const handlePaymentAdditionalContentMount = (_component, element) => {
  * @returns {boolean} True if the T&C is checked, false otherwise.
  */
 const handleTnCValidation = (checkboxId) => {
-  //console.log('checkbox Id inside handle validation event', checkboxId)
+
   const checkboxElement = document.getElementById(checkboxId);
   const labelElement = document.getElementById(`${checkboxId}-label`);
   
@@ -485,6 +512,7 @@ const handleTnCValidation = (checkboxId) => {
                 appearance: appearance,
                 showPayButton: showPayButtonLogic,
                   componentOptions: {
+                    
                       flow: {
                             handlePaymentAdditionalContentMount,
                             displayPaymentAdditionalContent: "above_pay_button",
@@ -493,24 +521,26 @@ const handleTnCValidation = (checkboxId) => {
                  },
                  card:{
                         displayCardholderName: "hidden"
+                 },
+                 stored_card: {
+                  displayMode: "all"
                  }
-  
                   },
                   handleClick: (_self) => {
-                    let isTnCChecked = handleTnCValidation(_self.type)
+                    let isTnCChecked = handleTnCValidation(_self.selectedPaymentMethodId)
                   if (isTnCChecked) {
                 return { continue: true };
                 }
                 return { continue: false };
                 },
                 onSubmit: (_self) => {
-                  console.log("OnSubmit() Result: ",_self)
+             
                 },
                  onCardBinChanged: (_self, cardMetadata) => {
-                  console.log("OnCardBinChanged() Result: ", cardMetadata)
+                  //console.log("OnCardBinChanged() Result: ", cardMetadata)
                  },
                  onTokenized: (_self, tokenizeResult) => {
-                  console.log("OnTokenized() Result: ", tokenizeResult.data)
+                  //console.log("OnTokenized() Result: ", tokenizeResult.data)
                     if (tokenizeResult.data.card_type === 'DEBIT') {
                             return {
                                 continue: false,
@@ -528,12 +558,13 @@ const handleTnCValidation = (checkboxId) => {
                               payButton.textContent = 'Pay Now';
                            }
                   //console.log("Create Payment with PaymentId: ", _component);
-                  window.location.href = `success.html?paymentId=${paymentResponse.id}`;
+                  //window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
+
                   if(!component.isValid()){
                      if(!showPayButtonLogic)
-                                  payButton.classList.add('disabled-button');       
+                        payButton.classList.add('disabled-button');       
                                                
                   }
                   else{
@@ -548,21 +579,11 @@ const handleTnCValidation = (checkboxId) => {
                   // );
                 },
 
-                // handleSubmit: async (component, { session_data }) => {
-                //   console.log("Component Handle Submit",component.type)
-                //   if(component.type == 'card')
-
-                //   return performPaymentSubmission({
-                //           amount: 2500,
-                //           session_data,
-                //           paymentSessionId: paymentSession.id,
-                //   });
-                // },
 
                 onError: (component, error) => {
                   console.log(error.details);
                    if(!showPayButtonLogic){
-payButton.classList.add('main-button');
+                        payButton.classList.add('main-button');
                         payButton.textContent = 'Pay Now';
                    }
                         
@@ -571,7 +592,11 @@ payButton.classList.add('main-button');
               });
 
         
-              const flowComponent = checkout.create("flow");
+              const flowComponent = checkout.create("flow",
+                {
+                  handleSubmit
+                }
+              );
     
             
               flowComponent.mount(document.getElementById("flow-container"));
@@ -619,9 +644,7 @@ else{
                 },
                 onChange: (component) => {
                   console.log(
-                    `onChange() -> isValid: "${component.isValid()}" for "${
-                      component.type
-                    }"`,
+                 component
                   );
                 },
                 onError: (component, error) => {
