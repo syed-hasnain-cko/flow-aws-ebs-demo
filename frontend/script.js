@@ -454,6 +454,8 @@ const handlePaymentAdditionalContentMount = (_component, element) => {
   element.appendChild(label);
 };
 
+
+
 const handleSubmit = async (self, sessionData) => {
 
   if(self.type == "card" || self.type == "stored_card"){
@@ -471,7 +473,7 @@ const handleSubmit = async (self, sessionData) => {
                             }
                           ],
                           "3ds":{
-                            enabled:threeDSToggle.checked
+                            enabled:true
                           },
                           payment_type: "Unscheduled"
                   });
