@@ -522,7 +522,10 @@ const handleTnCValidation = (checkboxId) => {
                             captureCardCvv:showCVVField
                  },
                  card:{
-                        displayCardholderName: "hidden"
+                  		  data: {
+			                  cardholderName: 'Syed Hasnain'
+		                  },
+                        displayCardholderName: "bottom"
                  },
                  stored_card: {
                   displayMode: "all"
@@ -543,13 +546,13 @@ const handleTnCValidation = (checkboxId) => {
                  },
                  onTokenized: (_self, tokenizeResult) => {
                   //console.log("OnTokenized() Result: ", tokenizeResult.data)
-                    if (tokenizeResult.data.card_type === 'DEBIT') {
-                            return {
-                                continue: false,
-                                errorMessage: `Debit cards are not accepted`,
-                            };
-                          }
-                            return { continue: true };
+                    // if (tokenizeResult.data.card_type === 'DEBIT') {
+                    //         return {
+                    //             continue: false,
+                    //             errorMessage: `Debit cards are not accepted`,
+                    //         };
+                    //       }
+                    //         return { continue: true };
                 }
                  ,
                 onPaymentCompleted: (_component, paymentResponse) => {
