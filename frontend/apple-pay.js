@@ -150,14 +150,24 @@ function startApplePaySession() {
 
 }
 
- function validateApplePaySession(appleUrl, callback) {
+function validateApplePaySession(appleUrl, callback) {
      fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/validate-apple-session', {
         method: "POST",
+        headers: {
+            'Content-Type': 'application/json' 
+        },
         body: JSON.stringify(
             {appleUrl},
         ),
     })
-    .then((response) => response.json())
+    .then((response) => {
+      // Check for non-200 status codes explicitly
+      if (!response.ok) {
+          // You might want to throw an error here to catch it below
+          throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then((data) => {
       console.log(data)
       callback(data)})
