@@ -373,35 +373,35 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
           "50px"
       ],
       subheading: {
-          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;",
+          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif",
           fontSize: "16px",
           lineHeight: "24px",
           fontWeight: 400,
           letterSpacing: 0
       },
       label: {
-          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;",
+          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif",
           fontSize: "14px",
           lineHeight: "20px",
           fontWeight: 400,
           letterSpacing: 0
       },
       input: {
-          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif",
           fontSize: "16px",
           lineHeight: "20px",
           fontWeight: 400,
           letterSpacing: 0
       },
       button: {
-          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;",
+          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif",
           fontSize: "16px",
           lineHeight: "24px",
           fontWeight: 700,
           letterSpacing: 0
       },
       footnote: {
-          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif;",
+          fontFamily: "Lato, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'Noto Sans', 'Liberation Sans', Arial, sans-serif",
           fontSize: "14px",
           lineHeight: "20px",
           fontWeight: 400,
@@ -545,7 +545,7 @@ const handleTnCValidation = (checkboxId) => {
                   //console.log("OnCardBinChanged() Result: ", cardMetadata)
                  },
                  onTokenized: (_self, tokenizeResult) => {
-                  //console.log("OnTokenized() Result: ", tokenizeResult.data)
+                  console.log("OnTokenized() Result: ", tokenizeResult.data)
                     // if (tokenizeResult.data.card_type === 'DEBIT') {
                     //         return {
                     //             continue: false,
@@ -563,7 +563,7 @@ const handleTnCValidation = (checkboxId) => {
                               payButton.textContent = 'Pay Now';
                            }
                   //console.log("Create Payment with PaymentId: ", _component);
-                  //window.location.href = `success.html?paymentId=${paymentResponse.id}`;
+                  window.location.href = `success.html?paymentId=${paymentResponse.id}`;
                 },
                 onChange: (component) => {
 
@@ -605,9 +605,9 @@ const handleTnCValidation = (checkboxId) => {
     
             
               flowComponent.mount(document.getElementById("flow-container"));
-             // console.log(flowComponent)
-            //  flowComponent.unselect();
-              // const individualComponent = checkout.create("card");
+             //console.log(flowComponent)
+          
+              // const individualComponent = checkout.create("paypal");
               // if(await individualComponent.isAvailable()){
               //   individualComponent.mount(document.getElementById("flow-container"));
               // }
