@@ -173,7 +173,10 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
           reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
           billing: {
               address: {
-                  country: countrySelect.value
+                  country: countrySelect.value,
+                  address_line1: "Lauterbergerstr. 23",
+                  city: "Berlin",
+                  zip: "12347"
               }
           },
           payment_method_configuration: {
@@ -197,6 +200,9 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
          ,
           '3ds': {
               enabled: threeDSToggle.value == 'on' ? false : true
+          },
+          processing: {
+              pan_preference : 'fpan'
           },
           items:[
             {
@@ -599,7 +605,7 @@ const handleTnCValidation = (checkboxId) => {
         
               const flowComponent = checkout.create("flow",
                 {
-                  handleSubmit
+                 //handleSubmit
                 }
               );
     
