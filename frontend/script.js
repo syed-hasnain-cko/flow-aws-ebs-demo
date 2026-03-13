@@ -514,7 +514,7 @@ const handleTnCValidation = (checkboxId) => {
 
             const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
-                environment: "sandbox",
+                //environment: "sandbox",
                 locale: "en-GB",
                 paymentSession,
                 appearance: appearance,
