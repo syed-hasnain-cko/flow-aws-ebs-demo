@@ -342,7 +342,9 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
 
 
 const performPaymentSubmission = async (submitData) => {
+
   try {
+    document.getElementById('payment-loader').style.display = 'flex';
     const response = await fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/submit-payment-session", {
       method: "POST",
       headers: {
@@ -352,6 +354,7 @@ const performPaymentSubmission = async (submitData) => {
     });
     return response.json();
   } catch (error) {
+    document.getElementById('payment-loader').style.display = 'none';
     console.error("❌ Submit error:", error);
   }
 };
