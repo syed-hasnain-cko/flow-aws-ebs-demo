@@ -275,9 +275,9 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
             });
     
             let getData = await getResponse.json();
-    
-            await initializeFlow(getData);
             flowContainer.style.display = 'block';
+            await initializeFlow(getData);
+          
            
         } catch (error) {
             console.error(error);
@@ -296,9 +296,9 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
             });
     
             let getData = await getResponse.json();
-    
+    flowContainer.style.display = 'block';
             await initializeFlow(getData, isTokenizeOnly);
-            flowContainer.style.display = 'block';
+          
         } catch (error) {
             console.error(error);
         } 
@@ -514,7 +514,7 @@ const handleTnCValidation = (checkboxId) => {
 
             const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
-                //environment: "sandbox",
+                environment: "sandbox",
                 locale: "en-GB",
                 paymentSession,
                 appearance: appearance,
@@ -625,21 +625,23 @@ else{
  }
   
    
-  tokenizeButton.addEventListener('click', async() =>{
-    if(await cardComponent.isValid()){
-    const {data} = await cardComponent.tokenize();
-    console.log(data)
-    
-          tokenizedDataContainer.innerHTML = "Card tokenization completed.<br>" + "Card Token: <span class=\"token\">" + data.token + "</span></br>"
-  + "Issuer: <span class=\"token\">" + data.issuer + "</span></br>"
-    + "Card Type: <span class=\"token\">" + data.card_type + "</span></br>"
-      + "Cardholder Name: <span class=\"token\">" + data.name + "</span></br>"
-      + "Scheme: <span class=\"token\">" + data.scheme + "</span></br>"
-      + "BIN: <span class=\"token\">" + data.bin + "</span></br>"
-      + "Last4: <span class=\"token\">" + data.last4 + "</span></br>";
+ tokenizeButton.addEventListener('click', async () => {
+    if (await cardComponent.isValid()) {
+        const { data } = await cardComponent.tokenize();
+        tokenizedDataContainer.style.display = 'none';
+        // Beautiful Structured Output
+        tokenizedDataContainer.innerHTML = `
+            <div style="font-weight:700; margin-bottom:10px; color:#1e293b;">Card Tokenized Successfully</div>
+            <div class="token-row"><span class="token-label">Token</span><span class="token-value">${data.token}</span></div>
+            <div class="token-row"><span class="token-label">Scheme</span><span class="token-value">${data.scheme}</span></div>
+            <div class="token-row"><span class="token-label">Card Type</span><span class="token-value">${data.card_type}</span></div>
+            <div class="token-row"><span class="token-label">Last 4</span><span class="token-value">•••• ${data.last4}</span></div>
+            <div class="token-row"><span class="token-label">Expiry</span><span class="token-value">${data.expiry_month}/${data.expiry_year}</span></div>
+        `;
+        tokenizedDataContainer.style.display = 'block';
     }
-    tokenizedDataContainer.style.display = 'block';
-  })
+});
+
   tokenizeButton.style.display = 'inline-block';
    const checkout = await CheckoutWebComponents({
                 publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",

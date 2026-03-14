@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Payment Success</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -32,13 +33,24 @@
             </div>
             <div id="details-container" class="details-container" style="display: none;">
                 <div id="payment-details-container" class="detail-box">
-                    <h3>Payment Details</h3>
-                    <pre id="payment-details-response"></pre>
-                </div>
-                <div id="payment-actions-container" class="detail-box">
-                    <h3>Payment Actions</h3>
-                    <pre id="payment-actions-response"></pre>
-                </div>
+    <div class="detail-header">
+        <h3>Payment Details</h3>
+        <button class="copy-btn" onclick="copyToClipboard('payment-details-response')">
+            Copy JSON
+        </button>
+    </div>
+    <pre id="payment-details-response"></pre>
+</div>
+
+<div id="payment-actions-container" class="detail-box">
+    <div class="detail-header">
+        <h3>Payment Actions</h3>
+        <button class="copy-btn" onclick="copyToClipboard('payment-actions-response')">
+            Copy JSON
+        </button>
+    </div>
+    <pre id="payment-actions-response"></pre>
+</div>
             </div>
             <div id="wallet-details-data-container" class="details-container" style="display: none;">
                     <div id="wallet-details-container" class="detail-box">

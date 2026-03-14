@@ -1,38 +1,51 @@
+
+
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Payment Failed</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-    <header>
+    <header style="background: linear-gradient(135deg, #FF4D4D 0%, #B91C1C 100%);">
         <h1>Payment Failed</h1>
     </header>
+
     <main class="wrapper">
         <div class="status-container failure">
+            <div id="toast-container" class="toast-container"></div>
+            
             <img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png" alt="Failure" class="status-image">
-            <h2>Sorry, something went wrong.</h2>
-            <p>Your payment could not be processed. Please try again.</p>
-            <p id="error-details">Error for payment: <span id="error-message"></span></p>
+            <h2>Payment Declined</h2>
+            <p>We couldn't process your transaction. Please check your details and try again.</p>
+            <p id="error-details" style="color: #64748B; font-size: 14px;">
+                Reference: <span id="error-message" style="font-family: monospace; font-weight: 600;"></span>
+            </p>
+
             <div class="button-group">
-                <a href="index.html" class="main-button">Return to Home</a>
-                <button id="fetch-details-button" class="main-button">Fetch Payment Details</button>
+                <a href="index.html" class="main-button" style="background-color: #64748B;">Return to Home</a>
+                <button id="fetch-details-button" class="main-button">Debug Payment Details</button>
             </div>
-            <div id="details-container" class="details-container" style="display: none;">
-                <div id="payment-details-container" class="detail-box">
-                    <h3>Payment Details</h3>
-                    <pre id="payment-details-response"></pre>
+
+            <div id="details-container" class="details-container" style="display: none; margin-top: 30px;">
+                <div id="payment-details-container" class="detail-box full-width">
+                    <div class="detail-header">
+                        <h3>Declined Payment Data</h3>
+                        <button class="copy-btn" onclick="copyToClipboard('payment-details-response')">
+                            Copy JSON
+                        </button>
+                    </div>
+                    <div id="payment-details-response"></div>
                 </div>
             </div>
         </div>
     </main>
 
-    <div id="modal" class="modal">
+    <div id="modal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h2>Webhook Event</h2>
@@ -40,49 +53,41 @@
         </div>
     </div>
 
+    <script src="utils.js"></script>
     <script>
-            function formatJSON(data) {
-                let formatted = '<ul class="json-list">';
-                for (const key in data) {
-                    if (typeof data[key] === 'object' && data[key] !== null) {
-                        formatted += `<li><strong>${key}:</strong> ${formatJSON(data[key])}</li>`;
-                    } else {
-                        formatted += `<li><strong>${key}:</strong> ${data[key]}</li>`;
-                    }
-                }
-                formatted += '</ul>';
-                return formatted;
-            }
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const paymentId = urlParams.get('cko-payment-id');
+            // Support multiple possible ID params
+            let paymentId = urlParams.get('cko-payment-id') || urlParams.get('paymentId');
+            
             if (paymentId) {
                 document.getElementById('error-message').innerText = paymentId;
             }
 
             document.getElementById('fetch-details-button').addEventListener('click', async () => {
                 if (paymentId) {
-                    const queryParams = new URLSearchParams({
-                        paymentId: paymentId,
-                    });
+                    try {
+                        const queryParams = new URLSearchParams({ paymentId: paymentId });
+                        // Using your existing endpoint logic
+                        const response = await fetch(`/get-payment-details?${queryParams.toString()}`);
+                        const paymentData = await response.json();
 
-                    const paymentResponse = await fetch(`/get-payment-details?${queryParams.toString()}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
+                        // Use the pretty print function from utils.js
+                        if (typeof formatJSON === 'function') {
+                            document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
+                        } else {
+                            // Fallback if utils isn't loaded
+                            document.getElementById('payment-details-response').innerText = JSON.stringify(paymentData, null, 2);
                         }
-                    });
-                    const paymentData = await paymentResponse.json();
-                    document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
-                    document.getElementById('payment-details-container').classList.add('full-width');
-                    document.getElementById('details-container').style.display = 'flex';
 
+                        document.getElementById('details-container').style.display = 'flex';
+                    } catch (error) {
+                        console.error("Error fetching declined details:", error);
+                    }
                 }
             });
-            
         });
     </script>
     <script src="./websocket.js"></script>
 </body>
-
 </html>

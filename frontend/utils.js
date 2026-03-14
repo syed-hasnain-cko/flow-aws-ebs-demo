@@ -1,23 +1,76 @@
-function formatJSON(data) {
-    let formatted = '<ul class="json-list">';
-    for (const key in data) {
-        if (typeof data[key] === 'object' && data[key] !== null) {
-            formatted += `<li><strong>${key}:</strong> ${formatJSON(data[key])}</li>`;
-        } else {
-            formatted += `<li><strong>${key}:</strong> ${data[key]}</li>`;
+
+
+const formatJSON = (data) => {
+    const stringify = (obj, indent = 0) => {
+        let html = '';
+        const spacing = '&nbsp;'.repeat(indent * 4);
+
+        for (const key in obj) {
+            const value = obj[key];
+            const isObject = typeof value === 'object' && value !== null;
+
+            html += `<div style="line-height: 1.6; font-size: 13px;">`;
+            html += `<span style="color: #64748b; font-weight: 600;">${spacing}${key}:</span> `;
+
+            if (isObject) {
+                html += `<span style="color: #94a3b8; font-size: 11px;">{</span>`;
+                html += stringify(value, indent + 1);
+                html += `<div style="color: #94a3b8; font-size: 11px;">${spacing}}</div>`;
+            } else {
+                const color = typeof value === 'string' ? '#059669' : '#0052FF';
+                html += `<span style="color: ${color}; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${value}</span>`;
+            }
+            html += `</div>`;
         }
+        return html;
+    };
+
+    return `
+        <div style="background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left;">
+            ${stringify(data)}
+        </div>`;
+};
+
+async function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const btn = element.previousElementSibling.querySelector('.copy-btn');
+    
+    // Get the text, removing HTML tags if you're using the "Simple & Pretty" formatter
+    const textToCopy = element.innerText;
+
+    try {
+        await navigator.clipboard.writeText(textToCopy);
+        
+        // Visual Feedback
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.classList.add('copied');
+        
+        // Show a toast as well (using the function we built earlier)
+        if (typeof showToast === 'function') {
+            showToast('Json copied to clipboard');
+        }
+
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.classList.remove('copied');
+        }, 1000);
+        
+    } catch (err) {
+        console.error('Failed to copy: ', err);
     }
-    formatted += '</ul>';
-    return formatted;
 }
-function showToast(message, isSuccess = true) {
-const toastContainer = document.getElementById('toast-container');
-toastContainer.className = isSuccess ? 'toast-container toast-success' : 'toast-container toast-error';
-toastContainer.textContent = message;
-toastContainer.style.display = 'block';
-setTimeout(() => {
-toastContainer.style.display = 'none';
-}, 6000);
+
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast-container');
+    toast.textContent = message;
+    toast.className = `toast-container toast-${type}`;
+    toast.style.display = 'block';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 4000);
 }
 
 async function fetchPaymentDetails(id){
@@ -103,7 +156,7 @@ async function refundPayment(id){
 async function updatePaymentDetailsData(id){
     let paymentData = await fetchPaymentDetails(id);
 
-    document.getElementById('action-buttons').style.display = 'block';
+    document.getElementById('action-buttons').style.display = 'flex';
     // Clear previous action buttons
     document.getElementById('action-buttons').innerHTML = '';
 

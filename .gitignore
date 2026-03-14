@@ -12,6 +12,8 @@
 /frontend.zip
 /backend-local
 /backend
+/frontend/index-old.html
+/frontend/style-old.html
 /amplify
 #amplify-do-not-edit-begin
 amplify/\#current-cloud-backend

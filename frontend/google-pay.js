@@ -122,7 +122,6 @@ function onGooglePayLoaded() {
 }
 
 function addGooglePayButton() {
-
   const googleContainer = document.getElementById("google-container");
   googleContainer.innerHTML = '';
 
@@ -136,7 +135,8 @@ function addGooglePayButton() {
   });
 
   googleContainer.appendChild(button);
-  googleContainer.style.display = 'block';
+  
+  googleContainer.style.display = 'flex'; 
 }
 
 function onGooglePaymentButtonClicked() {
