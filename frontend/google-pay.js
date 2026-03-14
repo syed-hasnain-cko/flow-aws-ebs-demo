@@ -174,6 +174,7 @@ function onGooglePaymentButtonClicked() {
 
 function processGooglePayPayment(paymentData) {
 
+document.getElementById('payment-loader').style.display = 'flex';
   let currency = CURRENCIES.find(c => c.iso4217 == googleCurrency);
 
   paymentToken = paymentData.paymentMethodData.tokenizationData.token;
@@ -222,7 +223,9 @@ function processGooglePayPayment(paymentData) {
 
     })
     .catch((error) => {
+      document.getElementById('payment-loader').style.display = 'none';
       console.error("Error:", error);
+      
     });
 }
 
