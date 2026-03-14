@@ -382,6 +382,23 @@ pre {
     box-sizing: border-box;
 }
 
+.apple-pay-button {
+    display: inline-block;
+    -webkit-appearance: -apple-pay-button;
+    -apple-pay-button-type: plain; /* Options: buy, set-up, donate, check-out, plain */
+    -apple-pay-button-style: black;
+    width: 250px; /* Essential */
+    min-height: 48px; /* Essential */
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    transition: transform 0.2s ease;
+}
+
+.apple-pay-button:hover {
+    transform: scale(1.02);
+}
+
 /* If the Google API injects a div that overrides flex, 
    this ensures the button itself is centered */
 #google-container > div {
