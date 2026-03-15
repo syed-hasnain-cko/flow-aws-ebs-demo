@@ -59,7 +59,7 @@ const appleButtonStyle = document.getElementById('apple-button-style');
 const appleActiveCardToggle = document.getElementById('apple-active-card-toggle');
 const appleMerchantCapsSelect = document.getElementById('apple-merchant-capabilities');
 
-[appleButtonType, appleButtonStyle, appleActiveCardToggle, appleMerchantCapsSelect].forEach(element => {
+[gLocale,appleButtonType, appleButtonStyle, appleActiveCardToggle, appleMerchantCapsSelect].forEach(element => {
     element.addEventListener('change', () => {
         // Only auto-render if the container is already visible (meaning the user has clicked Render at least once)
         const container = document.getElementById("google-container");
@@ -69,6 +69,7 @@ const appleMerchantCapsSelect = document.getElementById('apple-merchant-capabili
         }
     });
 });
+
 
 document.getElementById('apple-button').addEventListener('click', function() {
     addApplePayButton();
@@ -92,7 +93,7 @@ function addApplePayButton() {
                     
                     // Add the base class
                     button.className = 'apple-pay-button';
-                    
+                    button.setAttribute('lang', gLocale.value);
                     // Set Data Attributes instead of direct .style
                     // This matches our new CSS selectors
                     button.setAttribute('data-type', appleButtonType.value);
@@ -155,7 +156,7 @@ session.onpaymentauthorized = function(event) {
         shippingContact: event.payment.shippingContact || "Not requested"
     };
     sessionStorage.setItem('wallet_debug_log', JSON.stringify(sdkLogData));
-    
+
     const debugContainer = document.getElementById('apple-pay-debugger');
     const logElement = document.getElementById('apple-sdk-log');
     

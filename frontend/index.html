@@ -175,7 +175,16 @@
                         </select>
                     
                     </div>
-                    <div class="form-group"></div>
+                        <div class="form-group">
+        <label for="google-locale" class="select-label">Language (Locale)</label>
+        <select id="google-locale" class="select-input">
+            <option value="en" selected>English</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="ar">Arabic</option>
+            <option value="es">Spanish</option>
+        </select>
+    </div>
                     <div class="form-group"></div>
                     
                 </div>
@@ -199,20 +208,58 @@
         </select>
     </div>
     <div class="form-group">
-        <label for="apple-active-card-toggle" class="toggle-label">Require Active Card</label>
+        <label for="apple-active-card-toggle" class="toggle-label">AP Require Active Card</label>
         <label class="switch">
             <input type="checkbox" id="apple-active-card-toggle" checked>
             <span class="slider round"></span>
         </label>
     </div>
       <div class="form-group">
-        <label for="apple-merchant-capabilities" class="select-label">Merchant Capabilities</label>
+        <label for="apple-merchant-capabilities" class="select-label">AP Merchant Capabilities</label>
         <select id="apple-merchant-capabilities" class="multi select-input" multiple>
             <option value="supports3DS" selected>supports3DS</option>
             <option value="supportsEMV">supportsEMV</option>
             <option value="supportsCredit">supportsCredit</option>
             <option value="supportsDebit">supportsDebit</option>
         </select>
+    </div>
+</div>
+
+<div class="inline-form">
+    <div class="form-group">
+        <label for="google-button-type" class="select-label">G-Pay Button Type</label>
+        <select id="google-button-type" class="select-input">
+            <option value="buy" selected>Buy</option>
+            <option value="plain">Plain</option>
+            <option value="donate">Donate</option>
+            <option value="checkout">Checkout</option>
+            <option value="pay">Pay</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="google-button-color" class="select-label">G-Pay Button Color</label>
+        <select id="google-button-color" class="select-input">
+            <option value="default" selected>Default (Black)</option>
+            <option value="white">White</option>
+        </select>
+    </div>
+
+</div>
+
+<div class="inline-form">
+    <div class="form-group">
+        <label for="google-allow-credit" class="toggle-label">Allow Credit Cards</label>
+        <label class="switch">
+            <input type="checkbox" id="google-allow-credit" checked>
+            <span class="slider round"></span>
+        </label>
+    </div>
+    <div class="form-group">
+        <label for="google-allow-debit" class="toggle-label">Allow Debit Cards</label>
+        <label class="switch">
+            <input type="checkbox" id="google-allow-debit" checked>
+            <span class="slider round"></span>
+        </label>
     </div>
 </div>
 
