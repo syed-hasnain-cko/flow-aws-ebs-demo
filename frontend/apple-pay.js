@@ -59,25 +59,26 @@ const appleButtonStyle = document.getElementById('apple-button-style');
 const appleActiveCardToggle = document.getElementById('apple-active-card-toggle');
 const appleMerchantCapsSelect = document.getElementById('apple-merchant-capabilities');
 
-[gLocale,appleButtonType, appleButtonStyle, appleActiveCardToggle, appleMerchantCapsSelect].forEach(element => {
-    element.addEventListener('change', () => {
-        // Only auto-render if the container is already visible (meaning the user has clicked Render at least once)
-        const container = document.getElementById("google-container");
-        if (container.style.display === 'flex' || container.style.display === 'block') {
-            console.log("Apple Pay config changed. Re-rendering button...");
-            addApplePayButton();
-        }
-    });
-});
+// [gLocale,appleButtonType, appleButtonStyle, appleActiveCardToggle, appleMerchantCapsSelect].forEach(element => {
+//     element.addEventListener('change', () => {
+//         // Only auto-render if the container is already visible (meaning the user has clicked Render at least once)
+//         const container = document.getElementById("google-container");
+//         if (container.style.display === 'flex' || container.style.display === 'block') {
+//             console.log("Apple Pay config changed. Re-rendering button...");
+//             addApplePayButton();
+//         }
+//     });
+// });
 
 
 document.getElementById('apple-button').addEventListener('click', function() {
-    activeWallet = 'apple';
     addApplePayButton();
 });
 
 
-function addApplePayButton() {
+
+window.addApplePayButton = function() { 
+    window.activeWallet = 'apple';
     const container = document.getElementById("google-container");
     container.innerHTML = ''; // Force clear
 

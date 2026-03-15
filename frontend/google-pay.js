@@ -17,27 +17,26 @@ const gLocale = document.getElementById('google-locale');
 const gAllowCredit = document.getElementById('google-allow-credit');
 const gAllowDebit = document.getElementById('google-allow-debit');
 
-let activeWallet = null;
 
 
-[gBtnType, gBtnColor, gLocale, gAllowCredit, gAllowDebit].forEach(el => {
-    el.addEventListener('change', () => {
-        const container = document.getElementById("google-container");
+// [gBtnType, gBtnColor, gLocale, gAllowCredit, gAllowDebit].forEach(el => {
+//     el.addEventListener('change', () => {
+//         const container = document.getElementById("google-container");
         
-        // Only proceed if the container is currently visible
-        if (container.style.display === 'flex' || container.style.display === 'block') {
+//         // Only proceed if the container is currently visible
+//         if (container.style.display === 'flex' || container.style.display === 'block') {
             
-            if (activeWallet === 'google') {
-                console.log("Auto-rerendering Google Pay...");
-                onGooglePayLoaded();
-            } 
-            else if (activeWallet === 'apple') {
-                console.log("Auto-rerendering Apple Pay...");
-                addApplePayButton();
-            }
-        }
-    });
-});
+//             if (activeWallet === 'google') {
+//                 console.log("Auto-rerendering Google Pay...");
+//                 onGooglePayLoaded();
+//             } 
+//             else if (activeWallet === 'apple') {
+//                 console.log("Auto-rerendering Apple Pay...");
+//                 addApplePayButton();
+//             }
+//         }
+//     });
+// });
 
 paymentRequest = {
 
@@ -132,8 +131,8 @@ function getGooglePaymentsClient(config) {
   return paymentsClient;
 }
 
-function onGooglePayLoaded() {
-  activeWallet = 'google';
+ window.onGooglePayLoaded = function() {
+  window.activeWallet = 'google';
   const config = getConfig((config) => {
     const paymentsClient = getGooglePaymentsClient(config);
     paymentsClient
