@@ -17,12 +17,24 @@ const gLocale = document.getElementById('google-locale');
 const gAllowCredit = document.getElementById('google-allow-credit');
 const gAllowDebit = document.getElementById('google-allow-debit');
 
+let activeWallet = null;
+
 
 [gBtnType, gBtnColor, gLocale, gAllowCredit, gAllowDebit].forEach(el => {
     el.addEventListener('change', () => {
         const container = document.getElementById("google-container");
-        if (container.style.display === 'flex') {
-            onGooglePayLoaded(); // Re-checks readiness and re-renders
+        
+        // Only proceed if the container is currently visible
+        if (container.style.display === 'flex' || container.style.display === 'block') {
+            
+            if (activeWallet === 'google') {
+                console.log("Auto-rerendering Google Pay...");
+                onGooglePayLoaded();
+            } 
+            else if (activeWallet === 'apple') {
+                console.log("Auto-rerendering Apple Pay...");
+                addApplePayButton();
+            }
         }
     });
 });
@@ -121,6 +133,7 @@ function getGooglePaymentsClient(config) {
 }
 
 function onGooglePayLoaded() {
+  activeWallet = 'google';
   const config = getConfig((config) => {
     const paymentsClient = getGooglePaymentsClient(config);
     paymentsClient
@@ -136,23 +149,6 @@ function onGooglePayLoaded() {
     });
 }
 
-// function addGooglePayButton() {
-//   const googleContainer = document.getElementById("google-container");
-//   googleContainer.innerHTML = '';
-
-//   while (googleContainer.firstChild) {
-//       googleContainer.removeChild(googleContainer.firstChild);
-//   }
-
-//   const paymentsClient = getGooglePaymentsClient();
-//   const button = paymentsClient.createButton({
-//       onClick: onGooglePaymentButtonClicked,
-//   });
-
-//   googleContainer.appendChild(button);
-  
-//   googleContainer.style.display = 'flex'; 
-// }
 
 function addGooglePayButton() {
   const googleContainer = document.getElementById("google-container");
@@ -172,80 +168,6 @@ function addGooglePayButton() {
   googleContainer.style.display = 'flex'; 
 }
 
-function onGooglePaymentButtonClicked() {
-  let allowedAuthMethods = getMultiSelectSelectedValues("#auth-methods");
-  let allowedCardNetworks = getMultiSelectSelectedValues("#schemes");
-  let currency = currencySelect.value.toUpperCase();
-  let totalPrice = amountInput.value;
-  const allowCredit = gAllowCredit.checked;
-  const allowDebit = gAllowDebit.checked;
-  
-  // If neither is checked, default to both to avoid OR_BIBED_06
-  if (!allowCredit && !allowDebit) {
-      googleConfig.allowedPaymentMethods[0].parameters.allowCreditCards = true;
-      googleConfig.allowedPaymentMethods[0].parameters.allowDebitCards = true;
-  } else {
-      googleConfig.allowedPaymentMethods[0].parameters.allowCreditCards = allowCredit;
-      googleConfig.allowedPaymentMethods[0].parameters.allowDebitCards = allowDebit;
-  }
-  googleCurrency = currency;
-  googleTotalPrice = totalPrice;
-
-  googleConfig.allowedPaymentMethods[0].parameters.allowedAuthMethods =
-    allowedAuthMethods;
-  googleConfig.allowedPaymentMethods[0].parameters.allowedCardNetworks =
-    allowedCardNetworks;
-  googleConfig.transactionInfo.currencyCode = currency;
-  googleConfig.transactionInfo.totalPrice = totalPrice;
-  googleConfig.merchantInfo = {
-    merchantName: "Syed Demo Store",
-    merchantId,
-  };
-
-  console.log(googleConfig);
-  const paymentsClient = getGooglePaymentsClient();
-  paymentsClient
-    .loadPaymentData(googleConfig)
-    .then(function (paymentData) {
-
-      const sdkLogData = {
-          source: "Google Pay",
-          type: paymentData.paymentMethodData.type,
-          description: paymentData.paymentMethodData.description,
-          info: paymentData.paymentMethodData.info,
-          tokenMetadata: JSON.parse(paymentData.paymentMethodData.tokenizationData.token)
-      };
-      sessionStorage.setItem('wallet_debug_log', JSON.stringify(sdkLogData));
-
-      const debugContainer = document.getElementById('apple-pay-debugger');
-      const logElement = document.getElementById('apple-sdk-log');
-      
-      // Update header to be generic if it's currently "Apple SDK Log"
-      debugContainer.querySelector('h3').innerText = "Wallet SDK Authorization Log";
-      debugContainer.style.display = 'block';
-
-      // Parse and display the Google Pay SDK response
-      const tokenObj = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
-      
-      logElement.innerHTML = formatJSON({
-          type: paymentData.paymentMethodData.type,
-          description: paymentData.paymentMethodData.description,
-          info: paymentData.paymentMethodData.info, // Contains card network and last 4
-          tokenizationData: {
-              gateway: "checkoutltd",
-              token: {
-                  signature: tokenObj.signature,
-                  protocolVersion: tokenObj.protocolVersion,
-                  signedMessage: "{Encrypted JSON Message}" // Truncated for readability
-              }
-          }
-      });
-      processGooglePayPayment(paymentData);
-    })
-    .catch(function (err) {
-      console.error(err);
-    });
-}
 
 function onGooglePaymentButtonClicked() {
   const allowedAuthMethods = getMultiSelectSelectedValues("#auth-methods");
