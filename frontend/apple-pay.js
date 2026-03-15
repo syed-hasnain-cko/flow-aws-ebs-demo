@@ -74,49 +74,6 @@ document.getElementById('apple-button').addEventListener('click', function() {
     addApplePayButton();
 });
 
-// function addApplePayButton() {
-//     const container = document.getElementById("google-container");
-
-//     // Clear the container before adding the new button
-//     while (container.firstChild) {
-//         container.removeChild(container.firstChild);
-//     }
-
-//     if (window.ApplePaySession) {
-//         console.info("Apple Pay: Looks like your device/browser supports Apple Pay");
-//         const config = getConfig((config) => {
-//             var promise = ApplePaySession.canMakePaymentsWithActiveCard(
-//                 config.appleMerchantId
-//             );
-//             promise
-//                 .then((canMakePayments) => {
-//                     if (canMakePayments) {
-//                         console.log(
-//                             "Apple Pay: You can do Apple Pay with the merchant id you have configured, and the cards you have in your wallet"
-//                         );
-//                         container.innerHTML = '';
-//                         const button = document.createElement('button');
-//                         button.onclick = startApplePaySession;
-//                         container.appendChild(button);
-//                         button.classList.add('apple-pay-button');
-//                         container.style.display = 'flex';
-
-//                     } else {
-//                         console.error(
-//                             "Apple Pay: It seems like you cannot do Apple Pay with this merchant id you have configured or with the cards you have in your wallet. Perhaps you did not whitelist the domain, or the merchant id you used is not correct, or the cards you have are not ok."
-//                         );
-//                     }
-//                 })
-//                 .catch((err) => {
-//                     console.error("Apple Pay: ", err);
-//                 });
-//         });
-//     } else {
-//         console.error(
-//             "Apple Pay: Looks like your device/browser does not support Apple Pay"
-//         );
-//     }
-// }
 
 function addApplePayButton() {
     const container = document.getElementById("google-container");
@@ -154,52 +111,6 @@ function addApplePayButton() {
     }
 }
 
-// function startApplePaySession() {
-//   try{
-//     let allowedCardNetworksApple = getMultiSelectSelectedValues("#schemes");
-//      appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
-//      appleTotalPrice = document.querySelector("#amount-input-google").value;
-//     let countryCodeApple = document.querySelector("#country-select-google-pay").value;
-
-//     let allowedNetworks = modifyCardNetworks(allowedCardNetworksApple)
-
-//      request = {
-//         countryCode: countryCodeApple,
-//         currencyCode: appleCurrency,
-//         supportedNetworks: allowedNetworks,
-//         merchantCapabilities: ["supports3DS"],
-//         total: { label: "Syed Demo Shop", amount: appleTotalPrice },
-//     };
-
-//     var session = new ApplePaySession(3, request);
-
-//     session.onvalidatemerchant = function(event) {
-//       console.log(event)
-//         validateApplePaySession(event.validationURL, function(merchantSession) {
-//             session.completeMerchantValidation(merchantSession);
-//         });
-//     };
-
-//     session.onpaymentauthorized = function(event) {
-//         performPayment(event.payment, function(outcome) {
-//                  console.log(outcome)
-//             if (outcome.approved) {
-//                 session.completePayment(ApplePaySession.STATUS_SUCCESS);
-//                 console.log("Apple Pay payment outcome", outcome);
-//             } else {
-//                 session.completePayment(ApplePaySession.STATUS_FAILURE);
-//                 console.log("Apple Pay payment failure", outcome);
-//             }
-//         });
-//     };
-
-//     session.begin();
-//   }
-//   catch(e){
-//     console.error(e)
-//   }
-
-// }
 
 function startApplePaySession() {
   try {
