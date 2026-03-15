@@ -120,13 +120,10 @@ document.getElementById('apple-button').addEventListener('click', function() {
 
 function addApplePayButton() {
     const container = document.getElementById("google-container");
-    container.innerHTML = '';
+    container.innerHTML = ''; // Force clear
 
     if (window.ApplePaySession) {
-        // Logic depends on your getConfig helper in utils.js
         const config = getConfig((config) => {
-            
-            // Testing canMakePayments vs canMakePaymentsWithActiveCard
             const checkPromise = appleActiveCardToggle.checked 
                 ? ApplePaySession.canMakePaymentsWithActiveCard(config.appleMerchantId)
                 : Promise.resolve(ApplePaySession.canMakePayments());
@@ -136,23 +133,23 @@ function addApplePayButton() {
                     const button = document.createElement('button');
                     button.onclick = startApplePaySession;
                     
-                    // Apply SDK types and styles directly to the element
+                    // Add the base class
                     button.className = 'apple-pay-button';
-                    button.style.webkitApplePayButtonType = appleButtonType.value;
-                    button.style.webkitApplePayButtonStyle = appleButtonStyle.value;
                     
-                    // Essential dimensions for the button to be visible
-                    button.style.width = "100%";
-                    button.style.maxWidth = "300px";
-                    button.style.minHeight = "48px";
+                    // Set Data Attributes instead of direct .style
+                    // This matches our new CSS selectors
+                    button.setAttribute('data-type', appleButtonType.value);
+                    button.setAttribute('data-style', appleButtonStyle.value);
 
                     container.appendChild(button);
                     container.style.display = 'flex';
+                    
+                    console.log(`Button Rendered: Type=${appleButtonType.value}, Style=${appleButtonStyle.value}`);
                 } else {
-                    container.innerHTML = '<p class="token-value" style="color:#dc2626; padding: 15px;">Device supported, but no active cards available for this configuration.</p>';
+                    container.innerHTML = '<p class="token-value" style="color:#dc2626; padding: 15px;">No active cards available.</p>';
                     container.style.display = 'block';
                 }
-            }).catch((err) => console.error("Apple Pay Check Error: ", err));
+            }).catch((err) => console.error("Apple Pay Error: ", err));
         });
     }
 }
