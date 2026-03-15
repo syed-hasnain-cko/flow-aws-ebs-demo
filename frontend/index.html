@@ -179,6 +179,45 @@
                     <div class="form-group"></div>
                     
                 </div>
+                <div class="inline-form">
+    <div class="form-group">
+        <label for="apple-button-type" class="select-label">Apple Button Type</label>
+        <select id="apple-button-type" class="select-input">
+            <option value="plain">Plain</option>
+            <option value="buy" selected>Buy</option>
+            <option value="check-out">Check Out</option>
+            <option value="book">Book</option>
+            <option value="subscribe">Subscribe</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="apple-button-style" class="select-label">Apple Button Style</label>
+        <select id="apple-button-style" class="select-input">
+            <option value="black" selected>Black</option>
+            <option value="white">White</option>
+            <option value="white-outline">White Outline</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="apple-active-card-toggle" class="toggle-label">Require Active Card</label>
+        <label class="switch">
+            <input type="checkbox" id="apple-active-card-toggle" checked>
+            <span class="slider round"></span>
+        </label>
+    </div>
+</div>
+
+<div class="inline-form">
+    <div class="form-group">
+        <label for="apple-merchant-capabilities" class="select-label">Merchant Capabilities</label>
+        <select id="apple-merchant-capabilities" class="multi select-input" multiple>
+            <option value="supports3DS" selected>supports3DS</option>
+            <option value="supportsEMV">supportsEMV</option>
+            <option value="supportsCredit">supportsCredit</option>
+            <option value="supportsDebit">supportsDebit</option>
+        </select>
+    </div>
+</div>
                 <div class="button-group">
                 <button id="google-button" class="main-button">Render Google Pay</button>
                 <button id="apple-button" class="main-button">Render Apple Pay</button>
