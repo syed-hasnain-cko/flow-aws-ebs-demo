@@ -566,13 +566,18 @@ const handleTnCValidation = (checkboxId) => {
                  ,
                 onPaymentCompleted: (_component, paymentResponse) => {
                   console.log("Create Payment with PaymentId: ", paymentResponse);
+                    const loader = document.getElementById('payment-loader');
+                  if (loader) {
+        loader.style.display = 'flex';
+                }
                   if(!showPayButtonLogic)
                            {
                               payButton.classList.add("disabled-button")
                               payButton.textContent = 'Pay Now';
                            }
-                  //console.log("Create Payment with PaymentId: ", _component);
-                  window.location.href = `success.html?paymentId=${paymentResponse.id}`;
+                  setTimeout(() => {
+                 window.location.href = `success.html?paymentId=${paymentResponse.id}`;
+                  }, 800);
                 },
                 onChange: (component) => {
 
