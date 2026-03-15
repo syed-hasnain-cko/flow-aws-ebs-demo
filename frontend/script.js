@@ -315,6 +315,15 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
       window.openTab = function(evt, tabName) {
           const tabLinks = document.getElementsByClassName("tab-link");
           const tabContents = document.getElementsByClassName("tab-content");
+
+          if (tabName !== 'google-tab') {
+    activeWallet = null;
+    const container = document.getElementById("google-container");
+    if(container) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+    }
+}
   
           for (let i = 0; i < tabContents.length; i++) {
               tabContents[i].classList.remove("active");
