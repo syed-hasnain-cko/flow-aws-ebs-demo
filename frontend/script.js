@@ -58,6 +58,7 @@
     { name: 'United Arab Emirates', alpha2Code: 'AU' },
   ];
   
+
   const Currencies = CURRENCIES.map(currency => currency.iso4217);
   
 
@@ -105,6 +106,8 @@
     option.text = country.name;
     countrySelectGoogle.appendChild(option);
   });
+
+  window.activeWallet = null;
 
 const rememberMeToggle = document.getElementById('remember-me-toggle');
     const threeDSToggle = document.getElementById('3ds-toggle');
@@ -348,6 +351,33 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
   });
 
 })();
+
+const walletInputs = [
+    'google-button-type', 'google-button-color', 'google-locale', 
+    'google-allow-credit', 'google-allow-debit', 
+    'apple-button-type', 'apple-button-style', 'apple-active-card-toggle'
+];
+
+walletInputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('change', () => {
+            const container = document.getElementById("google-container");
+            // Only act if the wallet container is currently active/visible
+            if (container && (container.style.display === 'flex' || container.style.display === 'block')) {
+                
+                if (window.activeWallet === 'google' && typeof window.onGooglePayLoaded === 'function') {
+                    console.log("Centralized Watcher: Re-rendering Google Pay...");
+                    window.onGooglePayLoaded();
+                } 
+                else if (window.activeWallet === 'apple' && typeof window.addApplePayButton === 'function') {
+                    console.log("Centralized Watcher: Re-rendering Apple Pay...");
+                    window.addApplePayButton();
+                }
+            }
+        });
+    }
+});
 
 
 const performPaymentSubmission = async (submitData) => {
