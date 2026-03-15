@@ -6,7 +6,15 @@ const formatJSON = (data) => {
         const spacing = '&nbsp;'.repeat(indent * 4);
 
         for (const key in obj) {
-            const value = obj[key];
+            let value = obj[key];
+            
+            // LOGIC FIX: Check if string is actually stringified JSON (like Google's signedMessage)
+            if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+                try {
+                    value = JSON.parse(value);
+                } catch (e) { /* Not JSON, keep as string */ }
+            }
+
             const isObject = typeof value === 'object' && value !== null;
 
             html += `<div style="line-height: 1.6; font-size: 13px;">`;
@@ -18,17 +26,18 @@ const formatJSON = (data) => {
                 html += `<div style="color: #94a3b8; font-size: 11px;">${spacing}}</div>`;
             } else {
                 const color = typeof value === 'string' ? '#059669' : '#0052FF';
-                html += `<span style="color: ${color}; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${value}</span>`;
+                // Wrap long strings (like base64 tags) so they don't break the layout
+                const displayValue = typeof value === 'string' && value.length > 50 
+                    ? value.substring(0, 47) + '...' 
+                    : value;
+                html += `<span style="color: ${color}; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${displayValue}</span>`;
             }
             html += `</div>`;
         }
         return html;
     };
 
-    return `
-        <div style="background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left;">
-            ${stringify(data)}
-        </div>`;
+    return `<div style="background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left;">${stringify(data)}</div>`;
 };
 
 async function copyToClipboard(elementId) {

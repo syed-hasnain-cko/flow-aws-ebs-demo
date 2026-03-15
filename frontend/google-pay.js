@@ -165,6 +165,39 @@ function onGooglePaymentButtonClicked() {
   paymentsClient
     .loadPaymentData(googleConfig)
     .then(function (paymentData) {
+
+      const sdkLogData = {
+          source: "Google Pay",
+          type: paymentData.paymentMethodData.type,
+          description: paymentData.paymentMethodData.description,
+          info: paymentData.paymentMethodData.info,
+          tokenMetadata: JSON.parse(paymentData.paymentMethodData.tokenizationData.token)
+      };
+      sessionStorage.setItem('wallet_debug_log', JSON.stringify(sdkLogData));
+
+      const debugContainer = document.getElementById('apple-pay-debugger');
+      const logElement = document.getElementById('apple-sdk-log');
+      
+      // Update header to be generic if it's currently "Apple SDK Log"
+      debugContainer.querySelector('h3').innerText = "Wallet SDK Authorization Log";
+      debugContainer.style.display = 'block';
+
+      // Parse and display the Google Pay SDK response
+      const tokenObj = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
+      
+      logElement.innerHTML = formatJSON({
+          type: paymentData.paymentMethodData.type,
+          description: paymentData.paymentMethodData.description,
+          info: paymentData.paymentMethodData.info, // Contains card network and last 4
+          tokenizationData: {
+              gateway: "checkoutltd",
+              token: {
+                  signature: tokenObj.signature,
+                  protocolVersion: tokenObj.protocolVersion,
+                  signedMessage: "{Encrypted JSON Message}" // Truncated for readability
+              }
+          }
+      });
       processGooglePayPayment(paymentData);
     })
     .catch(function (err) {

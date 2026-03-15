@@ -1,106 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Payment Success</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
     <header>
         <h1>Payment Success</h1>
     </header>
     
     <main class="wrapper">
-       
         <div class="status-container success">
             <div id="toast-container" class="toast-container"></div>
             <img src="https://cdn.dribbble.com/userupload/13699651/file/original-94a7295388c54008d79a9bee8ca5c0d4.png" alt="Success" class="status-image">
             <h2>Thank you for your payment!</h2>
             <p>Your payment was successful.</p>
             <p id="payment-details">Order ID: <span id="payment-id"></span></p>
+            
             <div class="button-group">
                 <a href="index.html" class="main-button">Return to Home</a>
                 <button id="fetch-details-button" class="main-button">Fetch Payment Details</button>
                 <button id="further-actions-button" class="main-button">Further Actions</button>
             </div>
-            <div id="action-buttons" class="button-group" style="display: none;">
-                
+
+            <div id="wallet-debug-container" class="detail-box" style="display: none; margin-top: 30px; width: 100%; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                <div class="detail-header">
+                    <h3 id="wallet-log-title" style="color: var(--primary);">Wallet SDK Trace</h3>
+                    <button class="copy-btn" onclick="copyToClipboard('wallet-sdk-response')">Copy Trace</button>
+                </div>
+                <div id="wallet-sdk-response" style="text-align: left;"></div>
             </div>
+
+            <div id="action-buttons" class="button-group" style="display: none; margin-top: 20px;"></div>
+
             <div id="details-container" class="details-container" style="display: none;">
                 <div id="payment-details-container" class="detail-box">
-    <div class="detail-header">
-        <h3>Payment Details</h3>
-        <button class="copy-btn" onclick="copyToClipboard('payment-details-response')">
-            Copy JSON
-        </button>
-    </div>
-    <pre id="payment-details-response"></pre>
-</div>
-
-<div id="payment-actions-container" class="detail-box">
-    <div class="detail-header">
-        <h3>Payment Actions</h3>
-        <button class="copy-btn" onclick="copyToClipboard('payment-actions-response')">
-            Copy JSON
-        </button>
-    </div>
-    <pre id="payment-actions-response"></pre>
-</div>
-            </div>
-            <div id="wallet-details-data-container" class="details-container" style="display: none;">
-                    <div id="wallet-details-container" class="detail-box">
-                    <h3>Token Data Details</h3>
-                    <pre id="wallet-details-response"></pre>
+                    <div class="detail-header">
+                        <h3>Payment Details</h3>
+                        <button class="copy-btn" onclick="copyToClipboard('payment-details-response')">Copy JSON</button>
+                    </div>
+                    <div id="payment-details-response"></div>
                 </div>
-                     <div id="wallet-token-details-container" class="detail-box">
-                    <h3>Token Meta Data</h3>
-                    <pre id="wallet-token-details-response"></pre>
+
+                <div id="payment-actions-container" class="detail-box">
+                    <div class="detail-header">
+                        <h3>Available Actions</h3>
+                        <button class="copy-btn" onclick="copyToClipboard('payment-actions-response')">Copy JSON</button>
+                    </div>
+                    <div id="payment-actions-response"></div>
                 </div>
             </div>
         </div>
     </main>
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Webhook Event</h2>
-            <pre id="status-message"></pre>
-        </div>
-    </div>
 
     <script src="utils.js"></script>
     <script>
-            
         document.addEventListener("DOMContentLoaded", async () => {
-            let paymentData;
-            const urlParams = new URLSearchParams(window.location.search);
-            let paymentId = urlParams.get('paymentId');
-            if (!paymentId) {
-                paymentId = urlParams.get('cko-payment-id') || urlParams.get('cko-session-id')
+            // Handle Wallet Logs
+            const storedLog = sessionStorage.getItem('wallet_debug_log');
+            if (storedLog) {
+                try {
+                    const logData = JSON.parse(storedLog);
+                    const container = document.getElementById('wallet-debug-container');
+                    const responseElement = document.getElementById('wallet-sdk-response');
+                    const titleElement = document.getElementById('wallet-log-title');
+
+                    if (container && responseElement) {
+                        titleElement.innerText = `${logData.source} SDK Trace`;
+                        if (typeof formatJSON === 'function') {
+                            responseElement.innerHTML = formatJSON(logData);
+                        } else {
+                            responseElement.innerHTML = `<pre>${JSON.stringify(logData, null, 2)}</pre>`;
+                        }
+                        container.style.display = 'block';
+                    }
+                    sessionStorage.removeItem('wallet_debug_log');
+                } catch (e) { console.error("Log error:", e); }
             }
+
+            // Handle API Data
+            const urlParams = new URLSearchParams(window.location.search);
+            let paymentId = urlParams.get('paymentId') || urlParams.get('cko-payment-id');
+
             if (paymentId) {
-                paymentData = await fetchPaymentDetails(paymentId)
-                }
-                document.getElementById('payment-id').innerText = paymentData.reference;
-
-                if(paymentData._links?.capture == null && paymentData._links?.void == null && paymentData._links?.refund == null){
-                    disableActionButtons();
-                }
+                try {
+                    const paymentData = await fetchPaymentDetails(paymentId);
+                    document.getElementById('payment-id').innerText = paymentData.reference || paymentId;
+                } catch (e) { console.error(e); }
+            }
         
-                document.getElementById('fetch-details-button').addEventListener('click', async () => {
-                    updatePaymentDetailsData(paymentId);
-            });
-
-            document.getElementById('further-actions-button').addEventListener('click', async () => {
-                updatePaymentDetailsData(paymentId);        
-});
+            document.getElementById('fetch-details-button').addEventListener('click', () => updatePaymentDetailsData(paymentId));
+            document.getElementById('further-actions-button').addEventListener('click', () => updatePaymentDetailsData(paymentId));
         });
     </script>
-    <script src="./websocket.js"></script>
 </body>
-
 </html>
