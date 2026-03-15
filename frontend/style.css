@@ -382,18 +382,28 @@ pre {
     box-sizing: border-box;
 }
 
+/* Base Apple Pay Button Styles */
 .apple-pay-button {
-    display: inline-block;
     -webkit-appearance: -apple-pay-button;
-    -apple-pay-button-type: plain; /* Options: buy, set-up, donate, check-out, plain */
-    -apple-pay-button-style: black;
-    width: 250px; /* Essential */
-    min-height: 48px; /* Essential */
     cursor: pointer;
+    width: 100%;
+    max-width: 300px;
+    min-height: 48px;
     border: none;
-    border-radius: 8px;
-    transition: transform 0.2s ease;
+    display: block;
 }
+
+/* Dynamic Button Types */
+.apple-pay-button[data-type="plain"]     { -apple-pay-button-type: plain; }
+.apple-pay-button[data-type="buy"]       { -apple-pay-button-type: buy; }
+.apple-pay-button[data-type="check-out"] { -apple-pay-button-type: check-out; }
+.apple-pay-button[data-type="book"]      { -apple-pay-button-type: book; }
+.apple-pay-button[data-type="subscribe"] { -apple-pay-button-type: subscribe; }
+
+/* Dynamic Button Styles */
+.apple-pay-button[data-style="black"]         { -apple-pay-button-style: black; }
+.apple-pay-button[data-style="white"]         { -apple-pay-button-style: white; }
+.apple-pay-button[data-style="white-outline"] { -apple-pay-button-style: white-outline; }
 
 .apple-pay-button:hover {
     transform: scale(1.02);
