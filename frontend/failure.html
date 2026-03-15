@@ -68,9 +68,7 @@
                 if (paymentId) {
                     try {
                         const queryParams = new URLSearchParams({ paymentId: paymentId });
-                        // Using your existing endpoint logic
-                        const response = await fetch(`/get-payment-details?${queryParams.toString()}`);
-                        const paymentData = await response.json();
+                        const paymentData = await fetchPaymentDetails(paymentId);
 
                         // Use the pretty print function from utils.js
                         if (typeof formatJSON === 'function') {
