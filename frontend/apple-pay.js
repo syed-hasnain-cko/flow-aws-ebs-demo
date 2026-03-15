@@ -72,6 +72,7 @@ const appleMerchantCapsSelect = document.getElementById('apple-merchant-capabili
 
 
 document.getElementById('apple-button').addEventListener('click', function() {
+    activeWallet = 'apple';
     addApplePayButton();
 });
 
