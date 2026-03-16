@@ -352,6 +352,8 @@ const rememberMeToggle = document.getElementById('remember-me-toggle');
 
 })();
 
+
+// 1. Listen for standard dropdown/toggle changes
 const walletInputs = [
     'google-button-type', 'google-button-color', 'google-locale', 
     'google-allow-credit', 'google-allow-debit', 
@@ -362,22 +364,42 @@ walletInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', () => {
-            const container = document.getElementById("google-container");
-            // Only act if the wallet container is currently active/visible
-            if (container && (container.style.display === 'flex' || container.style.display === 'block')) {
-                
-                if (window.activeWallet === 'google' && typeof window.onGooglePayLoaded === 'function') {
-                    console.log("Centralized Watcher: Re-rendering Google Pay...");
-                    window.onGooglePayLoaded();
-                } 
-                else if (window.activeWallet === 'apple' && typeof window.addApplePayButton === 'function') {
-                    console.log("Centralized Watcher: Re-rendering Apple Pay...");
-                    window.addApplePayButton();
-                }
+            triggerWalletRerender();
+        });
+    }
+});
+
+// 2. Listen for the new modern "Chips" (Schemes, Auth Methods, etc.)
+const chipContainers = ['schemes-chips', 'apple-caps-chips', 'auth-methods-chips'];
+chipContainers.forEach(containerId => {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.addEventListener('change', (e) => {
+            if (e.target.classList.contains('chip-input')) {
+                triggerWalletRerender();
             }
         });
     }
 });
+
+/**
+ * Shared function to decide which wallet to refresh
+ */
+function triggerWalletRerender() {
+    const container = document.getElementById("google-container");
+    // Only act if the wallet container is currently active/visible
+    if (container && (container.style.display === 'flex' || container.style.display === 'block')) {
+        
+        if (window.activeWallet === 'google' && typeof window.onGooglePayLoaded === 'function') {
+            console.log("🛠️ Central Watcher: Refreshing Google Pay...");
+            window.onGooglePayLoaded();
+        } 
+        else if (window.activeWallet === 'apple' && typeof window.addApplePayButton === 'function') {
+            console.log("🛠️ Central Watcher: Refreshing Apple Pay...");
+            window.addApplePayButton();
+        }
+    }
+}
 
 
 const performPaymentSubmission = async (submitData) => {

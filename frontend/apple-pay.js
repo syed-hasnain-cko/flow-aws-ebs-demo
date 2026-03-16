@@ -106,15 +106,21 @@ window.addApplePayButton = function() {
 
 function startApplePaySession() {
   try {
-    let allowedCardNetworksApple = getMultiSelectSelectedValues("#schemes");
+    //let allowedCardNetworksApple = getMultiSelectSelectedValues("#schemes");
+
+    // Update to read from chips
+let allowedCardNetworksApple = window.getChipSelectedValues("schemes-chips");
+let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
+    
     appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
     appleTotalPrice = document.querySelector("#amount-input-google").value;
     let countryCodeApple = document.querySelector("#country-select-google-pay").value;
 
     let allowedNetworks = modifyCardNetworks(allowedCardNetworksApple);
     
+    
     // Dynamically pull Merchant Capabilities from the UI
-    let merchantCapabilities = getMultiSelectSelectedValues("#apple-merchant-capabilities");
+    //let merchantCapabilities = getMultiSelectSelectedValues("#apple-merchant-capabilities");
     if (merchantCapabilities.length === 0) merchantCapabilities = ["supports3DS"];
 
     request = {

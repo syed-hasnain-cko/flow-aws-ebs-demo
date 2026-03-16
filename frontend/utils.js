@@ -270,3 +270,14 @@ function modifyCardNetworks(cardNetworks) {
       });
   }
 
+/**
+ * Gets values from modern chip-based multi-selects
+ * @param {string} containerId - The ID of the div containing the checkboxes
+ */
+window.getChipSelectedValues = function(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const checked = container.querySelectorAll('input.chip-input:checked');
+    return Array.from(checked).map(el => el.value);
+};
+

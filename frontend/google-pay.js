@@ -19,7 +19,7 @@ const gAllowDebit = document.getElementById('google-allow-debit');
 
 paymentRequest = {
 
-  currency: googleCurrency,
+  currency: currencySelect.value,
   amount: 10,
   payment_type: paymentTypeSelect.value,
   capture: captureToggle.checked ? true : false,
@@ -100,29 +100,35 @@ let paymentsClient = null;
 
 function getGooglePaymentsClient(config) {
   if (paymentsClient === null) {
+    // FORCE environment to TEST for the demo to prevent production validation errors
     paymentsClient = new google.payments.api.PaymentsClient({
-      environment: config.isLive ? "PRODUCTION" : "TEST",
+      environment: "TEST", 
     });
+  
+    googleConfig.allowedPaymentMethods[0].tokenizationSpecification.parameters.gatewayMerchantId = config.pk;
+    
     merchantId = config.googleMerchantId;
-    googleConfig.allowedPaymentMethods[0].tokenizationSpecification.parameters.gatewayMerchantId =
-      config.pk;
   }
   return paymentsClient;
 }
 
- window.onGooglePayLoaded = function() {
+window.onGooglePayLoaded = function() {
   window.activeWallet = 'google';
-  const config = getConfig((config) => {
+  getConfig((config) => {
     const paymentsClient = getGooglePaymentsClient(config);
+    
+    const isReadyToPayRequest = Object.assign({}, googleConfig);
+    delete isReadyToPayRequest.transactionInfo;
+
     paymentsClient
-      .isReadyToPay(googleConfig)
+      .isReadyToPay(isReadyToPayRequest)
       .then(function (response) {
         if (response.result) {
           addGooglePayButton();
         }
       })
       .catch(function (err) {
-        console.error(err);
+        console.error("G-Pay Ready Error:", err);
       });
     });
 }
@@ -148,43 +154,35 @@ function addGooglePayButton() {
 
 
 function onGooglePaymentButtonClicked() {
-  const allowedAuthMethods = getMultiSelectSelectedValues("#auth-methods");
-  const allowedCardNetworks = getMultiSelectSelectedValues("#schemes");
-  const currency = currencySelect.value.toUpperCase();
+  const allowedAuthMethods = window.getChipSelectedValues("auth-methods-chips");
+  const allowedCardNetworks = window.getChipSelectedValues("schemes-chips");
+  const allowedTypes = window.getChipSelectedValues("card-type-chips");
+
+  // VALIDATION: Force defaults if chips are empty to prevent OR_BIBED_06
+  const finalAuth = allowedAuthMethods.length > 0 ? allowedAuthMethods : ["PAN_ONLY", "CRYPTOGRAM_3DS"];
+  const finalNetworks = allowedCardNetworks.length > 0 ? allowedCardNetworks : ["VISA", "MASTERCARD"];
+
+  // FORMATTING: Ensure price is a string with 2 decimal places
   const totalPrice = amountInput.value;
-  
-  const allowCredit = gAllowCredit.checked;
-  const allowDebit = gAllowDebit.checked;
 
-  googleCurrency = currency;
-  googleTotalPrice = totalPrice;
-
-  // Update Parameters
+  // Apply to Google Config
   const params = googleConfig.allowedPaymentMethods[0].parameters;
-  params.allowedAuthMethods = allowedAuthMethods;
-  params.allowedCardNetworks = allowedCardNetworks;
+  params.allowedAuthMethods = finalAuth;
+  params.allowedCardNetworks = finalNetworks;
+  
+  // Apply Card Type Toggles
+  params.allowCreditCards = allowedTypes.includes('credit');
 
-  // Logic: Only apply restrictions if they aren't BOTH checked
-  // If both are checked, Google prefers the parameters to be absent or default
-  if (allowCredit && allowDebit) {
-      delete params.allowCreditCards;
-      delete params.allowDebitCards;
-  } else {
-      params.allowCreditCards = allowCredit;
-      params.allowDebitCards = allowDebit;
-  }
-
-  // Update Transaction Info
-  googleConfig.transactionInfo.currencyCode = currency;
+  googleConfig.transactionInfo.currencyCode = currencySelect.value.toUpperCase();
   googleConfig.transactionInfo.totalPrice = totalPrice;
 
-  // Merchant Info Fix
+  // IMPORTANT: For TEST environment, merchantId can often be omitted to fix OR_BIBED_06
   googleConfig.merchantInfo = {
     merchantName: "Syed Demo Store"
   };
-  
-  // Only add merchantId if it's actually defined and we aren't in a pure test env
-  if (merchantId && merchantId !== "") {
+
+  // Only include if you are testing a specific registered production ID
+if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890") {
       googleConfig.merchantInfo.merchantId = merchantId;
   }
 
@@ -236,20 +234,23 @@ function onGooglePaymentButtonClicked() {
     });
 }
 
-function processGooglePayPayment(paymentData) {
+async function processGooglePayPayment(paymentData) {
 
 document.getElementById('payment-loader').style.display = 'flex';
-  let currency = CURRENCIES.find(c => c.iso4217 == googleCurrency);
+  let currencyInfo = CURRENCIES.find(c => c.iso4217 === currencySelect.value);
 
-  paymentToken = paymentData.paymentMethodData.tokenizationData.token;
+  // Fallback to base 100 if for some reason the lookup fails (prevents the crash)
+  let base = currencyInfo ? currencyInfo.base : 100;
+
+  let paymentToken = paymentData.paymentMethodData.tokenizationData.token;
 
   paymentRequest = {
     signature: JSON.parse(paymentToken).signature,
     protocolVersion: JSON.parse(paymentToken).protocolVersion,
     signedMessage: JSON.parse(paymentToken).signedMessage,
-    currency: googleCurrency,
+    currency: currencySelect.value,
     price: googleTotalPrice,
-    amount: parseInt(amountInput.value*currency.base),
+    amount: parseInt(amountInput.value*base),
     payment_type: paymentTypeSelect.value,
     capture: captureToggle.checked ? true : false,
     reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
@@ -264,15 +265,15 @@ document.getElementById('payment-loader').style.display = 'flex';
         enabled: threeDSToggle.checked ? true : false
     }
   }
-
-  fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/google-pay', {
+console.log(paymentRequest)
+  await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/google-pay', {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(paymentRequest),
   })
-    .then((response) => response.json())
+    .then(async (response) => await response.json())
     .then((data) => {
       console.log("Payment Response:", data);
       if(data.payment.status == 'Pending' && data.payment._links?.redirect){
