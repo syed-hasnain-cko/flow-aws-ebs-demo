@@ -156,25 +156,38 @@
         
                 </div>
                 <div class="inline-form">
-                    <div class="form-group">
-                        <label for="auth-methods" class="select-label">Auth Methods</label>
-                        <select name="auth-methods" id="auth-methods" class="multi select-input" multiple>
-                            <option selected>PAN_ONLY</option>
-                            <option selected>CRYPTOGRAM_3DS</option>
-                        </select>
-                    </div>
+
+<div class="form-group full-width">
+    <label class="select-label">Google Auth Methods</label>
+    <div class="chip-group" id="auth-methods-chips">
+        <input type="checkbox" id="auth-pan" class="chip-input" value="PAN_ONLY" checked>
+        <label for="auth-pan" class="chip-label">PAN Only</label>
         
-                    <div class="form-group">
-                        <label for="schemes" class="select-label">Allowed Schemes</label>
-                        <select name="schemes" id="schemes" class="multi select-input" multiple>
-                            <option selected>AMEX</option>
-                            <option selected>DISCOVER</option>
-                            <option selected>JCB</option>
-                            <option selected>MASTERCARD</option>
-                            <option selected>VISA</option>
-                        </select>
-                    
-                    </div>
+        <input type="checkbox" id="auth-3ds" class="chip-input" value="CRYPTOGRAM_3DS" checked>
+        <label for="auth-3ds" class="chip-label">3DS Cryptogram</label>
+    </div>
+</div>
+
+        
+<div class="form-group full-width">
+    <label class="select-label">Allowed Schemes</label>
+    <div class="chip-group" id="schemes-chips">
+        <input type="checkbox" id="scheme-amex" class="chip-input" value="AMEX" checked>
+        <label for="scheme-amex" class="chip-label">Amex</label>
+        
+        <input type="checkbox" id="scheme-mastercard" class="chip-input" value="MASTERCARD" checked>
+        <label for="scheme-mastercard" class="chip-label">Mastercard</label>
+        
+        <input type="checkbox" id="scheme-visa" class="chip-input" value="VISA" checked>
+        <label for="scheme-visa" class="chip-label">Visa</label>
+
+        <input type="checkbox" id="scheme-discover" class="chip-input" value="DISCOVER" checked>
+        <label for="scheme-discover" class="chip-label">Discover</label>
+
+        <input type="checkbox" id="scheme-jcb" class="chip-input" value="JCB" checked>
+        <label for="scheme-jcb" class="chip-label">JCB</label>
+    </div>
+</div>
                         <div class="form-group">
         <label for="google-locale" class="select-label">Language (Locale)</label>
         <select id="google-locale" class="select-input">
@@ -214,15 +227,19 @@
             <span class="slider round"></span>
         </label>
     </div>
-      <div class="form-group">
-        <label for="apple-merchant-capabilities" class="select-label">AP Merchant Capabilities</label>
-        <select id="apple-merchant-capabilities" class="multi select-input" multiple>
-            <option value="supports3DS" selected>supports3DS</option>
-            <option value="supportsEMV">supportsEMV</option>
-            <option value="supportsCredit">supportsCredit</option>
-            <option value="supportsDebit">supportsDebit</option>
-        </select>
+<div class="form-group full-width">
+    <label class="select-label">Apple Merchant Capabilities</label>
+    <div class="chip-group" id="apple-caps-chips">
+        <input type="checkbox" id="cap-3ds" class="chip-input apple-chip-input" value="supports3DS" checked>
+        <label for="cap-3ds" class="chip-label">3DS</label>
+        
+        <input type="checkbox" id="cap-debit" class="chip-input apple-chip-input" value="supportsDebit" checked>
+        <label for="cap-debit" class="chip-label">Debit</label>
+        
+        <input type="checkbox" id="cap-credit" class="chip-input apple-chip-input" value="supportsCredit" checked>
+        <label for="cap-credit" class="chip-label">Credit</label>
     </div>
+</div>
 </div>
 
 <div class="inline-form">
@@ -247,20 +264,14 @@
 </div>
 
 <div class="inline-form">
-    <div class="form-group">
-        <label for="google-allow-credit" class="toggle-label">Allow Credit Cards</label>
-        <label class="switch">
-            <input type="checkbox" id="google-allow-credit" checked>
-            <span class="slider round"></span>
-        </label>
+<div class="form-group full-width">
+    <label class="select-label">Allowed Card Types</label>
+    <div class="chip-group" id="card-type-chips">
+        <input type="checkbox" id="type-credit" class="chip-input" value="credit" checked>
+        <label for="type-credit" class="chip-label">Allow Credit Cards</label>
+        
     </div>
-    <div class="form-group">
-        <label for="google-allow-debit" class="toggle-label">Allow Debit Cards</label>
-        <label class="switch">
-            <input type="checkbox" id="google-allow-debit" checked>
-            <span class="slider round"></span>
-        </label>
-    </div>
+</div>
 </div>
 
                 <div class="button-group">

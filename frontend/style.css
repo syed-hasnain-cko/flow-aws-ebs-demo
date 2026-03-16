@@ -486,3 +486,68 @@ pre {
     50% { width: 60%; }
     100% { transform: translateX(400%); width: 30%; }
 }
+
+/* Container for the new multi-select chips */
+.chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+/* Hidden real checkboxes - we style the labels instead */
+.chip-input {
+    display: none;
+}
+
+/* The "Chip" or "Pill" styling */
+.chip-label {
+    padding: 8px 16px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+}
+
+/* Hover effect */
+.chip-label:hover {
+    background: #e2e8f0;
+}
+
+/* Checked state - Vibrant Blue for Google / Black for Apple */
+.chip-input:checked + .chip-label {
+    background: #0071e3; /* Apple Blue */
+    color: #ffffff;
+    border-color: #0071e3;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.2);
+}
+
+/* Specific styling for Apple capabilities if you want them black */
+.apple-chip-input:checked + .chip-label {
+    background: #000000 !important;
+    border-color: #000000 !important;
+}
+
+/* Specific coloring for Auth and Card Type chips */
+#auth-methods-chips .chip-input:checked + .chip-label,
+#card-type-chips .chip-input:checked + .chip-label {
+    background: #6366f1; /* Indigo vibrant color */
+    border-color: #6366f1;
+}
+
+/* Tooltip style label for better UX */
+.select-label {
+    display: block;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
