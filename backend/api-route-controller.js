@@ -28,6 +28,21 @@ router.post('/payment-sessions', async (req, res) => {
 
 })
 
+router.post('/payment-setups', async (req, res) => {
+    try {
+        const response = await axios.post(`${process.env.GW_URL}/payment-setups`, req.body, {
+            headers: {
+                Authorization: `Bearer ${API_SECRET_KEY}`,
+                'Content-Type': 'application/json'
+            },
+        });
+        res.send(response.data);
+    } catch (error) {
+        console.error("Payment Setup Error:", error.response ? error.response.data : error.message);
+        res.status(500).send(error.response ? error.response.data : { error: "Internal Server Error" });
+    } 
+});
+
 router.get('/get-payment-details', async(req, res) => {
     try {
         const response = await axios.get(`${process.env.GW_URL}/payments/${req.query.paymentId}`, {
