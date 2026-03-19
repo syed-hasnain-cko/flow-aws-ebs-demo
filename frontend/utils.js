@@ -281,3 +281,25 @@ window.getChipSelectedValues = function(containerId) {
     return Array.from(checked).map(el => el.value);
 };
 
+/**
+ * Truncates long strings within an object for UI display purposes
+ * while keeping the console log full for technical debugging.
+ */
+function truncateResponse(obj, maxLength = 100) {
+    // Create a deep copy so we don't accidentally corrupt the actual data
+    const cleanObj = JSON.parse(JSON.stringify(obj));
+    
+    const recurse = (current) => {
+        for (let key in current) {
+            if (typeof current[key] === 'string' && current[key].length > maxLength) {
+                current[key] = current[key].substring(0, maxLength) + "... [TRUNCATED]";
+            } else if (typeof current[key] === 'object' && current[key] !== null) {
+                recurse(current[key]);
+            }
+        }
+    };
+    
+    recurse(cleanObj);
+    return cleanObj;
+}
+

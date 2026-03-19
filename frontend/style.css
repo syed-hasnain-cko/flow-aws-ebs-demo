@@ -551,3 +551,26 @@ pre {
     text-transform: uppercase;
     letter-spacing: 1px;
 }
+
+.json-code-block {
+    background: #1e293b;
+    color: #f8fafc;
+    padding: 20px;
+    border-radius: 12px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+
+    /* Fix for long Klarna tokens */
+    white-space: pre-wrap;       /* Respects line breaks and wraps text */
+    word-break: break-all;      /* Breaks the token string so it stays inside the box */
+    
+    /* Layout control */
+    max-height: 600px;          /* Prevents the block from taking up the whole page */
+    overflow-y: auto;           /* Adds a vertical scrollbar if needed */
+    border: 1px solid #334155;
+}
+
+.status-ready { background: #ecfdf5; color: #059669; border: 1px solid #10b981; }
+.status-action { background: #fffbeb; color: #d97706; border: 1px solid #fbbf24; }
+.status-error { background: #fef2f2; color: #dc2626; border: 1px solid #f87171; }
