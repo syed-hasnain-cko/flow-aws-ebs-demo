@@ -173,6 +173,28 @@ async function refundPayment(id){
     }
 }
 
+async function getPaymentSetup(setupId){
+    try{
+            const getQueryParams = new URLSearchParams({ setupId });
+            const getSetupResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
+            return await getSetupResponse.json();
+    }
+    catch(e){
+
+    }
+}
+
+async function confirmPaymentSetup(setupId, methodName){
+            try{
+           const queryParams = new URLSearchParams({ setupId, methodName });
+            const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
+            return await res.json();
+            }
+            catch(e){
+
+        }
+        }
+
 async function updatePaymentDetailsData(id){
     let paymentData = await fetchPaymentDetails(id);
 
@@ -314,3 +336,18 @@ function truncateResponse(obj, maxLength = 100) {
     return cleanObj;
 }
 
+function addKlarnaItemRow(container) {
+    const row = document.createElement('div');
+    row.className = 'inline-form klarna-item-row';
+    row.style.borderBottom = "1px solid #e2e8f0";
+    row.style.paddingBottom = "10px";
+    row.style.marginBottom = "10px";
+    row.innerHTML = `
+        <div class="form-group"><label class="text-label">Name</label><input type="text" class="text-input k-name" value="Digital Item"></div>
+        <div class="form-group"><label class="text-label">Qty</label><input type="number" class="text-input k-qty" value="1"></div>
+        <div class="form-group"><label class="text-label">Unit Price</label><input type="number" class="text-input k-price" value="999"></div>
+        <div class="form-group"><label class="text-label">Total</label><input type="number" class="text-input k-total" value="999"></div>
+        <div class="form-group"><label class="text-label">Ref</label><input type="text" class="text-input k-ref" value="SKU-001"></div>
+    `;
+    container.appendChild(row);
+}

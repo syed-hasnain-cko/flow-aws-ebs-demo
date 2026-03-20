@@ -285,7 +285,7 @@ pre {
 
 .toast-success { background: linear-gradient(135deg, #00D084 0%, #009e65 100%); }
 .toast-error   { background: linear-gradient(135deg, #FF4D4D 0%, #cf2a2a 100%); }
-.toast-warning   { background: linear-gradient(135deg, #ffd34d 0%, #ffd34d 100%); }
+.toast-warning   { background: linear-gradient(135deg, #fbbf24 0%, #fbbf24 100%); }
 /* --- 2. Tokenized Card View --- */
 .success-payment-message {
     display: none; /* Keep it hidden until the 'click' event */
