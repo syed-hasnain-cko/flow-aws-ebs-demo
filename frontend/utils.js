@@ -82,6 +82,17 @@ function showToast(message, type = 'success') {
     }, 4000);
 }
 
+function showKlarnaToast(message, type = 'success') {
+    const toast = document.getElementById('toast-container-klarna');
+    toast.textContent = message;
+    toast.className = `toast-container toast-${type}`;
+    toast.style.display = 'block';
+
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 4000);
+}
+
 async function fetchPaymentDetails(id){
     queryParams = new URLSearchParams({
             paymentId: id,

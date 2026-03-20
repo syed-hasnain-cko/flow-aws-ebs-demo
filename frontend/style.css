@@ -285,7 +285,7 @@ pre {
 
 .toast-success { background: linear-gradient(135deg, #00D084 0%, #009e65 100%); }
 .toast-error   { background: linear-gradient(135deg, #FF4D4D 0%, #cf2a2a 100%); }
-
+.toast-warning   { background: linear-gradient(135deg, #ffd34d 0%, #ffd34d 100%); }
 /* --- 2. Tokenized Card View --- */
 .success-payment-message {
     display: none; /* Keep it hidden until the 'click' event */
@@ -521,9 +521,9 @@ pre {
 
 /* Checked state - Vibrant Blue for Google / Black for Apple */
 .chip-input:checked + .chip-label {
-    background: #0071e3; /* Apple Blue */
+    background: #6366f1; /* Apple Blue */
     color: #ffffff;
-    border-color: #0071e3;
+    border-color: #6366f1;
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(0, 113, 227, 0.2);
 }
