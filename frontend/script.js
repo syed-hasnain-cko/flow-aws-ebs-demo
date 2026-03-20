@@ -957,26 +957,8 @@ function handleToggleChange() {
     patchBtn.style.display = activeToggles.length > 0 ? 'block' : 'none';
 }
 
-function addKlarnaItemRow(container) {
-    const row = document.createElement('div');
-    row.className = 'inline-form klarna-item-row';
-    row.style.borderBottom = "1px solid #e2e8f0";
-    row.style.paddingBottom = "10px";
-    row.style.marginBottom = "10px";
-    row.innerHTML = `
-        <div class="form-group"><label class="text-label">Name</label><input type="text" class="text-input k-name" value="Digital Item"></div>
-        <div class="form-group"><label class="text-label">Qty</label><input type="number" class="text-input k-qty" value="1"></div>
-        <div class="form-group"><label class="text-label">Unit Price</label><input type="number" class="text-input k-price" value="999"></div>
-        <div class="form-group"><label class="text-label">Total</label><input type="number" class="text-input k-total" value="999"></div>
-        <div class="form-group"><label class="text-label">Ref</label><input type="text" class="text-input k-ref" value="SKU-001"></div>
-    `;
-    container.appendChild(row);
-}
-
 // --- 4. Patch Logic ---
 document.getElementById('patch-setup-btn').addEventListener('click', async () => {
-
-
   
     const patchBody = { 
       payment_methods: {},
@@ -1115,8 +1097,8 @@ function initializeKlarnaSDK(clientToken, sessionId ,setupId) {
     const widget = document.getElementById('sdk-widget-container');
     widget.style.display = 'block';
     document.getElementById('widget-title').innerText = "Klarna Payment Options";
-                statusArea.className = 'status-ready';
-                statusArea.innerText = 'Klarna is Ready';
+                statusArea.className = 'status-action';
+                statusArea.innerText = 'Approve payment now on Klarna';
                 statusArea.style.display = 'block';
 
     const script = document.createElement('script');
@@ -1163,11 +1145,8 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
 
         if(methodName === 'bizum') {
 
-  try {
-            const queryParams = new URLSearchParams({ setupId, methodName });
-            const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
-            const data = await res.json();
-            
+            try {
+            const data = await confirmPaymentSetup(setupId,methodName);
             // Log for debugging
             console.log("Confirmation Response:", data);
 
@@ -1214,17 +1193,16 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
         {},
         async function(response) {
           console.log('Klarna authorization response:', response);
-          if(response.approved || response.show_form === true) {
+               const statusArea = document.getElementById('final-status-area');
+                   const patchBtn = document.getElementById('patch-setup-btn');
+
+          if(response.approved && response.show_form === true) {
             console.log('User approved the klarna payment:', response)
 
-
-            const getQueryParams = new URLSearchParams({ setupId });
-            const getSetupResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
-            const getSetupResponseJson = await getSetupResponse.json();
+            const getSetupResponseJson = await getPaymentSetup(setupId);
             if(getSetupResponseJson.status === 'ready'){
-                const queryParams = new URLSearchParams({ setupId, methodName });
-                const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
-                const data = await res.json();
+
+                const data = await confirmPaymentSetup(setupId, methodName);
                 if(data.status === 'Pending'){
                   const loader = document.getElementById('payment-loader');
                   if (loader) {
@@ -1238,7 +1216,11 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                     console.log('data after payment succeeded but status is not pending', data)
                 }
             }
+       
             else{
+                btn.remove();
+                
+                statusArea.innerText = 'User already approved the payment on klarna, wait a few seconds while payment gets ready to be submitted'
                 showKlarnaToast('Cannot execute payment right now as status is not ready, Please execute the payment with the button below', type = 'warning')
 
                 const oldKlarnaPaymentBtn = document.getElementById('make-klarna-payment-btn');
@@ -1254,11 +1236,11 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                 btnKlarna.style.width = '100%'
                 btnKlarna.innerText = 'Make Payment Now';
                 btnKlarna.onclick = async () => {
+                    const paymentSetup = await getPaymentSetup(setupId);
+                     document.getElementById('setup-json-output').innerText = JSON.stringify(paymentSetup, null, 2);
                     btn.remove();
 
-                const queryParams = new URLSearchParams({ setupId, methodName });
-                const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
-                const data = await res.json();
+                const data = await confirmPaymentSetup(setupId, methodName);
                 if(data.status === 'Pending'){
                   const loader = document.getElementById('payment-loader');
                   if (loader) {
@@ -1269,6 +1251,9 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                   }, 800);
                 }
                 else{
+                    const paymentSetup = await getPaymentSetup(setupId);
+                     document.getElementById('setup-json-output').innerText = JSON.stringify(paymentSetup, null, 2);
+
                     showKlarnaToast('Payment method is not ready, try again in few seconds to make payment again.', type = 'error')
                 }
                 }
@@ -1276,8 +1261,17 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
             }
   
           } else {
+            btn.remove();
             console.log(response)
-            //Not approved response
+            statusArea.innerText = 'User canceled the payment on klarna or did not approve due to some reason.'
+            statusArea.className = 'status-error';
+            if (patchBtn) {
+           
+            patchBtn.disabled = false;       // CRITICAL: Re-enable the button
+            patchBtn.style.opacity = "1";    // Restore visual state
+            patchBtn.style.cursor = "pointer";
+            patchBtn.innerText = 'Update Payment Setup';
+    }
           }
         }
     );
