@@ -341,14 +341,12 @@
 
             <div class="button-group" style="margin-top: 20px;">
                 <button id="patch-setup-btn" class="main-button" style="background: #059669; display: none;">
-                    Update & Patch Setup
+                    Update Payment Setup
                 </button>
             </div>
         </div>
-
-        <div id="setup-response-container" style="display:none; margin-top:20px;">
-            <pre id="setup-json-output" class="json-code-block"></pre>
-        </div>
+     
+        <div id="toast-container-klarna" class="toast-container-klarna"></div>
 
         <div id="sdk-widget-container" style="display:none; margin-top:20px; padding:20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
     <h3 class="section-header" id="widget-title">Payment Method Provider</h3>
@@ -356,6 +354,9 @@
 
 <div id="final-status-area" style="display:none; margin-top:15px; padding:15px; border-radius: 8px; font-weight: 600; text-align: center;">
 </div>
+   <div id="setup-response-container" style="display:none; margin-top:20px;">
+            <pre id="setup-json-output" class="json-code-block"></pre>
+        </div>
     </div>
 </div>
  <div id="apple-pay-debugger" class="context-area" style="display: none; margin-top: 20px; border: 1px solid #E2E8F0; background: #F8FAFC;">

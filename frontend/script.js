@@ -865,6 +865,13 @@ document.getElementById('create-setup-btn').addEventListener('click', async () =
     renderMethodToggles(activeSetupResponse.available_payment_methods);
     document.getElementById('setup-json-output').innerText = JSON.stringify(activeSetupResponse, null, 2);
     document.getElementById('setup-response-container').style.display = 'block';
+        const patchBtn = document.getElementById('patch-setup-btn');
+    if (patchBtn) {
+        patchBtn.disabled = false;       
+        patchBtn.style.opacity = "1";    
+        patchBtn.style.cursor = "pointer";
+        patchBtn.innerText = 'Update Payment Setup';
+    }
 });
 
 // --- 2. Render Toggles ---
@@ -899,6 +906,16 @@ function handleToggleChange() {
     const activeToggles = Array.from(document.querySelectorAll('.method-toggle:checked')).map(t => t.dataset.method);
     const inputsArea = document.getElementById('dynamic-inputs-area');
     const patchBtn = document.getElementById('patch-setup-btn');
+    const allToggles = document.querySelectorAll('.method-toggle');
+    patchBtn.disabled = false;
+    if (activeToggles.length > 0) {
+
+        allToggles.forEach(t => {
+            if (!t.checked) t.disabled = true;
+        });
+    } else {
+        allToggles.forEach(t => t.disabled = false);
+    }
     
     inputsArea.innerHTML = ''; // Clear and Re-render
     
@@ -921,6 +938,7 @@ function handleToggleChange() {
 
             // Add Klarna Order Items Table specifically
         if (method === 'klarna') {
+
             const template = document.getElementById('klarna-items-template').content.cloneNode(true);
             section.appendChild(template);
             // Add initial row
@@ -963,6 +981,7 @@ document.getElementById('patch-setup-btn').addEventListener('click', async () =>
     const patchBody = { 
       payment_methods: {},
         amount: parseInt(document.getElementById('setup-amount').value),
+        reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
         currency: document.getElementById('setup-currency').value,
         payment_type: document.getElementById('setup-payment-type').value,
         processing_channel_id: document.getElementById('setup-pc-id').value
@@ -1053,7 +1072,6 @@ console.log("Final PATCH Body:", JSON.stringify(patchBody, null, 2));
 async function handleFinalState(response) {
     const setupId = response.id;
     const methods = response.payment_methods;
-    const output = document.getElementById('setup-json-output');
     const statusArea = document.getElementById('final-status-area');
     const widgetContainer = document.getElementById('sdk-widget-container');
     
@@ -1084,17 +1102,44 @@ async function handleFinalState(response) {
                 statusArea.style.display = 'block';
                 
                 if (methodName === 'klarna') {
-                    initializeKlarnaSDK(methodData.action.client_token, setupId);
+                   initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
                 }
             }
         }
     }
 }
 
-
-function renderConfirmButton(setupId, methodName, label) {
-    const actionArea = document.getElementById('setup-methods-container');
+// Klarna SDK Specific Initialization
+function initializeKlarnaSDK(clientToken, sessionId ,setupId) {
     const statusArea = document.getElementById('final-status-area');
+    const widget = document.getElementById('sdk-widget-container');
+    widget.style.display = 'block';
+    document.getElementById('widget-title').innerText = "Klarna Payment Options";
+                statusArea.className = 'status-ready';
+                statusArea.innerText = 'Klarna is Ready';
+                statusArea.style.display = 'block';
+
+    const script = document.createElement('script');
+    script.src = "https://x.klarnacdn.net/kp/lib/v1/api.js";
+    document.head.appendChild(script);
+
+    script.onload = () => {
+        window.Klarna.Payments.init({ client_token: clientToken, session_id: sessionId });
+        window.Klarna.Payments.load({
+            container: "#klarna_container",
+            payment_method_categories: ['pay_over_time', 'pay_later','pay_now','direct_bank_transfer'] ,
+            instance_id: 'klarna-widget'
+        }, (res) => {
+            console.log("Klarna Loaded", res);
+            renderConfirmButton(setupId, 'klarna', "Authorize & Pay with Klarna", clientToken, sessionId);
+        });
+  
+    };
+}
+
+
+function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna Token', sessionId = 'Klarna Session Id') {
+    const actionArea = document.getElementById('setup-methods-container');
     const oldBtn = document.getElementById('final-confirm-btn');
 
     if (!actionArea) return;
@@ -1105,18 +1150,20 @@ function renderConfirmButton(setupId, methodName, label) {
     btn.className = 'main-button';
     btn.style.background = '#059669';
     btn.style.marginTop = '20px';
+    btn.style.width = '100%'
     btn.innerText = label;
     
     btn.onclick = async () => {
         if (btn.disabled) return;
         
-        // 1. Disable and update UI immediately
         btn.disabled = true;
         btn.style.opacity = "0.5";
         btn.style.cursor = "not-allowed";
         btn.innerText = "Processing...";
 
-        try {
+        if(methodName === 'bizum') {
+
+  try {
             const queryParams = new URLSearchParams({ setupId, methodName });
             const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
             const data = await res.json();
@@ -1136,6 +1183,13 @@ function renderConfirmButton(setupId, methodName, label) {
                 
                 // Hide the confirm button as it's no longer needed
                 btn.style.display = 'none';
+                const loader = document.getElementById('payment-loader');
+                  if (loader) {
+                    loader.style.display = 'flex';
+                }
+                setTimeout(() => {
+                 window.location.href = `success.html?paymentId=${data.id}`;
+                  }, 800);
             }
         } catch (e) {
             console.error("Confirmation Error", e);
@@ -1144,9 +1198,105 @@ function renderConfirmButton(setupId, methodName, label) {
             btn.style.cursor = "pointer";
             btn.innerText = "Retry Confirmation";
         }
+        }
+
+        else if(methodName === 'klarna'){
+
+            try{
+
+                    window.Klarna.Payments.init({
+                    client_token: clientToken,
+                    session_id: sessionId
+    });
+
+    // Authorize payment after loading the widget
+    window.Klarna.Payments.authorize(
+        {},
+        async function(response) {
+          console.log('Klarna authorization response:', response);
+          if(response.approved || response.show_form === true) {
+            console.log('User approved the klarna payment:', response)
+
+
+            const getQueryParams = new URLSearchParams({ setupId });
+            const getSetupResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
+            const getSetupResponseJson = await getSetupResponse.json();
+            if(getSetupResponseJson.status === 'ready'){
+                const queryParams = new URLSearchParams({ setupId, methodName });
+                const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
+                const data = await res.json();
+                if(data.status === 'Pending'){
+                  const loader = document.getElementById('payment-loader');
+                  if (loader) {
+                    loader.style.display = 'flex';
+                }
+                setTimeout(() => {
+                 window.location.href = `success.html?paymentId=${data.id}`;
+                  }, 800);
+                }
+                else{
+                    console.log('data after payment succeeded but status is not pending', data)
+                }
+            }
+            else{
+                showKlarnaToast('Cannot execute payment right now as status is not ready, Please execute the payment with the button below', type = 'warning')
+
+                const oldKlarnaPaymentBtn = document.getElementById('make-klarna-payment-btn');
+
+                if (!actionArea) return;
+                if (oldKlarnaPaymentBtn) oldBtn.remove();
+
+                const btnKlarna = document.createElement('button');
+                btnKlarna.id = 'make-klarna-payment-btn';
+                btnKlarna.className = 'main-button';
+                btnKlarna.style.background = '#059669';
+                btnKlarna.style.marginTop = '20px';
+                btnKlarna.style.width = '100%'
+                btnKlarna.innerText = 'Make Payment Now';
+                btnKlarna.onclick = async () => {
+                    btn.remove();
+
+                const queryParams = new URLSearchParams({ setupId, methodName });
+                const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
+                const data = await res.json();
+                if(data.status === 'Pending'){
+                  const loader = document.getElementById('payment-loader');
+                  if (loader) {
+                    loader.style.display = 'flex';
+                }
+                setTimeout(() => {
+                 window.location.href = `success.html?paymentId=${data.id}`;
+                  }, 800);
+                }
+                else{
+                    showKlarnaToast('Payment method is not ready, try again in few seconds to make payment again.', type = 'error')
+                }
+                }
+                actionArea.appendChild(btnKlarna)
+            }
+  
+          } else {
+            console.log(response)
+            //Not approved response
+          }
+        }
+    );
+
+            }
+            catch(e){
+            console.error("Error in loading confirmation button for klarna", e);
+            btn.disabled = false;
+            btn.style.opacity = "1";
+            btn.style.cursor = "pointer";
+            btn.innerText = "Retry";
+            }
+        }
+
+      
     };
     
     actionArea.appendChild(btn);
+   
 }
 
 /**
@@ -1227,7 +1377,7 @@ const confirmBtn = document.getElementById('final-confirm-btn');
         patchBtn.disabled = false;       // CRITICAL: Re-enable the button
         patchBtn.style.opacity = "1";    // Restore visual state
         patchBtn.style.cursor = "pointer";
-        patchBtn.innerText = 'Update & Patch Setup';
+        patchBtn.innerText = 'Update Payment Setup';
     }
 
     const createBtn = document.getElementById('create-setup-btn');
