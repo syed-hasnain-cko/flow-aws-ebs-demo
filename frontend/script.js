@@ -387,8 +387,9 @@ if (tabName !== 'setup-tab') {
                 },
                 body: JSON.stringify(paymentSessionBody),
             });
-    
+
             let getData = await getResponse.json();
+            await addToApiLog('POST', `create flow payment session: ${getData.id} - /payment-sessions`, getData.id ? 201 : 422, paymentSessionBody, getData)
             flowContainer.style.display = 'block';
             await initializeFlow(getData);
           
@@ -410,6 +411,7 @@ if (tabName !== 'setup-tab') {
             });
     
             let getData = await getResponse.json();
+            await addToApiLog('POST', `create tokenization-only flow session: ${getData.id} - /payment-sessions`, getData.id ? 201 : 422, paymentSessionBody, getData)
     flowContainer.style.display = 'block';
             await initializeFlow(getData, isTokenizeOnly);
           
@@ -482,7 +484,9 @@ const performPaymentSubmission = async (submitData) => {
       },
       body: JSON.stringify(submitData),
     });
-    return response.json();
+    const jsonResponse = response.json()
+    await addToApiLog('POST', `submit flow session: ${jsonResponse.id} - /payment-sessions/${jsonResponse.id}/submit`, (jsonResponse.id && jsonResponse.status === 'Approved') || (jsonResponse.id && jsonResponse.status === 'Declined')  ? 201 : jsonResponse.id && jsonResponse.status === 'Action Requited' ? 202 : 422, submitData, jsonResponse)
+    return jsonResponse;
   } catch (error) {
     document.getElementById('payment-loader').style.display = 'none';
     console.error("❌ Submit error:", error);
@@ -852,6 +856,42 @@ const METHOD_REQUIREMENTS = {
 
 // --- 1. Create Setup Call ---
 document.getElementById('create-setup-btn').addEventListener('click', async () => {
+
+
+const setupMethodsContainer = document.getElementById('setup-methods-container');
+    const dynamicInputsArea = document.getElementById('dynamic-inputs-area');
+    const responseContainer = document.getElementById('setup-response-container');
+    const patchBtn = document.getElementById('patch-setup-btn');
+    const statusArea = document.getElementById('final-status-area');
+    const widgetContainer = document.getElementById('sdk-widget-container');
+
+    // 2. CRITICAL: Remove the injected Confirm Button if it exists
+    const oldConfirmBtn = document.getElementById('final-confirm-btn');
+    if (oldConfirmBtn) oldConfirmBtn.remove();
+
+    // 3. Reset visibility and content
+    if (statusArea) {
+        statusArea.style.display = 'none';
+        statusArea.innerHTML = '';
+        statusArea.className = ''; 
+    }
+    
+    if (widgetContainer) {
+        widgetContainer.style.display = 'none';
+        document.getElementById('klarna_container').innerHTML = '';
+    }
+
+    if (setupMethodsContainer) setupMethodsContainer.style.display = 'none';
+    if (dynamicInputsArea) dynamicInputsArea.innerHTML = '';
+    if (responseContainer) responseContainer.style.display = 'none';
+    
+    if (patchBtn) {
+        patchBtn.style.display = 'none';
+        patchBtn.disabled = true; // Keep disabled until toggle is flipped
+        patchBtn.style.opacity = "0.5";
+        patchBtn.innerText = 'Update Payment Setup';
+    }
+
     const body = {
         amount: parseInt(document.getElementById('setup-amount').value),
         currency: document.getElementById('setup-currency').value,
@@ -860,18 +900,15 @@ document.getElementById('create-setup-btn').addEventListener('click', async () =
     };
 
     const res = await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/payment-setups', { method: 'POST', body: JSON.stringify(body), headers: {'Content-Type': 'application/json'}});
+    
     activeSetupResponse = await res.json();
+
+    await addToApiLog('POST', `create payment setup: ${activeSetupResponse?.id ? activeSetupResponse?.id: activeSetupResponse?.request_id} - /payments/setups`, activeSetupResponse.id ? 200 : 422, body, activeSetupResponse)
     
     renderMethodToggles(activeSetupResponse.available_payment_methods);
     document.getElementById('setup-json-output').innerText = JSON.stringify(activeSetupResponse, null, 2);
     document.getElementById('setup-response-container').style.display = 'block';
-        const patchBtn = document.getElementById('patch-setup-btn');
-    if (patchBtn) {
-        patchBtn.disabled = false;       
-        patchBtn.style.opacity = "1";    
-        patchBtn.style.cursor = "pointer";
-        patchBtn.innerText = 'Update Payment Setup';
-    }
+    
 });
 
 // --- 2. Render Toggles ---
@@ -907,7 +944,12 @@ function handleToggleChange() {
     const inputsArea = document.getElementById('dynamic-inputs-area');
     const patchBtn = document.getElementById('patch-setup-btn');
     const allToggles = document.querySelectorAll('.method-toggle');
-    patchBtn.disabled = false;
+
+    const hasActiveToggle = activeToggles.length > 0;
+    patchBtn.disabled = !hasActiveToggle;
+    patchBtn.style.opacity = hasActiveToggle ? "1" : "0.5";
+    patchBtn.style.cursor = hasActiveToggle ? "pointer" : "not-allowed";
+
     if (activeToggles.length > 0) {
 
         allToggles.forEach(t => {
@@ -954,7 +996,7 @@ function handleToggleChange() {
         }
     });
 
-    patchBtn.style.display = activeToggles.length > 0 ? 'block' : 'none';
+    patchBtn.style.display = hasActiveToggle ? 'block' : 'none';
 }
 
 // --- 4. Patch Logic ---
@@ -968,6 +1010,15 @@ document.getElementById('patch-setup-btn').addEventListener('click', async () =>
         payment_type: document.getElementById('setup-payment-type').value,
         processing_channel_id: document.getElementById('setup-pc-id').value
       };
+
+      const allToggles = document.querySelectorAll('.method-toggle');
+    allToggles.forEach(t => {
+        t.disabled = true;
+        // Optional: Add visual feedback that they are locked
+        t.parentElement.style.opacity = "0.6";
+        t.parentElement.style.cursor = "not-allowed - setup is patched alreadyxw";
+    });
+
     const activeToggles = document.querySelectorAll('.method-toggle:checked');
     
     activeToggles.forEach(t => {
@@ -1022,6 +1073,7 @@ console.log("Final PATCH Body:", JSON.stringify(patchBody, null, 2));
         headers: {'Content-Type': 'application/json'}
     });
     const result = await res.json();
+    await addToApiLog('PUT', `Update payment setup - /payments/setups/${activeSetupResponse.id}`, result.id ? 200 : 422, patchBody, result)
     responseContainer.style.display = 'block';
     output.innerText = JSON.stringify(result, null, 2);
     await handleFinalState(result);
@@ -1043,6 +1095,12 @@ console.log("Final PATCH Body:", JSON.stringify(patchBody, null, 2));
   { 
     console.error(e); 
     output.innerText = "Error: " + e.message;
+    allToggles.forEach(t => {
+            if (t.checked) t.disabled = false; 
+            t.parentElement.style.opacity = "1";
+        });
+        btn.disabled = false;
+        btn.style.opacity = "1";
     }
     finally{
         btn.innerText = 'Update & Patch Setup';
@@ -1384,4 +1442,42 @@ const confirmBtn = document.getElementById('final-confirm-btn');
     // 6. Scroll back to the top of the tab smoothly
     const mainWrapper = document.querySelector('.wrapper');
     if (mainWrapper) mainWrapper.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const methodsContainer = document.getElementById('setup-methods-container');
+    if (methodsContainer) {
+        methodsContainer.style.display = 'none';
+        // Clear the grid to remove old disabled toggles
+        const grid = document.getElementById('methods-grid');
+        if (grid) grid.innerHTML = '';
+    }
+
+    // Ensure Step 1 button is ready
+    if (createBtn) {
+        createBtn.disabled = false;
+        createBtn.style.opacity = "1";
+        createBtn.innerText = 'Initialize Setup';
+    }
 }
+
+//Validating input types data to create a setup
+const setupInputs = ['setup-amount', 'setup-currency', 'setup-payment-type', 'setup-pc-id'];
+const createBtn = document.getElementById('create-setup-btn');
+
+function validateInitializeForm() {
+    const allFilled = setupInputs.every(id => {
+        const el = document.getElementById(id);
+        return el && el.value.trim() !== "";
+    });
+    createBtn.disabled = !allFilled;
+    createBtn.style.opacity = allFilled ? "1" : "0.5";
+    createBtn.style.cursor = allFilled ? "pointer" : "not-allowed";
+}
+
+// Attach listeners to all 4 inputs
+setupInputs.forEach(id => {
+    document.getElementById(id).addEventListener('input', validateInitializeForm);
+    document.getElementById(id).addEventListener('change', validateInitializeForm);
+});
+
+// Run once on load
+validateInitializeForm();
