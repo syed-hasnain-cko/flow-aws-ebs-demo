@@ -104,7 +104,9 @@ async function fetchPaymentDetails(id){
                 'Content-Type': 'application/json',
             }
         });
-         return await paymentResponse.json();
+const response = await paymentResponse.json();
+        await addToApiLog('GET', `get payment details: ${id} - /payments/${id}`, response.id ? 201 : 422, {}, response)
+         return await response;
 }
 
 async function voidPayment(id){
@@ -117,7 +119,11 @@ async function voidPayment(id){
         headers: {
             'Content-Type': 'application/json',
         }
+       
     });
+     const response = await voidResponse.json();
+     await addToApiLog('POST', `void payment: ${id} - /payments/${id}/voids`, response.action_id ? 202 : 422, {}, response)
+     
      if (voidResponse.ok) {
                 showToast('Payment voided successfully!');
             } else {
@@ -140,6 +146,8 @@ async function capturePayment(id){
             'Content-Type': 'application/json',
         }
     });
+    const response = await captureResponse.json();
+    await addToApiLog('POST', `capture payment: ${id} - /payments/${id}/captures`, response.action_id ? 202 : 422, {}, response)
      if (captureResponse.ok) {
                 showToast('Payment captured successfully!');
             } else {
@@ -162,6 +170,8 @@ async function refundPayment(id){
             'Content-Type': 'application/json',
         }
     });
+    const response = refundResponse.json();
+    await addToApiLog('POST', `refund payment: ${id} - /payments/${id}/refunds`, response.action_id ? 202 : 422, {}, response)
      if (refundResponse.ok) {
                 showToast('Payment refunded successfully!');
             } else {
@@ -177,6 +187,8 @@ async function getPaymentSetup(setupId){
     try{
             const getQueryParams = new URLSearchParams({ setupId });
             const getSetupResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
+            const response = await getSetupResponse.json();
+            await addToApiLog('GET', `get payment setup: ${setupId} - /payments/setups/${setupId}`, response.id ? 200 : 422, {}, response)
             return await getSetupResponse.json();
     }
     catch(e){
@@ -188,7 +200,9 @@ async function confirmPaymentSetup(setupId, methodName){
             try{
            const queryParams = new URLSearchParams({ setupId, methodName });
             const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
-            return await res.json();
+            const response = res.json();
+              await addToApiLog('POST', `confirm ${methodName} payment setup: ${response.id} - /payments/setups/${setupId}/confirm/${methodName}`, response.id ? 201 : 422, {}, response)
+            return response;
             }
             catch(e){
 
@@ -245,6 +259,7 @@ async function updatePaymentDetailsData(id){
         }
     });
     const actionsData = await actionsResponse.json();
+     await addToApiLog('GET', `get payment actions: - /payments/${id}/actions`, actionsResponse.ok? 200 : 422, {}, actionsData)
     console.log(actionsData)
     document.getElementById('payment-actions-response').innerHTML = formatJSON(actionsData);
     document.getElementById('payment-actions-container').style.display = 'block';
@@ -351,3 +366,62 @@ function addKlarnaItemRow(container) {
     `;
     container.appendChild(row);
 }
+
+
+let apiLogHistory = [];
+
+function addToApiLog(method, endpoint, status, requestBody, responseBody) {
+    const logContainer = document.getElementById('log-entries');
+    const entryId = Date.now();
+    
+    apiLogHistory[entryId] = { request: requestBody, response: responseBody };
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.onclick = () => openLogModal(entryId);
+    
+    const isError = status >= 400;
+    const dotClass = isError ? 'dot-error' : 'dot-success';
+    
+    // Using the new .endpoint-text class here
+    entry.innerHTML = `
+        <div style="display:flex; align-items:center; margin-bottom:2px;">
+            <span class="status-dot ${dotClass}"></span>
+            <span class="method ${method.toLowerCase()}">${method}</span>
+            <span style="color:#f1f5f9; font-weight:bold;">${status}</span>
+        </div>
+        <span class="endpoint-text">${endpoint}</span>
+    `;
+    
+    logContainer.prepend(entry);
+}
+
+
+window.clearApiLogs = function() {
+ 
+    const logContainer = document.getElementById('log-entries');
+    if (logContainer) {
+        logContainer.innerHTML = '';
+    }
+    
+    apiLogHistory = [];
+    
+    console.log("API Logs cleared.");
+};
+
+
+window.openLogModal = function(id) {
+    const data = apiLogHistory[id];
+    document.getElementById('modal-req-body').innerText = JSON.stringify(data.request, null, 2);
+    document.getElementById('modal-res-body').innerText = JSON.stringify(data.response, null, 2);
+    document.getElementById('log-modal').style.display = 'flex';
+};
+
+window.closeLogModal = function() {
+    document.getElementById('log-modal').style.display = 'none';
+};
+
+window.onclick = function(event) {
+    const modal = document.getElementById('log-modal');
+    if (event.target == modal) closeLogModal();
+};
