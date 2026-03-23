@@ -1,0 +1,68 @@
+<div class="context-area">
+    <div class="inline-form">
+        <div class="form-group">
+            <label for="name-input" class="text-label">Name</label>
+            <input type="text" id="name-input" class="text-input" value="Syed Hasnain">
+        </div>
+        <div class="form-group">
+            <label for="email-input" class="text-label">Email</label>
+            <input type="email" id="email-input" class="text-input" value="syed.hasnain@checkout.com">
+        </div>
+        <div class="form-group">
+            <label for="amount-input" class="text-label">Amount</label>
+            <input type="text" id="amount-input" class="text-input" value="100">
+        </div>
+        <div class="form-group">
+            <label for="payment-type-select" class="select-label">Payment Type</label>
+            <select id="payment-type-select" class="select-input">
+                <option value="Regular" selected>Regular</option>
+                <option value="Recurring">Recurring</option>
+                <option value="Unscheduled">Unscheduled</option>
+                <option value="Installment">Installment</option>
+            </select>
+        </div>
+    </div>
+    <div class="inline-form">
+        <div class="form-group">
+            <label for="3ds-toggle" class="toggle-label">3DS</label>
+            <label class="switch">
+                <input type="checkbox" id="3ds-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label for="capture-toggle" class="toggle-label">Capture</label>
+            <label class="switch">
+                <input type="checkbox" id="capture-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label for="country-select" class="select-label">Country</label>
+            <select id="country-select" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="currency-select" class="select-label">Currency</label>
+            <select id="currency-select" class="select-input"></select>
+        </div>
+    </div>
+    <div class="inline-form">
+        <div class="form-group">
+            <label for="remember-me-toggle" class="toggle-label">Enable Remember Me</label>
+            <label class="switch">
+                <input type="checkbox" id="remember-me-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </div>
+    <div class="button-group">
+        <button id="flow-button" class="main-button">Render Standard Flow</button>
+        <button id="tokenize-only-button" class="main-button">Render Tokenize Only</button>
+    </div>
+</div>
+
+<div id="flow-container" class="payment-container">
+    <button id="tokenize-button" class="main-button" style="display: none;">Tokenize</button>
+    <button id="pay-button" class="main-button" style="display: none;">Pay Now</button>
+    <p class="success-payment-message"></p>
+</div>

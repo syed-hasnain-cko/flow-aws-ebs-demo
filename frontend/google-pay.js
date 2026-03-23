@@ -34,30 +34,7 @@ paymentRequest = {
   }
 }
 
-const CURRENCIES = [
-  { iso4217: 'AED', base: 100 },
-  { iso4217: 'ARS', base: 100 },
-  { iso4217: 'AUD', base: 100 },
-  { iso4217: 'BHD', base: 1000 },
-  { iso4217: 'BRL', base: 100 },
-  { iso4217: 'CHF', base: 100 },
-  { iso4217: 'CNY', base: 100 },
-  { iso4217: 'COP', base: 100 },
-  { iso4217: 'EGP', base: 100 },
-  { iso4217: 'EUR', base: 100 },
-  { iso4217: 'GBP', base: 100 },
-  { iso4217: 'HKD', base: 100 },
-  { iso4217: 'KWD', base: 1000 },
-  { iso4217: 'MXN', base: 100 },
-  { iso4217: 'NOK', base: 100 },
-  { iso4217: 'NZD', base: 100 },
-  { iso4217: 'PLN', base: 100 },
-  { iso4217: 'QAR', base: 100 },
-  { iso4217: 'SEK', base: 100 },
-  { iso4217: 'SGD', base: 100 },
-  { iso4217: 'SAR', base: 100 },
-  { iso4217: 'USD', base: 100 },
-];
+// CURRENCIES is provided globally by modules/data.js
 
 const googleConfig = {
   apiVersion: 2,
