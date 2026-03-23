@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
             processing_channel_id: document.getElementById('setup-pc-id').value
         };
 
-        const res = await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/payment-setups', {
+        const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-setups`, {
             method: 'POST',
             body: JSON.stringify(body),
             headers: { 'Content-Type': 'application/json' }
@@ -581,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const queryParams = new URLSearchParams({ setupId: activeSetupResponse.id });
-            const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/update-payment-setups?${queryParams.toString()}`, {
+            const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/update-payment-setups?${queryParams.toString()}`, {
                 method: 'PUT',
                 body: JSON.stringify(patchBody),
                 headers: { 'Content-Type': 'application/json' }
@@ -622,6 +622,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(id).addEventListener('input', validateInitializeForm);
         document.getElementById(id).addEventListener('change', validateInitializeForm);
     });
+
+    // Set default processing channel ID from APP_CONFIG if input is empty
+    const setupPcIdEl = document.getElementById('setup-pc-id');
+    if (setupPcIdEl && window.APP_CONFIG?.processingChannelId && !setupPcIdEl.value) {
+        setupPcIdEl.value = window.APP_CONFIG.processingChannelId;
+    }
 
     validateInitializeForm();
 

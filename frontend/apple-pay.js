@@ -72,34 +72,29 @@ window.addApplePayButton = function() {
     container.innerHTML = ''; // Force clear
 
     if (window.ApplePaySession) {
-        const config = getConfig((config) => {
-            const checkPromise = appleActiveCardToggle.checked 
-                ? ApplePaySession.canMakePaymentsWithActiveCard(config.appleMerchantId)
-                : Promise.resolve(ApplePaySession.canMakePayments());
+        const checkPromise = appleActiveCardToggle.checked
+            ? ApplePaySession.canMakePaymentsWithActiveCard(window.APP_CONFIG.appleMerchantId)
+            : Promise.resolve(ApplePaySession.canMakePayments());
 
-            checkPromise.then((canMakePayments) => {
-                if (canMakePayments) {
-                    const button = document.createElement('button');
-                    button.onclick = startApplePaySession;
-                    
-                    // Add the base class
-                    button.className = 'apple-pay-button';
-                    button.setAttribute('lang', gLocale.value);
-                    // Set Data Attributes instead of direct .style
-                    // This matches our new CSS selectors
-                    button.setAttribute('data-type', appleButtonType.value);
-                    button.setAttribute('data-style', appleButtonStyle.value);
+        checkPromise.then((canMakePayments) => {
+            if (canMakePayments) {
+                const button = document.createElement('button');
+                button.onclick = startApplePaySession;
 
-                    container.appendChild(button);
-                    container.style.display = 'flex';
-                    
-                    console.log(`Button Rendered: Type=${appleButtonType.value}, Style=${appleButtonStyle.value}`);
-                } else {
-                    container.innerHTML = '<p class="token-value" style="color:#dc2626; padding: 15px;">No active cards available.</p>';
-                    container.style.display = 'block';
-                }
-            }).catch((err) => console.error("Apple Pay Error: ", err));
-        });
+                button.className = 'apple-pay-button';
+                button.setAttribute('lang', gLocale.value);
+                button.setAttribute('data-type', appleButtonType.value);
+                button.setAttribute('data-style', appleButtonStyle.value);
+
+                container.appendChild(button);
+                container.style.display = 'flex';
+
+                console.log(`Button Rendered: Type=${appleButtonType.value}, Style=${appleButtonStyle.value}`);
+            } else {
+                container.innerHTML = '<p class="token-value" style="color:#dc2626; padding: 15px;">No active cards available.</p>';
+                container.style.display = 'block';
+            }
+        }).catch((err) => console.error("Apple Pay Error: ", err));
     }
 }
 
@@ -188,7 +183,7 @@ session.onpaymentauthorized = function(event) {
 
 
 function validateApplePaySession(appleUrl, callback) {
-     fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/validate-apple-session', {
+     fetch(`${window.APP_CONFIG.apiBaseUrl}/validate-apple-session`, {
         method: "POST",
         headers: {
             'Content-Type': 'application/json' 
@@ -239,7 +234,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     payment_type: paymentTypeSelectApple.value,
     capture: captureToggleApple.checked ? true : false,
     reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
-    processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
+    processing_channel_id: window.APP_CONFIG.processingChannelId,
     success_url: `${window.location.protocol}//${window.location.host}/success.html`,
     failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
     customer: {
@@ -251,7 +246,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     }
   }
 
-    fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/apple-pay", {
+    fetch(`${window.APP_CONFIG.apiBaseUrl}/apple-pay`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

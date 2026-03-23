@@ -10,7 +10,7 @@ let paymentSessionBody = {};
 const performPaymentSubmission = async (submitData) => {
     try {
         document.getElementById('payment-loader').style.display = 'flex';
-        const response = await fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/submit-payment-session", {
+        const response = await fetch(`${window.APP_CONFIG.apiBaseUrl}/submit-payment-session`, {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submitData),
@@ -28,6 +28,7 @@ const performPaymentSubmission = async (submitData) => {
     } catch (error) {
         document.getElementById('payment-loader').style.display = 'none';
         console.error("❌ Submit error:", error);
+        showToast('Payment submission failed. Please try again.', 'error');
     }
 };
 
@@ -140,7 +141,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
         };
 
         const checkout = await CheckoutWebComponents({
-            publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
+            publicKey: window.APP_CONFIG.publicKey,
             environment: "sandbox",
             locale: "en-GB",
             paymentSession,
@@ -244,7 +245,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
         tokenizeButton.style.display = 'inline-block';
 
         const checkout = await CheckoutWebComponents({
-            publicKey: "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
+            publicKey: window.APP_CONFIG.publicKey,
             environment: "sandbox",
             locale: "en-GB",
             paymentSession,
@@ -312,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         //enabled_payment_methods: ["googlepay"],
         disabled_payment_methods: ["remember_me"],
-        processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
+        processing_channel_id: window.APP_CONFIG.processingChannelId,
         success_url: `${window.location.protocol}//${window.location.host}/success.html`,
         failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
         customer: {
@@ -385,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderFlowButton.addEventListener('click', async () => {
         try {
             isTokenizeOnly = false;
-            const getResponse = await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/payment-sessions', {
+            const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(paymentSessionBody),
@@ -396,13 +397,14 @@ document.addEventListener('DOMContentLoaded', () => {
             await initializeFlow(getData);
         } catch (error) {
             console.error(error);
+            showToast('Failed to create payment session. Please try again.', 'error');
         }
     });
 
     renderTokenizeOnlyButton.addEventListener('click', async () => {
         try {
             isTokenizeOnly = true;
-            const getResponse = await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/payment-sessions', {
+            const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(paymentSessionBody),
@@ -413,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await initializeFlow(getData, isTokenizeOnly);
         } catch (error) {
             console.error(error);
+            showToast('Failed to create tokenization session. Please try again.', 'error');
         }
     });
 
