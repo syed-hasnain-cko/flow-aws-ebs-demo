@@ -1244,7 +1244,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                     window.Klarna.Payments.init({
                     client_token: clientToken,
                     session_id: sessionId
-    });
+            });
 
     // Authorize payment after loading the widget
     window.Klarna.Payments.authorize(
@@ -1258,7 +1258,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
             console.log('User approved the klarna payment:', response)
 
             const getSetupResponseJson = await getPaymentSetup(setupId);
-            if(getSetupResponseJson.status === 'ready'){
+            if(getSetupResponseJson.payment_methods.klarna.status === 'ready'){
 
                 const data = await confirmPaymentSetup(setupId, methodName);
                 if(data.status === 'Pending'){
