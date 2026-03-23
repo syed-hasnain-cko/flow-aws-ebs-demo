@@ -98,7 +98,7 @@ async function fetchPaymentDetails(id){
             paymentId: id,
         });
 
-        const paymentResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-details?${queryParams.toString()}`, {
+        const paymentResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/get-payment-details?${queryParams.toString()}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ async function voidPayment(id){
         paymentId: id,
     });
     try{
-        const voidResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/void-payment?${queryParams.toString()}`, {
+        const voidResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/void-payment?${queryParams.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ async function capturePayment(id){
         paymentId: id,
     });
     try{
-        const captureResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/capture-payment?${queryParams.toString()}`, {
+        const captureResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/capture-payment?${queryParams.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ async function refundPayment(id){
         paymentId: id,
     });
     try{
-        const refundResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/refund-payment?${queryParams.toString()}`, {
+        const refundResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/refund-payment?${queryParams.toString()}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -186,27 +186,29 @@ async function refundPayment(id){
 async function getPaymentSetup(setupId){
     try{
             const getQueryParams = new URLSearchParams({ setupId });
-            const getSetupResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
+            const getSetupResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
             const response = await getSetupResponse.json();
             await addToApiLog('GET', `get payment setup: ${setupId} - /payments/setups/${setupId}`, response.id ? 200 : 422, {}, response)
             return response;
     }
     catch(e){
-
+        showKlarnaToast('Failed to fetch payment setup. Please try again.', 'error');
+        console.error('getPaymentSetup error:', e);
     }
 }
 
 async function confirmPaymentSetup(setupId, methodName){
             try{
            const queryParams = new URLSearchParams({ setupId, methodName });
-            const res = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
+            const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
             const response = res.json();
               await addToApiLog('POST', `confirm ${methodName} payment setup: ${response.id} - /payments/setups/${setupId}/confirm/${methodName}`, response.id ? 201 : 422, {}, response)
             return response;
             }
             catch(e){
-
-        }
+                showKlarnaToast('Failed to confirm payment setup. Please try again.', 'error');
+                console.error('confirmPaymentSetup error:', e);
+            }
         }
 
 async function updatePaymentDetailsData(id){
@@ -252,7 +254,7 @@ async function updatePaymentDetailsData(id){
     console.log(paymentData)
     document.getElementById('payment-details-response').innerHTML = formatJSON(paymentData);
 
-    const actionsResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-actions?paymentId=${paymentData.id}`, {
+    const actionsResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/get-payment-actions?paymentId=${paymentData.id}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -301,7 +303,7 @@ function modifyCardNetworks(cardNetworks) {
 }
 
   function getConfig(callback) {
-    fetch("https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/config", {
+    fetch(`${window.APP_CONFIG.apiBaseUrl}/config`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

@@ -82,7 +82,7 @@ function getGooglePaymentsClient(config) {
       environment: "TEST", 
     });
   
-    googleConfig.allowedPaymentMethods[0].tokenizationSpecification.parameters.gatewayMerchantId = config.pk;
+    googleConfig.allowedPaymentMethods[0].tokenizationSpecification.parameters.gatewayMerchantId = config.publicKey;
     
     merchantId = config.googleMerchantId;
   }
@@ -91,22 +91,20 @@ function getGooglePaymentsClient(config) {
 
 window.onGooglePayLoaded = function() {
   window.activeWallet = 'google';
-  getConfig((config) => {
-    const paymentsClient = getGooglePaymentsClient(config);
-    
-    const isReadyToPayRequest = Object.assign({}, googleConfig);
-    delete isReadyToPayRequest.transactionInfo;
+  const paymentsClient = getGooglePaymentsClient(window.APP_CONFIG);
 
-    paymentsClient
-      .isReadyToPay(isReadyToPayRequest)
-      .then(function (response) {
-        if (response.result) {
-          addGooglePayButton();
-        }
-      })
-      .catch(function (err) {
-        console.error("G-Pay Ready Error:", err);
-      });
+  const isReadyToPayRequest = Object.assign({}, googleConfig);
+  delete isReadyToPayRequest.transactionInfo;
+
+  paymentsClient
+    .isReadyToPay(isReadyToPayRequest)
+    .then(function (response) {
+      if (response.result) {
+        addGooglePayButton();
+      }
+    })
+    .catch(function (err) {
+      console.error("G-Pay Ready Error:", err);
     });
 }
 
@@ -231,7 +229,7 @@ document.getElementById('payment-loader').style.display = 'flex';
     payment_type: paymentTypeSelect.value,
     capture: captureToggle.checked ? true : false,
     reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
-    processing_channel_id: 'pc_oxr4t4p3nseejeqdjqk3pdlpm4',
+    processing_channel_id: window.APP_CONFIG.processingChannelId,
     success_url: `${window.location.protocol}//${window.location.host}/success.html`,
     failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
     customer: {
@@ -243,7 +241,7 @@ document.getElementById('payment-loader').style.display = 'flex';
     }
   }
 console.log(paymentRequest)
-  await fetch('https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/google-pay', {
+  await fetch(`${window.APP_CONFIG.apiBaseUrl}/google-pay`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

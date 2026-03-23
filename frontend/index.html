@@ -16,23 +16,26 @@
     <!-- 1. Inject all tab HTML before any module script runs -->
     <script src="tabs/loader.js"></script>
 
-    <!-- 2. Checkout.com Web Components SDK -->
+    <!-- 2. App config: sets window.APP_CONFIG with env-specific values -->
+    <script src="/frontend-config.js"></script>
+
+    <!-- 4. Checkout.com Web Components SDK -->
     <!-- <script src="https://checkout-web-components.cko-qa.ckotech.co/index.js"></script> -->
     <script src="https://checkout-web-components.checkout.com/index.js"></script>
 
-    <!-- 3. Shared utilities and data (must load before feature modules) -->
+    <!-- 5. Shared utilities and data (must load before feature modules) -->
     <script src="utils.js"></script>
     <script src="modules/data.js"></script>
 
-    <!-- 4. Feature modules -->
+    <!-- 6. Feature modules -->
     <script src="modules/wallets.js"></script>
     <script src="modules/flow.js"></script>
     <script src="modules/payment-setup.js"></script>
 
-    <!-- 5. Main entry: dropdown population + tab switching -->
+    <!-- 7. Main entry: dropdown population + tab switching -->
     <script src="script.js"></script>
 
-    <!-- 6. Wallet implementations -->
+    <!-- 8. Wallet implementations -->
     <script src="google-pay.js"></script>
     <script src="apple-pay.js"></script>
 
