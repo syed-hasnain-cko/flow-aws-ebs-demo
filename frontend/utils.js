@@ -170,8 +170,8 @@ async function refundPayment(id){
             'Content-Type': 'application/json',
         }
     });
-    const response = refundResponse.json();
-    await addToApiLog('POST', `refund payment: ${id} - /payments/${id}/refunds`, response.action_id ? 202 : 422, {}, response)
+    const response = await refundResponse.json();
+    await addToApiLog('POST', `refund payment: ${id} - /payments/${id}/refunds`, refundResponse.ok ? 202 : 422, {}, response)
      if (refundResponse.ok) {
                 showToast('Payment refunded successfully!');
             } else {
@@ -189,7 +189,7 @@ async function getPaymentSetup(setupId){
             const getSetupResponse = await fetch(`https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging/get-payment-setup?${getQueryParams.toString()}`, { method: 'GET' });
             const response = await getSetupResponse.json();
             await addToApiLog('GET', `get payment setup: ${setupId} - /payments/setups/${setupId}`, response.id ? 200 : 422, {}, response)
-            return await getSetupResponse.json();
+            return response;
     }
     catch(e){
 
