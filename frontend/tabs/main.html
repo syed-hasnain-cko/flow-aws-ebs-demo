@@ -1,0 +1,77 @@
+<header>
+    <h1>Welcome to CKO where integrations -> Flow</h1>
+</header>
+
+<main class="wrapper">
+    <!-- Tab Buttons -->
+    <div class="tab-container">
+        <button class="tab-link active" onclick="openTab(event, 'flow-tab')">Checkout Flow</button>
+        <button class="tab-link" onclick="openTab(event, 'google-tab')">Wallets</button>
+        <button class="tab-link" onclick="openTab(event, 'setup-tab')">Payment Setup</button>
+    </div>
+
+    <!-- Tab Content: filled by loader.js -->
+    <div id="flow-tab" class="tab-content active"></div>
+    <div id="google-tab" class="tab-content"></div>
+    <div id="setup-tab" class="tab-content"></div>
+
+    <!-- Apple Pay SDK Log Debugger -->
+    <div id="apple-pay-debugger" class="context-area" style="display: none; margin-top: 20px; border: 1px solid #E2E8F0; background: #F8FAFC;">
+        <div class="detail-header">
+            <h3>SDK Authorization Log</h3>
+            <button class="copy-btn" onclick="copyToClipboard('apple-sdk-log')">Copy Log</button>
+        </div>
+        <div id="apple-sdk-log" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- Apple Pay Tab (legacy slot) -->
+    <div id="apple-tab" class="tab-content">
+        <div class="context-area">
+            <button id="apple-button" class="main-button">Render Apple Pay</button>
+        </div>
+        <div id="apple-container" class="payment-container"></div>
+    </div>
+
+    <!-- API Activity Log Sidebar -->
+    <div id="api-sidebar" class="api-log-sidebar">
+        <div class="sidebar-header">
+            <span class="header-label">API ACTIVITY LOG</span>
+            <button onclick="clearApiLogs()" class="clear-logs-btn" title="Clear All Logs">
+                <span class="icon">×</span> CLEAR
+            </button>
+        </div>
+        <div id="log-entries" class="log-entries-container"></div>
+    </div>
+
+    <!-- Request / Response Detail Modal -->
+    <div id="log-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request & Response Details</h3>
+                <button onclick="closeLogModal()" class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="json-section">
+                    <label>Request Body</label>
+                    <pre id="modal-req-body" class="json-code-block"></pre>
+                </div>
+                <div class="json-section">
+                    <label>Response Body</label>
+                    <pre id="modal-res-body" class="json-code-block"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Transaction Verification Loader Overlay -->
+<div id="payment-loader" class="loader-overlay" style="display: none;">
+    <div class="loader-content">
+        <div class="spinner"></div>
+        <h2 class="loader-title">Verifying Transaction</h2>
+        <p class="loader-subtitle">Please do not refresh the page or close this window.</p>
+        <div class="loader-progress-bar">
+            <div class="loader-progress-fill"></div>
+        </div>
+    </div>
+</div>
