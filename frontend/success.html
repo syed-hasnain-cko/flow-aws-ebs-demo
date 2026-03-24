@@ -161,6 +161,7 @@
                     const label = event.type.replace(/_/g, ' ');
                     console.log('Webhook received:', event.type, event.data);
                     if (statusEl) statusEl.textContent = `Webhook: ${label}`;
+                    addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
 
                     // All events: refresh details panel and show a toast
                     // Redirects to success/failure are handled by the gateway (3DS)

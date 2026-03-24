@@ -6,6 +6,8 @@ let activeSetupResponse = null;
 let currentSetupId = null;
 let setupWebhookPoller = null;
 
+const FAILED_STATUSES = ['Declined', 'Canceled', 'Expired', 'Failed'];
+
 const METHOD_REQUIREMENTS = {
     klarna: [
         { id: 'klarna-locale', label: 'Device Locale', path: 'customer.device.locale', value: 'en-GB' },
@@ -230,15 +232,20 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                     window.location.href = data._links.redirect.href;
                 } else {
                     document.getElementById('setup-json-output').innerText = JSON.stringify(data, null, 2);
-                    showSuccessWithReset(data);
                     btn.style.display = 'none';
                     const loader = document.getElementById('payment-loader');
-                    if (loader) {
-                        loader.style.display = 'flex';
+                    if (loader) loader.style.display = 'flex';
+
+                    if (FAILED_STATUSES.includes(data.status)) {
+                        setTimeout(() => {
+                            window.location.href = `failure.html?paymentId=${data.id}`;
+                        }, 800);
+                    } else {
+                        showSuccessWithReset(data);
+                        setTimeout(() => {
+                            window.location.href = `success.html?paymentId=${data.id}`;
+                        }, 800);
                     }
-                    setTimeout(() => {
-                        window.location.href = `success.html?paymentId=${data.id}`;
-                    }, 800);
                 }
             } catch (e) {
                 console.error("Confirmation Error", e);
@@ -268,16 +275,20 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                             if (getSetupResponseJson.payment_methods.klarna.status === 'ready') {
 
                                 const data = await confirmPaymentSetup(setupId, methodName);
-                                if (data.status === 'Pending') {
-                                    const loader = document.getElementById('payment-loader');
-                                    if (loader) {
-                                        loader.style.display = 'flex';
-                                    }
+                                const loader = document.getElementById('payment-loader');
+                                if (loader) loader.style.display = 'flex';
+
+                                if (FAILED_STATUSES.includes(data.status)) {
+                                    setTimeout(() => {
+                                        window.location.href = `failure.html?paymentId=${data.id}`;
+                                    }, 800);
+                                } else if (data.id) {
                                     setTimeout(() => {
                                         window.location.href = `success.html?paymentId=${data.id}`;
                                     }, 800);
                                 } else {
-                                    console.log('data after payment succeeded but status is not pending', data);
+                                    console.log('Unexpected confirm response:', data);
+                                    if (loader) loader.style.display = 'none';
                                 }
                             } else {
                                 btn.remove();
@@ -303,18 +314,22 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                                     btn.remove();
 
                                     const data = await confirmPaymentSetup(setupId, methodName);
-                                    if (data.status === 'Pending') {
-                                        const loader = document.getElementById('payment-loader');
-                                        if (loader) {
-                                            loader.style.display = 'flex';
-                                        }
+                                    const loader = document.getElementById('payment-loader');
+                                    if (loader) loader.style.display = 'flex';
+
+                                    if (FAILED_STATUSES.includes(data.status)) {
+                                        setTimeout(() => {
+                                            window.location.href = `failure.html?paymentId=${data.id}`;
+                                        }, 800);
+                                    } else if (data.id) {
                                         setTimeout(() => {
                                             window.location.href = `success.html?paymentId=${data.id}`;
                                         }, 800);
                                     } else {
+                                        if (loader) loader.style.display = 'none';
                                         const paymentSetup = await getPaymentSetup(setupId);
                                         document.getElementById('setup-json-output').innerText = JSON.stringify(paymentSetup, null, 2);
-                                        showKlarnaToast('Payment method is not ready, try again in few seconds to make payment again.', type = 'error');
+                                        showKlarnaToast('Payment method is not ready, try again in few seconds to make payment again.', 'error');
                                     }
                                 };
                                 actionArea.appendChild(btnKlarna);
@@ -660,6 +675,7 @@ function startSetupWebhookPolling(setupId) {
             if (!event.found) return;
 
             console.log('Setup webhook received:', event.type, event.data);
+            addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
 
             if (event.type !== 'payment_method_ready') return;
 
@@ -695,7 +711,9 @@ function startSetupWebhookPolling(setupId) {
 
                     if (data._links?.redirect) {
                         setTimeout(() => { window.location.href = data._links.redirect.href; }, 800);
-                    } else if (data.status === 'Pending' || data.id) {
+                    } else if (FAILED_STATUSES.includes(data.status)) {
+                        setTimeout(() => { window.location.href = `failure.html?paymentId=${data.id}`; }, 800);
+                    } else if (data.id) {
                         setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
                     }
                     return;

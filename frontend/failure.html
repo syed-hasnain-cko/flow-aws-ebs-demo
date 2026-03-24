@@ -44,6 +44,36 @@
                 </div>
             </div>
         </div>
+
+               <div id="api-sidebar" class="api-log-sidebar">
+    <div class="sidebar-header">
+        <span class="header-label">API ACTIVITY LOG</span>
+        <button onclick="clearApiLogs()" class="clear-logs-btn" title="Clear All Logs">
+            <span class="icon">×</span> CLEAR
+        </button>
+    </div>
+    <div id="log-entries" class="log-entries-container">
+        </div>
+</div>
+
+<div id="log-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Request & Response Details</h3>
+            <button onclick="closeLogModal()" class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="json-section">
+                <label>Request Body</label>
+                <pre id="modal-req-body" class="json-code-block"></pre>
+            </div>
+            <div class="json-section">
+                <label>Response Body</label>
+                <pre id="modal-res-body" class="json-code-block"></pre>
+            </div>
+        </div>
+    </div>
+</div>
     </main>
 
     <div id="modal" class="modal" style="display: none;">
@@ -121,6 +151,7 @@
                     const label = event.type.replace(/_/g, ' ');
                     console.log('Webhook received on failure page:', event.type, event.data);
                     if (statusEl) statusEl.textContent = `Webhook: ${label}`;
+                    addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
 
                     // All events: refresh details panel and show a toast
                     // Redirects are handled by the gateway (3DS) or synchronously — webhooks only update the UI
