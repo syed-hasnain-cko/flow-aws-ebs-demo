@@ -18,6 +18,7 @@
             <img src="https://cdn.dribbble.com/userupload/13699651/file/original-94a7295388c54008d79a9bee8ca5c0d4.png" alt="Success" class="status-image">
             <h2>Thank you for your payment!</h2>
             <p>Your payment was successful.</p>
+            <p id="webhook-status" style="font-size:13px; color:#6366f1; margin-top:4px;">⏳ Listening for webhook updates...</p>
             <p id="payment-details">Order ID: <span id="payment-id"></span></p>
             
             <div class="button-group">
@@ -85,7 +86,7 @@
 </div>
     </main>
 
-    <script src="/frontend-config.js"></script>
+    <script src="frontend-config.js"></script>
     <script src="utils.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
@@ -121,10 +122,81 @@
                     document.getElementById('payment-id').innerText = paymentData.reference || paymentId;
                 } catch (e) { console.error(e); }
             }
-        
+
             document.getElementById('fetch-details-button').addEventListener('click', () => updatePaymentDetailsData(paymentId));
             document.getElementById('further-actions-button').addEventListener('click', () => updatePaymentDetailsData(paymentId));
+
+            // Start webhook polling if we have a paymentId
+            if (paymentId) startWebhookPolling(paymentId);
         });
+
+        let webhookPoller = null;
+
+        function startWebhookPolling(paymentId) {
+            const POLL_INTERVAL_MS = 2000;
+            const POLL_TIMEOUT_MS = 120000; // 2 minutes
+            const statusEl = document.getElementById('webhook-status');
+            const startTime = Date.now();
+
+            // Events after which we stop polling — payment has reached a final state
+            const TERMINAL_EVENTS = new Set([
+                'payment_captured', 'payment_declined', 'payment_expired',
+                'payment_canceled', 'payment_refunded', 'payment_voided'
+            ]);
+
+            webhookPoller = setInterval(async () => {
+                if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+                    stopWebhookPolling();
+                    if (statusEl) statusEl.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/webhook-event?paymentId=${paymentId}`);
+                    if (res.status === 404) return; // no event yet, keep polling
+
+                    const event = await res.json();
+                    if (!event.found) return;
+
+                    const label = event.type.replace(/_/g, ' ');
+                    console.log('Webhook received:', event.type, event.data);
+                    if (statusEl) statusEl.textContent = `Webhook: ${label}`;
+
+                    // All events: refresh details panel and show a toast
+                    // Redirects to success/failure are handled by the gateway (3DS)
+                    // or synchronously by the payment flow — webhooks only update the UI
+                    const refreshEvents = [
+                        'payment_approved', 'payment_captured',
+                        'payment_capture_pending', 'payment_refund_pending',
+                        'payment_authorization_incremented', 'payment_pending',
+                        'payment_refunded', 'payment_voided',
+                        'payment_declined', 'payment_expired', 'payment_canceled'
+                    ];
+
+                    if (refreshEvents.includes(event.type)) {
+                        const isError = ['payment_declined', 'payment_expired', 'payment_canceled'].includes(event.type);
+                        await updatePaymentDetailsData(paymentId);
+                        showToast(label, isError ? 'error' : 'success');
+                    } else if (event.type === 'card_verified') {
+                        showToast('Card verified');
+                    }
+
+                    if (TERMINAL_EVENTS.has(event.type)) {
+                        stopWebhookPolling();
+                        if (statusEl) statusEl.style.display = 'none';
+                    }
+                } catch (e) {
+                    console.error('Webhook poll error:', e);
+                }
+            }, POLL_INTERVAL_MS);
+        }
+
+        function stopWebhookPolling() {
+            if (webhookPoller) {
+                clearInterval(webhookPoller);
+                webhookPoller = null;
+            }
+        }
     </script>
 </body>
 </html>

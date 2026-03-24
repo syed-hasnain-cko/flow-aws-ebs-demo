@@ -4,6 +4,7 @@
 
 let activeSetupResponse = null;
 let currentSetupId = null;
+let setupWebhookPoller = null;
 
 const METHOD_REQUIREMENTS = {
     klarna: [
@@ -27,6 +28,7 @@ const METHOD_REQUIREMENTS = {
 window.clearSetupTabState = function () {
     currentSetupId = null;
     activeSetupResponse = null;
+    stopSetupWebhookPolling();
 
     const methodsContainer = document.getElementById('setup-methods-container');
     const responseContainer = document.getElementById('setup-response-container');
@@ -592,6 +594,10 @@ document.addEventListener('DOMContentLoaded', () => {
             output.innerText = JSON.stringify(result, null, 2);
             await handleFinalState(result);
 
+            // Start polling for payment_method_ready webhook (fires when
+            // checkout.com marks the payment method as ready to confirm)
+            if (result.id) startSetupWebhookPolling(result.id);
+
             if (result._links?.redirect) {
                 const redirectBtn = document.createElement('button');
                 redirectBtn.className = 'main-button';
@@ -632,3 +638,78 @@ document.addEventListener('DOMContentLoaded', () => {
     validateInitializeForm();
 
 });
+
+function startSetupWebhookPolling(setupId) {
+    stopSetupWebhookPolling(); // clear any existing poller before starting
+
+    const POLL_INTERVAL_MS = 2000;
+    const POLL_TIMEOUT_MS = 120000; // 2 minutes
+    const startTime = Date.now();
+
+    setupWebhookPoller = setInterval(async () => {
+        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+            stopSetupWebhookPolling();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/webhook-event?paymentId=${setupId}`);
+            if (res.status === 404) return; // no event yet, keep polling
+
+            const event = await res.json();
+            if (!event.found) return;
+
+            console.log('Setup webhook received:', event.type, event.data);
+
+            if (event.type !== 'payment_method_ready') return;
+
+            stopSetupWebhookPolling();
+            showKlarnaToast('Payment method ready — confirming automatically...', 'success');
+
+            // Fetch latest setup state to find which method is now ready
+            const latestSetup = await getPaymentSetup(setupId);
+            if (!latestSetup || !latestSetup.payment_methods) return;
+
+            // Update the JSON output panel with the latest state
+            const output = document.getElementById('setup-json-output');
+            if (output) output.innerText = JSON.stringify(latestSetup, null, 2);
+
+            // Find the method that is ready and confirm it
+            for (const methodName in latestSetup.payment_methods) {
+                if (latestSetup.payment_methods[methodName].status === 'ready') {
+                    // If the confirm button is already rendered and enabled, click it
+                    // (covers Klarna where the button exists after SDK authorization)
+                    const existingBtn = document.getElementById('final-confirm-btn');
+                    if (existingBtn && !existingBtn.disabled) {
+                        existingBtn.click();
+                        return;
+                    }
+
+                    // Otherwise confirm directly (covers Bizum and any method
+                    // where the button wasn't rendered yet)
+                    const data = await confirmPaymentSetup(setupId, methodName);
+                    if (!data) return;
+
+                    const loader = document.getElementById('payment-loader');
+                    if (loader) loader.style.display = 'flex';
+
+                    if (data._links?.redirect) {
+                        setTimeout(() => { window.location.href = data._links.redirect.href; }, 800);
+                    } else if (data.status === 'Pending' || data.id) {
+                        setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
+                    }
+                    return;
+                }
+            }
+        } catch (e) {
+            console.error('Setup webhook poll error:', e);
+        }
+    }, POLL_INTERVAL_MS);
+}
+
+function stopSetupWebhookPolling() {
+    if (setupWebhookPoller) {
+        clearInterval(setupWebhookPoller);
+        setupWebhookPoller = null;
+    }
+}
