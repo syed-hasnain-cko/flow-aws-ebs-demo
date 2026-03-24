@@ -101,7 +101,6 @@ window.addApplePayButton = function() {
 
 function startApplePaySession() {
   try {
-    //let allowedCardNetworksApple = getMultiSelectSelectedValues("#schemes");
 
     // Update to read from chips
 let allowedCardNetworksApple = window.getChipSelectedValues("schemes-chips");
@@ -115,7 +114,6 @@ let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
     
     
     // Dynamically pull Merchant Capabilities from the UI
-    //let merchantCapabilities = getMultiSelectSelectedValues("#apple-merchant-capabilities");
     if (merchantCapabilities.length === 0) merchantCapabilities = ["supports3DS"];
 
     request = {
