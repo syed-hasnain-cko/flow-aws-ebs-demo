@@ -353,9 +353,23 @@ function truncateResponse(obj, maxLength = 100) {
     return cleanObj;
 }
 
+function syncOrderItemsTotal() {
+    const rows = document.querySelectorAll('.order-item-row');
+    if (rows.length === 0) return;
+    let sum = 0;
+    rows.forEach(row => {
+        sum += parseInt(row.querySelector('.k-total').value) || 0;
+    });
+    const amountInput = document.getElementById('setup-amount');
+    if (amountInput) {
+        amountInput.value = sum;
+        amountInput.dispatchEvent(new Event('input'));
+    }
+}
+
 function addKlarnaItemRow(container) {
     const row = document.createElement('div');
-    row.className = 'inline-form klarna-item-row';
+    row.className = 'inline-form order-item-row';
     row.style.borderBottom = "1px solid #e2e8f0";
     row.style.paddingBottom = "10px";
     row.style.marginBottom = "10px";
@@ -367,6 +381,21 @@ function addKlarnaItemRow(container) {
         <div class="form-group"><label class="text-label">Ref</label><input type="text" class="text-input k-ref" value="SKU-001"></div>
     `;
     container.appendChild(row);
+
+    const qtyInput = row.querySelector('.k-qty');
+    const priceInput = row.querySelector('.k-price');
+    const totalInput = row.querySelector('.k-total');
+
+    function updateRowTotal() {
+        const qty = parseInt(qtyInput.value) || 0;
+        const price = parseInt(priceInput.value) || 0;
+        totalInput.value = qty * price;
+        syncOrderItemsTotal();
+    }
+
+    qtyInput.addEventListener('input', updateRowTotal);
+    priceInput.addEventListener('input', updateRowTotal);
+    totalInput.addEventListener('input', syncOrderItemsTotal);
 }
 
 

@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Payment Success</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -139,9 +140,11 @@
             const startTime = Date.now();
 
             // Events after which we stop polling — payment has reached a final state
+            // Note: payment_captured/refunded/voided are NOT terminal here because the user
+            // may perform further actions (refund, void) after capture, and we still need
+            // to receive those webhooks to update the UI.
             const TERMINAL_EVENTS = new Set([
-                'payment_captured', 'payment_declined', 'payment_expired',
-                'payment_canceled', 'payment_refunded', 'payment_voided'
+                'payment_declined', 'payment_expired', 'payment_canceled'
             ]);
 
             webhookPoller = setInterval(async () => {
@@ -161,7 +164,7 @@
                     const label = event.type.replace(/_/g, ' ');
                     console.log('Webhook received:', event.type, event.data);
                     if (statusEl) statusEl.textContent = `Webhook: ${label}`;
-                    addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
+                    addToApiLog('INCOMING WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
 
                     // All events: refresh details panel and show a toast
                     // Redirects to success/failure are handled by the gateway (3DS)
