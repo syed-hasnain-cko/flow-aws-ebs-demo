@@ -141,6 +141,7 @@ window.clearSetupTabState = function () {
 function renderMethodToggles(methods) {
     const grid = document.getElementById('methods-grid');
     grid.innerHTML = '';
+    const tokens = getThemeTokens();
     grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(190px, 1fr))';
     grid.style.gap = '12px';
 
@@ -157,11 +158,11 @@ function renderMethodToggles(methods) {
         card.style.cssText = `
             padding: 14px 16px 12px;
             border-radius: 14px;
-            border: 2px solid #e2e8f0;
+            border: 2px solid ${tokens.border};
             cursor: pointer;
             position: relative;
             overflow: hidden;
-            background: #fff;
+            background: ${tokens.bgCard};
             transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
         `;
 
@@ -179,7 +180,7 @@ function renderMethodToggles(methods) {
                         box-shadow:0 2px 6px ${display.bg}66;
                     "></div>
                     <div style="min-width:0;">
-                        <div style="font-weight:700;font-size:13px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.toUpperCase()}</div>
+                        <div style="font-weight:700;font-size:13px;color:${tokens.textPrimary};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.toUpperCase()}</div>
                         <div style="font-size:10px;color:${statusColor};margin-top:3px;font-weight:600;">${statusLabel}</div>
                     </div>
                 </div>
@@ -215,13 +216,13 @@ function renderMethodToggles(methods) {
         // Hover lift effect
         card.addEventListener('mouseover', () => {
             card.style.transform = 'translateY(-3px)';
-            card.style.boxShadow = `0 10px 28px rgba(0,0,0,0.10)`;
+            card.style.boxShadow = tokens.shadowMd;
             if (!toggle.checked) card.style.borderColor = display.bg;
         });
         card.addEventListener('mouseout', () => {
             card.style.transform = '';
             card.style.boxShadow = '';
-            if (!toggle.checked) card.style.borderColor = '#e2e8f0';
+            if (!toggle.checked) card.style.borderColor = tokens.border;
         });
 
         // Clicking anywhere on the card toggles the checkbox
@@ -239,9 +240,9 @@ function renderMethodToggles(methods) {
                 card.style.boxShadow = `0 0 0 3px ${display.bg}40`;
                 card.style.background = `${display.bg}12`;
             } else {
-                card.style.borderColor = '#e2e8f0';
+                card.style.borderColor = tokens.border;
                 card.style.boxShadow = '';
-                card.style.background = '#fff';
+                card.style.background = tokens.bgCard;
             }
         });
 
@@ -261,14 +262,15 @@ function handleToggleChange() {
     // and reset their card highlight. Using direct property mutation (no event dispatch)
     // to avoid re-entrancy.
     if (this.checked) {
+        const tokens = getThemeTokens();
         document.querySelectorAll('.method-toggle').forEach(t => {
             if (t !== this && t.checked) {
                 t.checked = false;
                 const otherCard = t.closest('.method-card');
                 if (otherCard) {
-                    otherCard.style.borderColor = '#e2e8f0';
+                    otherCard.style.borderColor = tokens.border;
                     otherCard.style.boxShadow = '';
-                    otherCard.style.background = '#fff';
+                    otherCard.style.background = tokens.bgCard;
                 }
             }
         });

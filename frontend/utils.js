@@ -1,5 +1,31 @@
 
 
+/**
+ * Reads the active theme's CSS custom properties from the document root.
+ * Returns a plain object with all colour/shadow tokens so JS modules
+ * can use them for inline styles or third-party SDK appearance objects.
+ */
+function getThemeTokens() {
+    const s = getComputedStyle(document.documentElement);
+    const get = (prop) => s.getPropertyValue(prop).trim();
+    return {
+        primary:       get('--primary'),
+        primaryGlow:   get('--primary-glow'),
+        bgPage:        get('--bg-page'),
+        bgCard:        get('--bg-card'),
+        bgInput:       get('--bg-input'),
+        bgSubtle:      get('--bg-subtle'),
+        textPrimary:   get('--text-primary'),
+        textSecondary: get('--text-secondary'),
+        textMuted:     get('--text-muted'),
+        border:        get('--border'),
+        borderStrong:  get('--border-strong'),
+        success:       get('--success'),
+        error:         get('--error'),
+        shadowMd:      get('--shadow-md'),
+    };
+}
+
 const formatJSON = (data) => {
     const stringify = (obj, indent = 0) => {
         let html = '';

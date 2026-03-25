@@ -8,6 +8,20 @@
     <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Theme: apply before first paint to prevent flash -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('cko-demo-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('cko-demo-theme', theme);
+            var sel = document.getElementById('theme-selector');
+            if (sel) sel.value = theme;
+        }
+    </script>
 </head>
 <body>
 
@@ -16,6 +30,14 @@
 
     <!-- 1. Inject all tab HTML before any module script runs -->
     <script src="tabs/loader.js"></script>
+    <!-- Sync theme selector to saved value after it's injected -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('cko-demo-theme') || 'light';
+            var sel = document.getElementById('theme-selector');
+            if (sel) sel.value = t;
+        })();
+    </script>
 
     <!-- 2. App config: sets window.APP_CONFIG with env-specific values -->
     <script src="frontend-config.js"></script>
