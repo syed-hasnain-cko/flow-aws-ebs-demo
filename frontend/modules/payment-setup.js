@@ -23,7 +23,64 @@ const METHOD_REQUIREMENTS = {
         { id: 'bizum-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
         { id: 'bizum-ccode', label: 'Phone Country Code', path: 'customer.phone.country_code', value: '34' },
         { id: 'bizum-phone', label: 'Phone Number', path: 'customer.phone.number', value: '700000000' },
-    ]
+    ],
+    eps: [
+        { id: 'eps-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'eps-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
+    ideal: [
+        { id: 'ideal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'ideal-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
+    bancontact: [
+        { id: 'bancontact-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'bancontact-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        { id: 'bancontact-name', label: 'Customer Name', path: 'customer.name', value: 'Syed Hasnain' },
+        { id: 'bancontact-email', label: 'Customer Email', path: 'customer.email.address', value: 'smhasnain@gmail.com' },
+    ],
+    twint: [
+        { id: 'twint-ref', label: 'Reference', path: 'reference', value: '#Order_TWINT_001' },
+        { id: 'twint-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'twint-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
+    kakaopay: [
+        { id: 'kakaopay-ref', label: 'Reference', path: 'reference', value: '#Order_KAKAO_001' },
+        { id: 'kakaopay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'kakaopay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        { id: 'kakaopay-name', label: 'Customer Name', path: 'customer.name', value: 'Syed Hasnain' },
+        { id: 'kakaopay-email', label: 'Customer Email', path: 'customer.email.address', value: 'smhasnain@gmail.com' },
+    ],
+    sepa: [
+        { id: 'sepa-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'sepa-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        { id: 'sepa-city', label: 'Billing City', path: 'billing.address.city', value: 'London' },
+        { id: 'sepa-zip', label: 'Billing Zip', path: 'billing.address.zip', value: 'W1T 4TP' },
+        { id: 'sepa-addr', label: 'Address Line 1', path: 'billing.address.address_line1', value: '25 Berners St' },
+        { id: 'sepa-country', label: 'Billing Country', path: 'billing.address.country', value: 'GB' },
+    ],
+    paypal: [
+        { id: 'paypal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'paypal-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
+    googlepay: [
+        { id: 'googlepay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'googlepay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
+    applepay: [
+        { id: 'applepay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'applepay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
+};
+
+// Methods that require order line items in the PATCH body
+const METHODS_WITH_ORDER_ITEMS = new Set(['klarna', 'paypal', 'kakaopay']);
+
+// Informational notes shown above the fields for certain methods
+const METHOD_NOTES = {
+    twint: '⚠️ Twint requires CHF currency. Re-initialize the setup with currency set to CHF if you see a currency flag.',
+    kakaopay: '⚠️ KakaoPay may require a specific currency (e.g. KRW). Re-initialize with the correct currency if you see a currency flag.',
+    card: 'ℹ️ Card requires hosted card input fields (card_details_required) and cannot be patched via simple fields.',
+    instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
 };
 
 // Exposed so openTab in script.js can reset setup state when switching away
@@ -108,12 +165,20 @@ function handleToggleChange() {
     inputsArea.innerHTML = '';
 
     activeToggles.forEach(method => {
-        if (METHOD_REQUIREMENTS[method]) {
-            const section = document.createElement('div');
-            section.className = 'context-area';
-            section.style.marginTop = '10px';
-            section.innerHTML = `<h4 style="margin-top:0; color:#6366f1;">${method.toUpperCase()} Requirements</h4><div class="inline-form" id="fields-${method}"></div>`;
+        const section = document.createElement('div');
+        section.className = 'context-area';
+        section.style.marginTop = '10px';
+        section.innerHTML = `<h4 style="margin-top:0; color:#6366f1;">${method.toUpperCase()} Requirements</h4><div class="inline-form" id="fields-${method}"></div>`;
 
+        // Show a note for methods with special requirements (currency, card details, etc.)
+        if (METHOD_NOTES[method]) {
+            const note = document.createElement('p');
+            note.style.cssText = 'font-size:12px; color:#92400e; background:#fef3c7; padding:8px 12px; border-radius:6px; margin:4px 0 8px;';
+            note.textContent = METHOD_NOTES[method];
+            section.insertBefore(note, section.querySelector('.inline-form'));
+        }
+
+        if (METHOD_REQUIREMENTS[method]) {
             METHOD_REQUIREMENTS[method].forEach(field => {
                 const group = document.createElement('div');
                 group.className = 'form-group';
@@ -123,25 +188,27 @@ function handleToggleChange() {
                 `;
                 section.querySelector('.inline-form').appendChild(group);
             });
-
-            if (method === 'klarna') {
-                const template = document.getElementById('klarna-items-template').content.cloneNode(true);
-                section.appendChild(template);
-                addKlarnaItemRow(section.querySelector('#klarna-items-list'));
-                section.querySelector('#add-klarna-item').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    addKlarnaItemRow(document.getElementById('klarna-items-list'));
-                });
-            }
-
-            inputsArea.appendChild(section);
         }
+
+        if (METHODS_WITH_ORDER_ITEMS.has(method)) {
+            const template = document.getElementById('order-items-template').content.cloneNode(true);
+            const titleEl = template.querySelector('.order-items-title');
+            if (titleEl) titleEl.textContent = `${method.toUpperCase()} ORDER ITEMS`;
+            section.appendChild(template);
+            addKlarnaItemRow(section.querySelector('.order-items-list'));
+            section.querySelector('.add-order-item').addEventListener('click', (e) => {
+                e.preventDefault();
+                addKlarnaItemRow(section.querySelector('.order-items-list'));
+            });
+        }
+
+        inputsArea.appendChild(section);
     });
 
     patchBtn.style.display = hasActiveToggle ? 'block' : 'none';
 }
 
-async function handleFinalState(response) {
+async function handleFinalState(response, selectedMethod) {
     const setupId = response.id;
     const methods = response.payment_methods;
     const statusArea = document.getElementById('final-status-area');
@@ -151,24 +218,24 @@ async function handleFinalState(response) {
     widgetContainer.style.display = 'none';
     document.getElementById('klarna_container').innerHTML = '';
 
-    for (let methodName in methods) {
-        const methodData = methods[methodName];
+    // Only evaluate the method the user selected — ignore others in the response
+    const methodName = selectedMethod;
+    const methodData = methods?.[methodName];
+    if (!methodData) return;
 
-        if (methodData.initialization === "enabled" || methodData.status === "ready") {
+    if (methodData.initialization === "enabled" || methodData.status === "ready") {
+        if (methodData.status === "ready") {
+            statusArea.className = 'status-ready';
+            statusArea.innerText = `${methodName.toUpperCase()} is Ready!`;
+            statusArea.style.display = 'block';
+            renderConfirmButton(setupId, methodName, "Confirm & Redirect");
+        } else if (methodData.status === "action_required" && methodData.action?.type === "sdk") {
+            statusArea.className = 'status-action';
+            statusArea.innerText = `${methodName.toUpperCase()} requires SDK Authorization.`;
+            statusArea.style.display = 'block';
 
-            if (methodData.status === "ready") {
-                statusArea.className = 'status-ready';
-                statusArea.innerText = `${methodName.toUpperCase()} is Ready!`;
-                statusArea.style.display = 'block';
-                renderConfirmButton(setupId, methodName, "Confirm & Redirect");
-            } else if (methodData.status === "action_required" && methodData.action?.type === "sdk") {
-                statusArea.className = 'status-action';
-                statusArea.innerText = `${methodName.toUpperCase()} requires SDK Authorization.`;
-                statusArea.style.display = 'block';
-
-                if (methodName === 'klarna') {
-                    initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
-                }
+            if (methodName === 'klarna') {
+                initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
             }
         }
     }
@@ -571,9 +638,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        if (patchBody.payment_methods.klarna) {
+        const activeMethod = Array.from(document.querySelectorAll('.method-toggle:checked')).map(t => t.dataset.method)[0];
+        if (activeMethod && METHODS_WITH_ORDER_ITEMS.has(activeMethod)) {
             patchBody.order = { items: [] };
-            document.querySelectorAll('.klarna-item-row').forEach(row => {
+            document.querySelectorAll('.order-item-row').forEach(row => {
                 patchBody.order.items.push({
                     name: row.querySelector('.k-name').value,
                     quantity: parseInt(row.querySelector('.k-qty').value),
@@ -591,6 +659,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const responseContainer = document.getElementById('setup-response-container');
 
         if (btn.disabled) return;
+
+        // Validate order items total matches main amount before submitting
+        const orderRows = document.querySelectorAll('.order-item-row');
+        if (orderRows.length > 0) {
+            let itemsTotal = 0;
+            orderRows.forEach(row => {
+                itemsTotal += parseInt(row.querySelector('.k-total').value) || 0;
+            });
+            const mainAmount = parseInt(document.getElementById('setup-amount').value) || 0;
+            if (itemsTotal !== mainAmount) {
+                showKlarnaToast(`Order items total (${itemsTotal}) doesn't match payment amount (${mainAmount}). Please equalise them before patching.`, 'error');
+                return;
+            }
+        }
+
         btn.disabled = true;
         btn.style.opacity = "0.5";
         btn.style.cursor = "not-allowed";
@@ -607,11 +690,15 @@ document.addEventListener('DOMContentLoaded', () => {
             await addToApiLog('PUT', `Update payment setup - /payments/setups/${activeSetupResponse.id}`, result.id ? 200 : 422, patchBody, result);
             responseContainer.style.display = 'block';
             output.innerText = JSON.stringify(result, null, 2);
-            await handleFinalState(result);
+            const selectedMethod = document.querySelector('.method-toggle:checked')?.dataset.method;
+            await handleFinalState(result, selectedMethod);
 
-            // Start polling for payment_method_ready webhook (fires when
-            // checkout.com marks the payment method as ready to confirm)
-            if (result.id) startSetupWebhookPolling(result.id);
+            // Only poll for payment_method_ready when the selected method needs an async
+            // authorization step (e.g. Klarna SDK). Methods that are already "ready" in
+            // the PATCH response (e.g. bizum, eps, ideal) don't fire this webhook.
+            const methodData = result.payment_methods?.[selectedMethod];
+            const needsAsyncAuth = methodData?.status === 'action_required';
+            if (result.id && needsAsyncAuth) startSetupWebhookPolling(result.id);
 
             if (result._links?.redirect) {
                 const redirectBtn = document.createElement('button');
@@ -642,6 +729,33 @@ document.addEventListener('DOMContentLoaded', () => {
     setupInputs.forEach(id => {
         document.getElementById(id).addEventListener('input', validateInitializeForm);
         document.getElementById(id).addEventListener('change', validateInitializeForm);
+    });
+
+    // Show inline warning when main amount diverges from order items total
+    document.getElementById('setup-amount').addEventListener('input', () => {
+        const rows = document.querySelectorAll('.order-item-row');
+        if (rows.length === 0) return;
+
+        let itemsTotal = 0;
+        rows.forEach(row => {
+            itemsTotal += parseInt(row.querySelector('.k-total').value) || 0;
+        });
+        const mainAmount = parseInt(document.getElementById('setup-amount').value) || 0;
+
+        let errEl = document.getElementById('amount-mismatch-error');
+        if (!errEl) {
+            errEl = document.createElement('p');
+            errEl.id = 'amount-mismatch-error';
+            errEl.style.cssText = 'font-size:12px; color:#b91c1c; background:#fee2e2; padding:6px 10px; border-radius:6px; margin:6px 0 0;';
+            document.getElementById('setup-amount').parentElement.appendChild(errEl);
+        }
+
+        if (mainAmount !== itemsTotal) {
+            errEl.textContent = `⚠️ Amount (${mainAmount}) doesn't match order items total (${itemsTotal}). Update items or amount to equalise.`;
+            errEl.style.display = 'block';
+        } else {
+            errEl.style.display = 'none';
+        }
     });
 
     // Set default processing channel ID from APP_CONFIG if input is empty

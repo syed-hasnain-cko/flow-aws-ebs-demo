@@ -53,8 +53,6 @@ const googleConfig = {
           "MASTERCARD",
           "VISA",
         ]
-      //  allowCreditCards: false,   
-   // allowDebitCards: true
       },
       tokenizationSpecification: {
         type: "PAYMENT_GATEWAY",
