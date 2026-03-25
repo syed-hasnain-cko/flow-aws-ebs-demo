@@ -25,6 +25,7 @@ const CURRENCIES = [
   { iso4217: 'SGD', base: 100 },
   { iso4217: 'SAR', base: 100 },
   { iso4217: 'USD', base: 100 },
+  {iso4217: 'KRW', base: 100 },
 ];
 
 const COUNTRIES = [

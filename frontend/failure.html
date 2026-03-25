@@ -91,7 +91,7 @@
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
             // Support multiple possible ID params
-            let paymentId = urlParams.get('cko-payment-id') || urlParams.get('paymentId');
+            let paymentId = urlParams.get('cko-payment-id') || urlParams.get('paymentId') || urlParams.get('cko-session-id');
 
             if (paymentId) {
                 document.getElementById('error-message').innerText = paymentId;

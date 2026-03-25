@@ -37,6 +37,7 @@ const METHOD_REQUIREMENTS = {
         { id: 'bancontact-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
         { id: 'bancontact-name', label: 'Customer Name', path: 'customer.name', value: 'Syed Hasnain' },
         { id: 'bancontact-email', label: 'Customer Email', path: 'customer.email.address', value: 'smhasnain@gmail.com' },
+        { id: 'bancontact-country', label: 'Customer Country', path: 'customer.billing_address.country', value: 'BE' },
     ],
     twint: [
         { id: 'twint-ref', label: 'Reference', path: 'reference', value: '#Order_TWINT_001' },
@@ -56,6 +57,7 @@ const METHOD_REQUIREMENTS = {
         { id: 'sepa-city', label: 'Billing City', path: 'billing.address.city', value: 'London' },
         { id: 'sepa-zip', label: 'Billing Zip', path: 'billing.address.zip', value: 'W1T 4TP' },
         { id: 'sepa-addr', label: 'Address Line 1', path: 'billing.address.address_line1', value: '25 Berners St' },
+        { id: 'sepa-addr-2', label: 'Address Line 2', path: 'billing.address.address_line2', value: 'xyz' },
         { id: 'sepa-country', label: 'Billing Country', path: 'billing.address.country', value: 'GB' },
     ],
     paypal: [
@@ -81,6 +83,24 @@ const METHOD_NOTES = {
     kakaopay: '⚠️ KakaoPay may require a specific currency (e.g. KRW). Re-initialize with the correct currency if you see a currency flag.',
     card: 'ℹ️ Card requires hosted card input fields (card_details_required) and cannot be patched via simple fields.',
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
+};
+
+// Brand colours, abbreviations and Simple Icons CDN logos for each payment method card.
+// logo: null → falls back to abbr text inside the coloured badge.
+const METHOD_DISPLAY = {
+    klarna:     { bg: '#FFB3C7', color: '#1a1a1a', abbr: 'K',    logo: 'https://cdn.simpleicons.org/klarna/000000'     },
+    bizum:      { bg: '#004EE4', color: '#fff',    abbr: 'BZ',   logo: 'https://cdn.simpleicons.org/bizum/ffffff'      },
+    eps:        { bg: '#CC0000', color: '#fff',    abbr: 'EPS',  logo: null                                            },
+    ideal:      { bg: '#CC0066', color: '#fff',    abbr: 'iD',   logo: 'https://cdn.simpleicons.org/ideal/ffffff'      },
+    bancontact: { bg: '#005498', color: '#fff',    abbr: 'BC',   logo: 'https://cdn.simpleicons.org/bancontact/ffffff' },
+    twint:      { bg: '#00A0E6', color: '#fff',    abbr: 'TW',   logo: 'https://cdn.simpleicons.org/twint/ffffff'      },
+    kakaopay:   { bg: '#FAE100', color: '#3C1E1E', abbr: 'KP',   logo: 'https://cdn.simpleicons.org/kakaotalk/3C1E1E' },
+    sepa:       { bg: '#003399', color: '#fff',    abbr: 'SEPA', logo: null                                            },
+    paypal:     { bg: '#009CDE', color: '#fff',    abbr: 'PP',   logo: 'https://cdn.simpleicons.org/paypal/ffffff'     },
+    googlepay:  { bg: '#4285F4', color: '#fff',    abbr: 'G',    logo: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg'  },
+    applepay:   { bg: '#1c1c1e', color: '#fff',    abbr: '🍎',   logo: 'https://cdn.simpleicons.org/applepay/ffffff'   },
+    card:       { bg: '#17a34a', color: '#fff',    abbr: 'CKO',  logo: 'https://cdn.simpleicons.org/checkout/ffffff'   },
+    instrument: { bg: '#64748b', color: '#fff',    abbr: '🔧',   logo: null                                            },
 };
 
 // Exposed so openTab in script.js can reset setup state when switching away
@@ -121,46 +141,161 @@ window.clearSetupTabState = function () {
 function renderMethodToggles(methods) {
     const grid = document.getElementById('methods-grid');
     grid.innerHTML = '';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(190px, 1fr))';
+    grid.style.gap = '12px';
+
     methods.forEach(m => {
+        const display = METHOD_DISPLAY[m] || { bg: '#6366f1', color: '#fff', abbr: m.substring(0, 2).toUpperCase() };
+        const methodInfo = activeSetupResponse?.payment_methods?.[m];
+        const flags = methodInfo?.flags || [];
+        const flagCount = flags.length;
+        const statusLabel = flagCount === 0 ? '✓ No flags' : `${flagCount} flag${flagCount !== 1 ? 's' : ''} pending`;
+        const statusColor = flagCount === 0 ? '#059669' : '#f59e0b';
+
         const card = document.createElement('div');
-        card.className = 'context-area';
-        card.style.padding = '15px';
+        card.className = 'method-card';
+        card.style.cssText = `
+            padding: 14px 16px 12px;
+            border-radius: 14px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        `;
+
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700;">${m.toUpperCase()}</span>
-                <label class="switch">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${display.bg};border-radius:14px 14px 0 0;"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <div class="method-logo-badge" style="
+                        width:40px;height:40px;flex-shrink:0;
+                        border-radius:10px;
+                        background:${display.bg};
+                        color:${display.color};
+                        display:flex;align-items:center;justify-content:center;
+                        font-weight:800;font-size:12px;letter-spacing:-0.3px;
+                        box-shadow:0 2px 6px ${display.bg}66;
+                    "></div>
+                    <div style="min-width:0;">
+                        <div style="font-weight:700;font-size:13px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.toUpperCase()}</div>
+                        <div style="font-size:10px;color:${statusColor};margin-top:3px;font-weight:600;">${statusLabel}</div>
+                    </div>
+                </div>
+                <label class="switch" style="flex-shrink:0;">
                     <input type="checkbox" class="method-toggle" data-method="${m}">
                     <span class="slider round"></span>
                 </label>
             </div>
         `;
+
+        // Populate the logo badge: real logo via Simple Icons CDN, abbr text as fallback
+        const badge = card.querySelector('.method-logo-badge');
+        if (display.logo) {
+            const img = document.createElement('img');
+            img.src = display.logo;
+            img.alt = m;
+            img.style.cssText = 'width:26px;height:26px;object-fit:contain;';
+            img.onerror = () => {
+                img.remove();
+                const span = document.createElement('span');
+                span.textContent = display.abbr;
+                badge.appendChild(span);
+            };
+            badge.appendChild(img);
+        } else {
+            const span = document.createElement('span');
+            span.textContent = display.abbr;
+            badge.appendChild(span);
+        }
+
+        const toggle = card.querySelector('.method-toggle');
+
+        // Hover lift effect
+        card.addEventListener('mouseover', () => {
+            card.style.transform = 'translateY(-3px)';
+            card.style.boxShadow = `0 10px 28px rgba(0,0,0,0.10)`;
+            if (!toggle.checked) card.style.borderColor = display.bg;
+        });
+        card.addEventListener('mouseout', () => {
+            card.style.transform = '';
+            card.style.boxShadow = '';
+            if (!toggle.checked) card.style.borderColor = '#e2e8f0';
+        });
+
+        // Clicking anywhere on the card toggles the checkbox
+        card.addEventListener('click', (e) => {
+            if (!e.target.closest('.switch')) {
+                toggle.checked = !toggle.checked;
+                toggle.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Highlight card when selected, reset when deselected
+        toggle.addEventListener('change', () => {
+            if (toggle.checked) {
+                card.style.borderColor = display.bg;
+                card.style.boxShadow = `0 0 0 3px ${display.bg}40`;
+                card.style.background = `${display.bg}12`;
+            } else {
+                card.style.borderColor = '#e2e8f0';
+                card.style.boxShadow = '';
+                card.style.background = '#fff';
+            }
+        });
+
         grid.appendChild(card);
     });
+
     document.getElementById('setup-methods-container').style.display = 'block';
 
+    // Attach the existing toggle logic — untouched
     document.querySelectorAll('.method-toggle').forEach(t => {
         t.addEventListener('change', handleToggleChange);
     });
 }
 
 function handleToggleChange() {
+    // Single-select enforcement: when this toggle is turned ON, deselect all others
+    // and reset their card highlight. Using direct property mutation (no event dispatch)
+    // to avoid re-entrancy.
+    if (this.checked) {
+        document.querySelectorAll('.method-toggle').forEach(t => {
+            if (t !== this && t.checked) {
+                t.checked = false;
+                const otherCard = t.closest('.method-card');
+                if (otherCard) {
+                    otherCard.style.borderColor = '#e2e8f0';
+                    otherCard.style.boxShadow = '';
+                    otherCard.style.background = '#fff';
+                }
+            }
+        });
+    }
+
     const activeToggles = Array.from(document.querySelectorAll('.method-toggle:checked')).map(t => t.dataset.method);
     const inputsArea = document.getElementById('dynamic-inputs-area');
     const patchBtn = document.getElementById('patch-setup-btn');
-    const allToggles = document.querySelectorAll('.method-toggle');
 
     const hasActiveToggle = activeToggles.length > 0;
     patchBtn.disabled = !hasActiveToggle;
     patchBtn.style.opacity = hasActiveToggle ? "1" : "0.5";
     patchBtn.style.cursor = hasActiveToggle ? "pointer" : "not-allowed";
 
-    if (activeToggles.length > 0) {
-        allToggles.forEach(t => {
-            if (!t.checked) t.disabled = true;
-        });
-    } else {
-        allToggles.forEach(t => t.disabled = false);
-    }
+    // Clear all post-patch UI so stale confirm buttons / status / SDK widget
+    // from a previous method don't remain when the user switches selection.
+    const oldConfirmBtn = document.getElementById('final-confirm-btn');
+    if (oldConfirmBtn) oldConfirmBtn.remove();
+    const oldMakePaymentBtn = document.getElementById('make-klarna-payment-btn');
+    if (oldMakePaymentBtn) oldMakePaymentBtn.remove();
+    const statusArea = document.getElementById('final-status-area');
+    if (statusArea) { statusArea.style.display = 'none'; statusArea.innerHTML = ''; }
+    const sdkWidget = document.getElementById('sdk-widget-container');
+    if (sdkWidget) sdkWidget.style.display = 'none';
+    const klarnaContainer = document.getElementById('klarna_container');
+    if (klarnaContainer) klarnaContainer.innerHTML = '';
+    stopSetupWebhookPolling();
 
     inputsArea.innerHTML = '';
 
@@ -183,7 +318,7 @@ function handleToggleChange() {
                 const group = document.createElement('div');
                 group.className = 'form-group';
                 group.innerHTML = `
-                    <label class="text-label">${field.label}</label>
+                    <label class="text-label" style="font-family: monospace; font-size: 11px; letter-spacing: 0.3px; color: #4f46e5;">${field.path}</label>
                     <input type="text" class="text-input patch-field" data-method="${method}" data-path="${field.path}" value="${field.value}">
                 `;
                 section.querySelector('.inline-form').appendChild(group);
@@ -225,11 +360,13 @@ async function handleFinalState(response, selectedMethod) {
 
     if (methodData.initialization === "enabled" || methodData.status === "ready") {
         if (methodData.status === "ready") {
+            // ── READY: show confirm button (bizum, eps, ideal, bancontact, etc.) ──
             statusArea.className = 'status-ready';
             statusArea.innerText = `${methodName.toUpperCase()} is Ready!`;
             statusArea.style.display = 'block';
             renderConfirmButton(setupId, methodName, "Confirm & Redirect");
         } else if (methodData.status === "action_required" && methodData.action?.type === "sdk") {
+            // ── ACTION REQUIRED: initialize provider SDK (klarna, paypal, etc.) ──
             statusArea.className = 'status-action';
             statusArea.innerText = `${methodName.toUpperCase()} requires SDK Authorization.`;
             statusArea.style.display = 'block';
@@ -237,8 +374,44 @@ async function handleFinalState(response, selectedMethod) {
             if (methodName === 'klarna') {
                 initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
             }
+        } else {
+            // ── STILL AVAILABLE: initialization was sent but status didn't advance ──
+            renderMethodUnavailable(statusArea, methodName, methodData.flags || []);
         }
+    } else {
+        // ── AVAILABLE (no initialization sent or method not supported): show flags ──
+        renderMethodUnavailable(statusArea, methodName, methodData.flags || []);
     }
+}
+
+function renderMethodUnavailable(statusArea, methodName, flags) {
+    const flagPills = flags.map(f =>
+        `<span style="display:inline-block; background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; font-family:monospace; font-size:11px; padding:3px 8px; border-radius:20px; margin:3px 4px 3px 0;">${f}</span>`
+    ).join('');
+
+    statusArea.className = '';
+    statusArea.style.cssText = 'display:block; margin-top:15px; padding:20px; border-radius:12px; text-align:left; background:linear-gradient(135deg,#fef9ec 0%,#fff7ed 100%); border:1.5px solid #fbbf24;';
+    statusArea.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <span style="font-size:22px;">🔒</span>
+            <div>
+                <div style="font-size:14px; font-weight:700; color:#92400e; letter-spacing:0.5px;">${methodName.toUpperCase()} — NOT AVAILABLE</div>
+                <div style="font-size:11px; color:#b45309; margin-top:2px;">
+                    Status: <code style="background:#fef3c7; padding:1px 5px; border-radius:4px;">${flags.length ? 'available' : 'unknown'}</code>
+                    — requirements still unmet after PATCH
+                </div>
+            </div>
+        </div>
+        <div style="font-size:12px; color:#78350f; font-weight:600; margin-bottom:8px;">Unresolved flags from the Payments Setups API:</div>
+        <div style="margin-bottom:12px; line-height:2;">
+            ${flagPills || '<span style="font-size:12px;color:#a16207;">No flags returned — check the JSON response below.</span>'}
+        </div>
+        <div style="font-size:11px; color:#a16207; border-top:1px solid #fde68a; padding-top:10px; line-height:1.7;">
+            The Payments Setups API does not currently support <strong>${methodName}</strong> for this configuration.<br>
+            Each flag above maps directly to a missing or invalid field in the PATCH request.<br>
+            Review the full response in the JSON panel below for details.
+        </div>
+    `;
 }
 
 function initializeKlarnaSDK(clientToken, sessionId, setupId) {
@@ -290,7 +463,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
         btn.style.cursor = "not-allowed";
         btn.innerText = "Processing...";
 
-        if (methodName === 'bizum') {
+        if (methodName === 'bizum' || methodName === 'eps' || methodName === 'ideal' || methodName === 'twint') {
             try {
                 const data = await confirmPaymentSetup(setupId, methodName);
                 console.log("Confirmation Response:", data);

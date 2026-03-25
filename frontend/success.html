@@ -115,7 +115,7 @@
 
             // Handle API Data
             const urlParams = new URLSearchParams(window.location.search);
-            let paymentId = urlParams.get('paymentId') || urlParams.get('cko-payment-id');
+            let paymentId = urlParams.get('paymentId') || urlParams.get('cko-payment-id') || urlParams.get('cko-session-id');
 
             if (paymentId) {
                 try {
