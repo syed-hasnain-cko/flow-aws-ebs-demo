@@ -199,6 +199,7 @@ function validateApplePaySession(appleUrl, callback) {
       return response.json();
     })
     .then((data) => {
+      addToApiLog('POST', 'validate apple pay session - /validate-apple-session', 200, { appleUrl }, data);
       console.log(data)
       callback(data)})
     .catch((error) => {
@@ -253,6 +254,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     })
     .then((response) => response.json())
     .then((data) => {
+      addToApiLog('POST', `apple pay payment - /payments`, data.payment?.id ? 201 : 422, applePaymentRequest, data);
       if(data.payment.status == 'Authorized' || data.payment.status == 'Captured'){
         window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.payment.id}`
       }
