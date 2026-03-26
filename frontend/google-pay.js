@@ -248,6 +248,7 @@ console.log(paymentRequest)
   })
     .then(async (response) => await response.json())
     .then((data) => {
+      addToApiLog('POST', `google pay payment - /payments`, data.payment?.id ? 201 : 422, paymentRequest, data);
       console.log("Payment Response:", data);
       if(data.payment.status == 'Pending' && data.payment._links?.redirect){
         window.location.href = data.payment._links?.redirect?.href;

@@ -291,6 +291,8 @@ function handleToggleChange() {
     if (oldConfirmBtn) oldConfirmBtn.remove();
     const oldMakePaymentBtn = document.getElementById('make-klarna-payment-btn');
     if (oldMakePaymentBtn) oldMakePaymentBtn.remove();
+    const oldPaypalBtn = document.getElementById('make-paypal-payment-btn');
+    if (oldPaypalBtn) oldPaypalBtn.remove();
     const statusArea = document.getElementById('final-status-area');
     if (statusArea) { statusArea.style.display = 'none'; statusArea.innerHTML = ''; }
     const sdkWidget = document.getElementById('sdk-widget-container');
@@ -375,6 +377,12 @@ async function handleFinalState(response, selectedMethod) {
 
             if (methodName === 'klarna') {
                 initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
+            } 
+            else if (methodName === 'paypal') {
+                const orderId = methodData.action.order_id;
+                const paymentType = document.getElementById('setup-payment-type').value;
+                const captureEnabled = document.getElementById('setup-capture-toggle').checked;
+                initializePayPalSDK(orderId, setupId, paymentType, captureEnabled);
             }
         } else {
             // ── STILL AVAILABLE: initialization was sent but status didn't advance ──
@@ -440,6 +448,172 @@ function initializeKlarnaSDK(clientToken, sessionId, setupId) {
             renderConfirmButton(setupId, 'klarna', "Authorize & Pay with Klarna", clientToken, sessionId);
         });
     };
+}
+
+function initializePayPalSDK(orderId, setupId, paymentType, captureEnabled) {
+    const statusArea = document.getElementById('final-status-area');
+    const widget = document.getElementById('sdk-widget-container');
+    const cfg = window.APP_CONFIG.paypal;
+
+    widget.style.display = 'block';
+    document.getElementById('widget-title').innerText = 'PayPal';
+    statusArea.className = 'status-action';
+    statusArea.innerText = 'Complete your payment via PayPal';
+    statusArea.style.display = 'block';
+
+    // Clear any previous PayPal SDK script and button container
+    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
+    if (existingScript) existingScript.remove();
+
+    const klarnaContainer = document.getElementById('klarna_container');
+    klarnaContainer.innerHTML = '<div id="paypal-button-container" style="max-width:400px; margin:0 auto; padding:16px 0;"></div>';
+
+    const isRecurring = paymentType.toLowerCase() === 'recurring';
+    const currency = document.getElementById('setup-currency').value;
+
+    const baseParams = `client-id=${cfg.clientId}&merchant-id=${cfg.merchantId}&currency=${currency}&disable-funding=${cfg.disableFunding}`;
+    const dynamicParams = isRecurring
+        ? '&intent=tokenize&vault=true'
+        : (captureEnabled ? '' : '&intent=authorize');
+
+    const script = document.createElement('script');
+    script.src = `https://www.paypal.com/sdk/js?${baseParams}${dynamicParams}`;
+    document.head.appendChild(script);
+
+    addToApiLog('GET', `load PayPal SDK — paypal.com/sdk/js (${isRecurring ? 'tokenize' : captureEnabled ? 'capture' : 'authorize'})`, 200, {}, { orderId, paymentType, captureEnabled });
+
+    script.onload = () => {
+        const buttonConfig = {
+            onApprove: async function () {
+                await handlePayPalApprove(setupId);
+            },
+            onError: function (err) {
+                console.error('PayPal Button Error:', err);
+                statusArea.className = 'status-error';
+                statusArea.innerText = 'PayPal error — see console for details.';
+            },
+            onCancel: function () {
+                statusArea.className = 'status-action';
+                statusArea.innerText = 'PayPal payment cancelled. You can try again.';
+            }
+        };
+
+        if (isRecurring) {
+            buttonConfig.createBillingAgreement = function () { return orderId; };
+        } else {
+            buttonConfig.createOrder = function () { return orderId; };
+        }
+
+        paypal.Buttons(buttonConfig).render('#paypal-button-container');
+    };
+
+    script.onerror = () => {
+        statusArea.className = 'status-error';
+        statusArea.innerText = 'Failed to load PayPal SDK. Check the client ID in frontend-config.js.';
+        widget.style.display = 'none';
+    };
+}
+
+async function handlePayPalApprove(setupId) {
+    const loader = document.getElementById('payment-loader');
+    const statusArea = document.getElementById('final-status-area');
+    try {
+        if (loader) loader.style.display = 'flex';
+
+        const data = await confirmPaymentSetup(setupId, 'paypal');
+        console.log('PayPal confirm response:', data);
+
+        if (loader) loader.style.display = 'none';
+
+        if (FAILED_STATUSES.includes(data?.status)) {
+            if (loader) loader.style.display = 'flex';
+            setTimeout(() => { window.location.href = `failure.html?paymentId=${data.id}`; }, 800);
+        } else if (data?.id) {
+            if (loader) loader.style.display = 'flex';
+            setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
+        } else {
+            // Payment approved on PayPal side but setup not yet ready — async path.
+            // Show amber pending area and a manual retry button.
+            // The webhook poller will also auto-click the button when payment_method_ready fires.
+            renderPayPalPendingState(setupId, statusArea);
+        }
+    } catch (error) {
+        console.error('PayPal approval error:', error);
+        if (loader) loader.style.display = 'none';
+        showKlarnaToast('Failed to process PayPal payment.', 'error');
+    }
+}
+
+function renderPayPalPendingState(setupId, statusArea) {
+    const actionArea = document.getElementById('setup-methods-container');
+
+    // Hide the PayPal SDK widget — user has already approved, no need to show the button again
+    const widget = document.getElementById('sdk-widget-container');
+    if (widget) widget.style.display = 'none';
+
+    // Remove any stale pending button
+    const oldBtn = document.getElementById('make-paypal-payment-btn');
+    if (oldBtn) oldBtn.remove();
+
+    // Amber "approved but not yet ready" banner
+    if (statusArea) {
+        statusArea.className = '';
+        statusArea.style.cssText = `
+            display: block; margin-top: 15px; padding: 16px 20px;
+            border-radius: 12px; text-align: left;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border: 1.5px solid #fbbf24;
+        `;
+        statusArea.innerHTML = `
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:22px;">⏳</span>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:#92400e;">PayPal Approved — Confirming Payment</div>
+                    <div style="font-size:12px; color:#b45309; margin-top:4px; line-height:1.6;">
+                        Your PayPal authorisation was received. Waiting for
+                        <code style="background:#fef9c3; padding:1px 6px; border-radius:4px;">payment_method_ready</code>
+                        — or click below to confirm manually.
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // "Confirm Payment" button
+    const btn = document.createElement('button');
+    btn.id = 'make-paypal-payment-btn';
+    btn.className = 'main-button';
+    btn.style.cssText = 'background:#059669; margin-top:16px; width:100%;';
+    btn.innerText = 'Confirm Payment';
+
+    btn.onclick = async () => {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.innerText = 'Processing...';
+
+        const latestSetup = await getPaymentSetup(setupId);
+        const output = document.getElementById('setup-json-output');
+        if (output) output.innerText = JSON.stringify(latestSetup, null, 2);
+
+        const data = await confirmPaymentSetup(setupId, 'paypal');
+        const loader = document.getElementById('payment-loader');
+        if (loader) loader.style.display = 'flex';
+
+        if (FAILED_STATUSES.includes(data?.status)) {
+            setTimeout(() => { window.location.href = `failure.html?paymentId=${data.id}`; }, 800);
+        } else if (data?.id) {
+            setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
+        } else {
+            if (loader) loader.style.display = 'none';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerText = 'Confirm Payment';
+            showKlarnaToast('Payment method is not ready yet — try again in a few seconds.', 'error');
+        }
+    };
+
+    if (actionArea) actionArea.appendChild(btn);
 }
 
 function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna Token', sessionId = 'Klarna Session Id') {
@@ -752,7 +926,10 @@ document.addEventListener('DOMContentLoaded', () => {
             amount: parseInt(document.getElementById('setup-amount').value),
             currency: document.getElementById('setup-currency').value,
             payment_type: document.getElementById('setup-payment-type').value,
-            processing_channel_id: document.getElementById('setup-pc-id').value
+            processing_channel_id: document.getElementById('setup-pc-id').value,
+            settings: {
+                capture: document.getElementById('setup-capture-toggle').checked
+            }
         };
 
         const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-setups`, {
@@ -784,7 +961,10 @@ document.addEventListener('DOMContentLoaded', () => {
             reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
             currency: document.getElementById('setup-currency').value,
             payment_type: document.getElementById('setup-payment-type').value,
-            processing_channel_id: document.getElementById('setup-pc-id').value
+            processing_channel_id: document.getElementById('setup-pc-id').value,
+            settings: {
+                capture: document.getElementById('setup-capture-toggle').checked
+            }
         };
 
         const allToggles = document.querySelectorAll('.method-toggle');
@@ -984,9 +1164,12 @@ function startSetupWebhookPolling(setupId) {
                 if (latestSetup.payment_methods[methodName].status === 'ready') {
                     // If the confirm button is already rendered and enabled, click it
                     // (covers Klarna where the button exists after SDK authorization)
-                    const existingBtn = document.getElementById('final-confirm-btn');
-                    if (existingBtn && !existingBtn.disabled) {
-                        existingBtn.click();
+                    const finalConfirmBtn = document.getElementById('final-confirm-btn');
+                    const paypalBtn = document.getElementById('make-paypal-payment-btn');
+                    const pendingBtn = finalConfirmBtn || paypalBtn;
+                    if (pendingBtn && !pendingBtn.disabled) {
+                        showKlarnaToast('Payment method ready — confirming...', 'success');
+                        pendingBtn.click();
                         return;
                     }
 

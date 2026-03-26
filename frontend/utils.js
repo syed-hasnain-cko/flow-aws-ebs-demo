@@ -394,6 +394,12 @@ function syncOrderItemsTotal() {
 }
 
 function addKlarnaItemRow(container) {
+    // First row seeds its total from the live setup-amount so there's never a mismatch on first render.
+    // Additional rows default to 0 so the running sum stays correct after syncOrderItemsTotal.
+    const isFirstRow = container.querySelectorAll('.order-item-row').length === 0;
+    const setupAmountEl = document.getElementById('setup-amount');
+    const initialAmount = isFirstRow && setupAmountEl ? (parseInt(setupAmountEl.value) || 0) : 0;
+
     const row = document.createElement('div');
     row.className = 'inline-form order-item-row';
     row.style.borderBottom = "1px solid #e2e8f0";
@@ -402,8 +408,8 @@ function addKlarnaItemRow(container) {
     row.innerHTML = `
         <div class="form-group"><label class="text-label">Name</label><input type="text" class="text-input k-name" value="Digital Item"></div>
         <div class="form-group"><label class="text-label">Qty</label><input type="number" class="text-input k-qty" value="1"></div>
-        <div class="form-group"><label class="text-label">Unit Price</label><input type="number" class="text-input k-price" value="999"></div>
-        <div class="form-group"><label class="text-label">Total</label><input type="number" class="text-input k-total" value="999"></div>
+        <div class="form-group"><label class="text-label">Unit Price</label><input type="number" class="text-input k-price" value="${initialAmount}"></div>
+        <div class="form-group"><label class="text-label">Total</label><input type="number" class="text-input k-total" value="${initialAmount}"></div>
         <div class="form-group"><label class="text-label">Ref</label><input type="text" class="text-input k-ref" value="SKU-001"></div>
     `;
     container.appendChild(row);
