@@ -32,32 +32,7 @@ const performPaymentSubmission = async (submitData) => {
     }
 };
 
-function getFlowAppearance() {
-    const t = getThemeTokens();
-    const font = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    // Append 33 for ~20% opacity hex suffix (works on 6-digit hex values)
-    const outline = t.primary.startsWith('#') ? t.primary + '33' : t.primaryGlow;
-    return {
-        colorAction:         t.primary,
-        colorBackground:     t.bgPage,
-        colorBorder:         t.border,
-        colorDisabled:       t.borderStrong,
-        colorError:          t.error,
-        colorFormBackground: t.bgInput,
-        colorFormBorder:     t.border,
-        colorInverse:        t.bgCard,
-        colorOutline:        outline,
-        colorPrimary:        t.textPrimary,
-        colorSecondary:      t.textSecondary,
-        colorSuccess:        t.success,
-        borderRadius:        ["8px", "50px"],
-        subheading: { fontFamily: font, fontSize: "16px", lineHeight: "24px", fontWeight: 400, letterSpacing: 0 },
-        label:      { fontFamily: font, fontSize: "14px", lineHeight: "20px", fontWeight: 400, letterSpacing: 0 },
-        input:      { fontFamily: font, fontSize: "16px", lineHeight: "20px", fontWeight: 400, letterSpacing: 0 },
-        button:     { fontFamily: font, fontSize: "16px", lineHeight: "24px", fontWeight: 700, letterSpacing: 0 },
-        footnote:   { fontFamily: font, fontSize: "14px", lineHeight: "20px", fontWeight: 400, letterSpacing: 0 },
-    };
-}
+// getFlowAppearance() and mountCardTokenizer() live in utils.js (shared with payment-setup)
 
 let initializeFlow = async (paymentSession, isTokenizeOnly) => {
 
@@ -219,6 +194,10 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             payButton.style.display = 'none';
         }
 
+        tokenizeButton.style.display = 'inline-block';
+
+        const cardComponent = await mountCardTokenizer(document.getElementById("flow-container"), paymentSession);
+
         tokenizeButton.addEventListener('click', async () => {
             if (await cardComponent.isValid()) {
                 const { data } = await cardComponent.tokenize();
@@ -234,37 +213,6 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                 tokenizedDataContainer.style.display = 'block';
             }
         });
-
-        tokenizeButton.style.display = 'inline-block';
-
-        const checkout = await CheckoutWebComponents({
-            publicKey: window.APP_CONFIG.publicKey,
-            environment: "sandbox",
-            locale: "en-GB",
-            paymentSession,
-            appearance: appearance,
-            onReady: () => {
-            },
-            onPaymentCompleted: (_component, paymentResponse) => {
-                console.log("Create Payment with PaymentId: ", paymentResponse);
-                window.location.href = `success.html?paymentId=${paymentResponse.id}`;
-            },
-            onChange: (component) => {
-                console.log(component);
-            },
-            onError: (component, error) => {
-                console.log("onError", error, "Component", component);
-                window.location.href = `failure.html?error=${encodeURIComponent(error.message)}`;
-            },
-        });
-
-        const cardComponent = checkout.create("card", {
-            showPayButton: false
-        });
-
-        if (await cardComponent.isAvailable()) {
-            cardComponent.mount(document.getElementById("flow-container"));
-        }
     }
 };
 

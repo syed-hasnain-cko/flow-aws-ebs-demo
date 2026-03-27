@@ -26,6 +26,71 @@ function getThemeTokens() {
     };
 }
 
+/**
+ * Builds the appearance object for Checkout.com Flow / card components
+ * using the currently active CSS theme tokens.
+ */
+function getFlowAppearance() {
+    const t = getThemeTokens();
+    const font = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const outline = t.primary.startsWith('#') ? t.primary + '33' : t.primaryGlow;
+    return {
+        colorAction:         t.primary,
+        colorBackground:     t.bgPage,
+        colorBorder:         t.border,
+        colorDisabled:       t.borderStrong,
+        colorError:          t.error,
+        colorFormBackground: t.bgInput,
+        colorFormBorder:     t.border,
+        colorInverse:        t.bgCard,
+        colorOutline:        outline,
+        colorPrimary:        t.textPrimary,
+        colorSecondary:      t.textSecondary,
+        colorSuccess:        t.success,
+        borderRadius:        ["8px", "50px"],
+        subheading: { fontFamily: font, fontSize: "16px", lineHeight: "24px", fontWeight: 400, letterSpacing: 0 },
+        label:      { fontFamily: font, fontSize: "14px", lineHeight: "20px", fontWeight: 400, letterSpacing: 0 },
+        input:      { fontFamily: font, fontSize: "16px", lineHeight: "20px", fontWeight: 400, letterSpacing: 0 },
+        button:     { fontFamily: font, fontSize: "16px", lineHeight: "24px", fontWeight: 700, letterSpacing: 0 },
+        footnote:   { fontFamily: font, fontSize: "14px", lineHeight: "20px", fontWeight: 400, letterSpacing: 0 },
+    };
+}
+
+/**
+ * Initialises a Checkout.com card component in tokenize-only mode and mounts
+ * it to the supplied DOM element.  Returns the cardComponent so the caller
+ * can invoke cardComponent.tokenize() on demand.
+ *
+ * @param {HTMLElement} containerEl  - The element the card fields are mounted into.
+ * @param {Object}      paymentSession - A payment-session object from /payment-sessions.
+ * @returns {Promise<Object>}          - The mounted CheckoutWebComponents card component.
+ */
+async function mountCardTokenizer(containerEl, paymentSession) {
+    const checkout = await CheckoutWebComponents({
+        publicKey:      window.APP_CONFIG.publicKey,
+        environment:    "sandbox",
+        locale:         "en-GB",
+        paymentSession,
+        componentOptions: {
+                card: {
+                    data: {
+                        cardholderName: 'Syed Hasnain'
+                    },
+                    displayCardholderName: "bottom"
+                }
+            },
+        appearance:     getFlowAppearance(),
+        onReady:        () => {},
+        onChange:       () => {},
+        onError:        (component, error) => { console.error("Card tokenizer error:", error); },
+    });
+    const cardComponent = checkout.create("card", { showPayButton: false });
+    if (await cardComponent.isAvailable()) {
+        cardComponent.mount(containerEl);
+    }
+    return cardComponent;
+}
+
 const formatJSON = (data) => {
     const stringify = (obj, indent = 0) => {
         let html = '';
