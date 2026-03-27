@@ -7,6 +7,10 @@ let showCVVField = true;
 let isTokenizeOnly = false;
 let paymentSessionBody = {};
 
+// Track mounted session for theme re-init
+let _flowActiveSession = null;
+let _flowIsTokenizeOnly = false;
+
 const performPaymentSubmission = async (submitData) => {
     try {
         document.getElementById('payment-loader').style.display = 'flex';
@@ -35,6 +39,9 @@ const performPaymentSubmission = async (submitData) => {
 // getFlowAppearance() and mountCardTokenizer() live in utils.js (shared with payment-setup)
 
 let initializeFlow = async (paymentSession, isTokenizeOnly) => {
+    // Store for theme re-mount
+    _flowActiveSession = paymentSession;
+    _flowIsTokenizeOnly = isTokenizeOnly;
 
     const appearance = getFlowAppearance();
 
@@ -99,7 +106,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             const checkboxElement = document.getElementById(checkboxId);
             const labelElement = document.getElementById(`${checkboxId}-label`);
             if (checkboxElement && !checkboxElement.checked) {
-                labelElement.style.color = 'red';
+                labelElement.style.color = 'var(--error)';
                 return false;
             } else if (checkboxElement) {
                 labelElement.style.color = '';
@@ -194,16 +201,26 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             payButton.style.display = 'none';
         }
 
-        tokenizeButton.style.display = 'inline-block';
-
+        // Mount the card form first, then show the button below it
         const cardComponent = await mountCardTokenizer(document.getElementById("flow-container"), paymentSession);
+
+        // Move button below the card form, then successMsg below the button
+        const flowContainer = document.getElementById("flow-container");
+        tokenizeButton.style.cssText = 'display:block; width:fit-content; margin:16px auto 0;';
+        flowContainer.appendChild(tokenizeButton);
+        flowContainer.appendChild(tokenizedDataContainer); // keeps result below the button
 
         tokenizeButton.addEventListener('click', async () => {
             if (await cardComponent.isValid()) {
                 const { data } = await cardComponent.tokenize();
-                tokenizedDataContainer.style.display = 'none';
                 tokenizedDataContainer.innerHTML = `
-                    <div style="font-weight:700; margin-bottom:10px; color:#1e293b;">Card Tokenized Successfully</div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);">
+                        <span style="font-size:22px;">✅</span>
+                        <div>
+                            <div style="font-weight:700; font-size:14px; color:var(--success);">Card Tokenized Successfully</div>
+                            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Token ready for payment processing</div>
+                        </div>
+                    </div>
                     <div class="token-row"><span class="token-label">Token</span><span class="token-value">${data.token}</span></div>
                     <div class="token-row"><span class="token-label">Scheme</span><span class="token-value">${data.scheme}</span></div>
                     <div class="token-row"><span class="token-label">Card Type</span><span class="token-value">${data.card_type}</span></div>
@@ -360,4 +377,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+});
+
+// Re-mount the Checkout SDK with updated theme appearance when the user switches theme.
+// Uses the stored session — no new API call required.
+document.addEventListener('themechange', async () => {
+    const flowContainer = document.getElementById('flow-container');
+    if (!_flowActiveSession || !flowContainer || flowContainer.style.display === 'none') return;
+
+    // Preserve the static button + message elements, clear only the SDK content
+    const tokenizeButton = document.getElementById('tokenize-button');
+    const payButton = document.getElementById('pay-button');
+    const successMsg = document.querySelector('.success-payment-message');
+
+    // Detach static elements so they survive the innerHTML wipe
+    if (tokenizeButton) tokenizeButton.remove();
+    if (payButton) payButton.remove();
+    if (successMsg) successMsg.remove();
+
+    flowContainer.innerHTML = '';
+
+    // Re-attach static elements
+    if (tokenizeButton) flowContainer.appendChild(tokenizeButton);
+    if (payButton) flowContainer.appendChild(payButton);
+    if (successMsg) flowContainer.appendChild(successMsg);
+
+    // Re-initialize with the stored session and fresh appearance
+    await initializeFlow(_flowActiveSession, _flowIsTokenizeOnly);
 });

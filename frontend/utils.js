@@ -109,17 +109,17 @@ const formatJSON = (data) => {
             const isObject = typeof value === 'object' && value !== null;
 
             html += `<div style="line-height: 1.6; font-size: 13px;">`;
-            html += `<span style="color: #64748b; font-weight: 600;">${spacing}${key}:</span> `;
+            html += `<span style="color: var(--text-secondary); font-weight: 600;">${spacing}${key}:</span> `;
 
             if (isObject) {
-                html += `<span style="color: #94a3b8; font-size: 11px;">{</span>`;
+                html += `<span style="color: var(--text-muted); font-size: 11px;">{</span>`;
                 html += stringify(value, indent + 1);
-                html += `<div style="color: #94a3b8; font-size: 11px;">${spacing}}</div>`;
+                html += `<div style="color: var(--text-muted); font-size: 11px;">${spacing}}</div>`;
             } else {
-                const color = typeof value === 'string' ? '#059669' : '#0052FF';
+                const color = typeof value === 'string' ? 'var(--success)' : 'var(--primary)';
                 // Wrap long strings (like base64 tags) so they don't break the layout
-                const displayValue = typeof value === 'string' && value.length > 50 
-                    ? value.substring(0, 47) + '...' 
+                const displayValue = typeof value === 'string' && value.length > 50
+                    ? value.substring(0, 47) + '...'
                     : value;
                 html += `<span style="color: ${color}; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${displayValue}</span>`;
             }
@@ -128,7 +128,7 @@ const formatJSON = (data) => {
         return html;
     };
 
-    return `<div style="background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: left;">${stringify(data)}</div>`;
+    return `<div style="background: var(--bg-subtle); padding: 20px; border-radius: 8px; border: 1px solid var(--border); text-align: left;">${stringify(data)}</div>`;
 };
 
 async function copyToClipboard(elementId) {
@@ -516,7 +516,7 @@ function addToApiLog(method, endpoint, status, requestBody, responseBody) {
         <div style="display:flex; align-items:center; margin-bottom:2px;">
             <span class="status-dot ${dotClass}"></span>
             <span class="method ${method.toLowerCase()}">${method}</span>
-            <span style="color:#f1f5f9; font-weight:bold;">${status}</span>
+            <span style="color:#e2e8f0; font-weight:bold;">${status}</span>
         </div>
         <span class="endpoint-text">${endpoint}</span>
     `;
@@ -548,6 +548,22 @@ window.openLogModal = function(id) {
 window.closeLogModal = function() {
     document.getElementById('log-modal').style.display = 'none';
 };
+
+// ── Theme change broadcaster ──────────────────────────────────────
+// Watches the data-theme attribute on <html> and fires a custom
+// 'themechange' event so any module can react (e.g. re-mount SDK widgets).
+(function () {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((m) => {
+            if (m.type === 'attributes' && m.attributeName === 'data-theme') {
+                document.dispatchEvent(new CustomEvent('themechange', {
+                    detail: { theme: document.documentElement.getAttribute('data-theme') }
+                }));
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
 
 window.onclick = function(event) {
     const modal = document.getElementById('log-modal');
