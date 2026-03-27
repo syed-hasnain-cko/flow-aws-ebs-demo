@@ -81,7 +81,7 @@ const METHODS_WITH_ORDER_ITEMS = new Set(['klarna', 'paypal', 'kakaopay']);
 const METHOD_NOTES = {
     twint: '⚠️ Twint requires CHF currency. Re-initialize the setup with currency set to CHF if you see a currency flag.',
     kakaopay: '⚠️ KakaoPay may require a specific currency (e.g. KRW). Re-initialize with the correct currency if you see a currency flag.',
-    card: 'ℹ️ Card requires hosted card input fields (card_details_required) and cannot be patched via simple fields.',
+    card: 'ℹ️ Card uses Checkout.com Flow for tokenization. Click "Update Payment Setup" to load the card form.',
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
 };
 
@@ -133,6 +133,8 @@ window.clearSetupTabState = function () {
 
     const oldConfirmBtn = document.getElementById('final-confirm-btn');
     if (oldConfirmBtn) oldConfirmBtn.remove();
+    const oldCardPay = document.getElementById('setup-card-pay-btn');
+    if (oldCardPay) oldCardPay.remove();
 
     const patchBtn = document.getElementById('patch-setup-btn');
     if (patchBtn) patchBtn.style.display = 'none';
@@ -293,6 +295,8 @@ function handleToggleChange() {
     if (oldMakePaymentBtn) oldMakePaymentBtn.remove();
     const oldPaypalBtn = document.getElementById('make-paypal-payment-btn');
     if (oldPaypalBtn) oldPaypalBtn.remove();
+    const oldCardPayBtn = document.getElementById('setup-card-pay-btn');
+    if (oldCardPayBtn) oldCardPayBtn.remove();
     const statusArea = document.getElementById('final-status-area');
     if (statusArea) { statusArea.style.display = 'none'; statusArea.innerHTML = ''; }
     const sdkWidget = document.getElementById('sdk-widget-container');
@@ -362,6 +366,12 @@ async function handleFinalState(response, selectedMethod) {
     const methodData = methods?.[methodName];
     if (!methodData) return;
 
+    // Card is always handled via Flow tokenization — bypass the normal status checks
+    if (methodName === 'card') {
+        initializeCardSetupFlow();
+        return;
+    }
+
     if (methodData.initialization === "enabled" || methodData.status === "ready") {
         if (methodData.status === "ready") {
             // ── READY: show confirm button (bizum, eps, ideal, bancontact, etc.) ──
@@ -422,6 +432,155 @@ function renderMethodUnavailable(statusArea, methodName, flags) {
             Review the full response in the JSON panel below for details.
         </div>
     `;
+}
+
+async function initializeCardSetupFlow() {
+    // Replace the card section in dynamic-inputs-area in-place —
+    // clear the info note and render the Flow card form where it was.
+    const cardSection = document.getElementById('fields-card')?.closest('.context-area');
+    if (!cardSection) return;
+
+    // Clean up any stale Pay button
+    const oldBtn = document.getElementById('setup-card-pay-btn');
+    if (oldBtn) oldBtn.remove();
+
+    // Read values from the setup form
+    const amount      = parseInt(document.getElementById('setup-amount').value) || 100;
+    const currency    = document.getElementById('setup-currency').value || 'GBP';
+    const paymentType = document.getElementById('setup-payment-type').value || 'Regular';
+    const capture     = document.getElementById('setup-capture-toggle').checked;
+
+    // Replace the note + empty fields with a loader message while the session is created
+    cardSection.innerHTML = `
+        <h4 style="margin-top:0; color:#6366f1;">CARD — Flow Tokenization</h4>
+        <p style="font-size:12px; color:#64748b; margin:4px 0 12px;">Creating payment session…</p>
+        <div id="setup-card-form-host"></div>
+    `;
+
+    // Create a payment session (required by CheckoutWebComponents)
+    const sessionBody = {
+        amount,
+        currency,
+        payment_type:paymentType,
+        billing :{
+            address:{
+                country: 'DE'
+            }
+        },
+        capture,
+        disabled_payment_methods: ['remember_me'],
+        processing_channel_id: window.APP_CONFIG.processingChannelId,
+        success_url:  `${window.location.protocol}//${window.location.host}/success.html`,
+        failure_url:  `${window.location.protocol}//${window.location.host}/failure.html`,
+        reference:    `#Card_Setup_${Math.floor(Math.random() * 10000)}`,
+    };
+
+    let paymentSession;
+    try {
+        const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sessionBody),
+        });
+        paymentSession = await res.json();
+        addToApiLog('POST', `card tokenization session: ${paymentSession.id} - /payment-sessions`, paymentSession.id ? 201 : 422, sessionBody, paymentSession);
+    } catch (err) {
+        showKlarnaToast('Failed to create card session. Check the console.', 'error');
+        console.error('Card session error:', err);
+        cardSection.querySelector('p').textContent = 'Failed to create payment session.';
+        return;
+    }
+
+    // Update the subtitle now the session is ready
+    const subtitle = cardSection.querySelector('p');
+    if (subtitle) subtitle.remove();
+
+    const formHost = document.getElementById('setup-card-form-host');
+    let cardComponent;
+    try {
+        cardComponent = await mountCardTokenizer(formHost, paymentSession);
+    } catch (err) {
+        showKlarnaToast('Failed to load card form. Check the console.', 'error');
+        console.error('Card tokenizer mount error:', err);
+        return;
+    }
+
+    // "Pay" button — tokenizes then POSTs to /payments
+    const payBtn = document.createElement('button');
+    payBtn.id = 'setup-card-pay-btn';
+    payBtn.className = 'main-button';
+    payBtn.style.cssText = 'background:#059669; margin-top:20px; width:100%;';
+    payBtn.innerText = 'Pay';
+
+    payBtn.onclick = async () => {
+        if (payBtn.disabled) return;
+        if (!await cardComponent.isValid()) {
+            showKlarnaToast('Please fill in all card details correctly.', 'error');
+            return;
+        }
+
+        payBtn.disabled = true;
+        payBtn.style.opacity = '0.5';
+        payBtn.innerText = 'Processing...';
+
+        try {
+            const { data: tokenData } = await cardComponent.tokenize();
+
+            const paymentBody = {
+                source:{
+                    type: 'token',
+                    token:  tokenData.token,
+                },     
+                amount,
+                currency,
+                payment_type:  paymentType,
+                capture,
+                processing_channel_id: window.APP_CONFIG.processingChannelId,
+                reference:             `#Card_${Math.floor(Math.random() * 10000)}`,
+                success_url:  `${window.location.protocol}//${window.location.host}/success.html`,
+                failure_url:  `${window.location.protocol}//${window.location.host}/failure.html`,
+            };
+
+            const payRes = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentBody),
+            });
+            const payData = await payRes.json();
+            addToApiLog('POST', `card payment - /payments`, payData.payment?.id ? 201 : 422, paymentBody, payData);
+
+            const loader = document.getElementById('payment-loader');
+            if (loader) loader.style.display = 'flex';
+
+            const payment = payData.payment;
+            if (payment?._links?.redirect) {
+                window.location.href = payment._links.redirect.href;
+            } else if (payment?.status === 'Authorized' || payment?.status === 'Captured') {
+                window.location.href = `success.html?paymentId=${payment.id}`;
+            } else if (FAILED_STATUSES.includes(payment?.status)) {
+                window.location.href = `failure.html?paymentId=${payment?.id}`;
+            } else {
+                if (loader) loader.style.display = 'none';
+                showKlarnaToast('Unexpected payment response — check JSON output.', 'error');
+                payBtn.disabled = false;
+                payBtn.style.opacity = '1';
+                payBtn.innerText = 'Pay';
+                const output = document.getElementById('setup-json-output');
+                if (output) {
+                    document.getElementById('setup-response-container').style.display = 'block';
+                    output.innerText = JSON.stringify(payData, null, 2);
+                }
+            }
+        } catch (err) {
+            console.error('Card pay error:', err);
+            showKlarnaToast('Payment failed — check the console.', 'error');
+            payBtn.disabled = false;
+            payBtn.style.opacity = '1';
+            payBtn.innerText = 'Pay';
+        }
+    };
+
+    cardSection.appendChild(payBtn);
 }
 
 function initializeKlarnaSDK(clientToken, sessionId, setupId) {
@@ -572,7 +731,7 @@ function renderPayPalPendingState(setupId, statusArea) {
                     <div style="font-size:12px; color:#b45309; margin-top:4px; line-height:1.6;">
                         Your PayPal authorisation was received. Waiting for
                         <code style="background:#fef9c3; padding:1px 6px; border-radius:4px;">payment_method_ready</code>
-                        — or click below to confirm manually.
+                        — or click 'Confirm Payment' above to confirm manually.
                     </div>
                 </div>
             </div>

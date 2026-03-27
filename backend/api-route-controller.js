@@ -255,6 +255,31 @@ router.post("/apple-pay", async (req, res) => {
   }
 });
   
+router.post("/payments", async (req, res) => {
+    try {
+        const payment = await cko.payments.request({
+            source: {
+                type: "token",
+                token: req.body.token,
+            },
+            amount:                req.body.amount,
+            currency:              req.body.currency,
+            reference:             req.body.reference || `#Order_${Math.floor(Math.random() * 10000)}`,
+            customer:              req.body.customer,
+            '3ds':                 req.body['3ds'],
+            capture:               req.body.capture,
+            processing_channel_id: req.body.processing_channel_id,
+            success_url:           req.body.success_url,
+            failure_url:           req.body.failure_url,
+            payment_type:          req.body.payment_type,
+        });
+        res.send({ payment });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ error: error.message || 'Payment processing failed' });
+    }
+});
+
   router.get("/config", (req, res) => {
     res.send(config);
   });
