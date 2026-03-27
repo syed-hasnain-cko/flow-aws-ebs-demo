@@ -3,6 +3,7 @@
 // =============================================
 
 let activeSetupResponse = null;
+let _cardActiveSession = null; // stored for theme re-mount
 let currentSetupId = null;
 let setupWebhookPoller = null;
 
@@ -148,23 +149,23 @@ function renderMethodToggles(methods) {
     grid.style.gap = '12px';
 
     methods.forEach(m => {
-        const display = METHOD_DISPLAY[m] || { bg: '#6366f1', color: '#fff', abbr: m.substring(0, 2).toUpperCase() };
+        const display = METHOD_DISPLAY[m] || { bg: 'var(--accent)', color: '#fff', abbr: m.substring(0, 2).toUpperCase() };
         const methodInfo = activeSetupResponse?.payment_methods?.[m];
         const flags = methodInfo?.flags || [];
         const flagCount = flags.length;
         const statusLabel = flagCount === 0 ? '✓ No flags' : `${flagCount} flag${flagCount !== 1 ? 's' : ''} pending`;
-        const statusColor = flagCount === 0 ? '#059669' : '#f59e0b';
+        const statusColor = flagCount === 0 ? 'var(--success)' : 'var(--warning)';
 
         const card = document.createElement('div');
         card.className = 'method-card';
         card.style.cssText = `
             padding: 14px 16px 12px;
             border-radius: 14px;
-            border: 2px solid ${tokens.border};
+            border: 2px solid var(--border);
             cursor: pointer;
             position: relative;
             overflow: hidden;
-            background: ${tokens.bgCard};
+            background: var(--bg-card);
             transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
         `;
 
@@ -182,7 +183,7 @@ function renderMethodToggles(methods) {
                         box-shadow:0 2px 6px ${display.bg}66;
                     "></div>
                     <div style="min-width:0;">
-                        <div style="font-weight:700;font-size:13px;color:${tokens.textPrimary};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.toUpperCase()}</div>
+                        <div style="font-weight:700;font-size:13px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.toUpperCase()}</div>
                         <div style="font-size:10px;color:${statusColor};margin-top:3px;font-weight:600;">${statusLabel}</div>
                     </div>
                 </div>
@@ -218,13 +219,13 @@ function renderMethodToggles(methods) {
         // Hover lift effect
         card.addEventListener('mouseover', () => {
             card.style.transform = 'translateY(-3px)';
-            card.style.boxShadow = tokens.shadowMd;
+            card.style.boxShadow = 'var(--shadow-md)';
             if (!toggle.checked) card.style.borderColor = display.bg;
         });
         card.addEventListener('mouseout', () => {
             card.style.transform = '';
             card.style.boxShadow = '';
-            if (!toggle.checked) card.style.borderColor = tokens.border;
+            if (!toggle.checked) card.style.borderColor = 'var(--border)';
         });
 
         // Clicking anywhere on the card toggles the checkbox
@@ -242,9 +243,9 @@ function renderMethodToggles(methods) {
                 card.style.boxShadow = `0 0 0 3px ${display.bg}40`;
                 card.style.background = `${display.bg}12`;
             } else {
-                card.style.borderColor = tokens.border;
+                card.style.borderColor = 'var(--border)';
                 card.style.boxShadow = '';
-                card.style.background = tokens.bgCard;
+                card.style.background = 'var(--bg-card)';
             }
         });
 
@@ -264,15 +265,14 @@ function handleToggleChange() {
     // and reset their card highlight. Using direct property mutation (no event dispatch)
     // to avoid re-entrancy.
     if (this.checked) {
-        const tokens = getThemeTokens();
         document.querySelectorAll('.method-toggle').forEach(t => {
             if (t !== this && t.checked) {
                 t.checked = false;
                 const otherCard = t.closest('.method-card');
                 if (otherCard) {
-                    otherCard.style.borderColor = tokens.border;
+                    otherCard.style.borderColor = 'var(--border)';
                     otherCard.style.boxShadow = '';
-                    otherCard.style.background = tokens.bgCard;
+                    otherCard.style.background = 'var(--bg-card)';
                 }
             }
         });
@@ -311,12 +311,12 @@ function handleToggleChange() {
         const section = document.createElement('div');
         section.className = 'context-area';
         section.style.marginTop = '10px';
-        section.innerHTML = `<h4 style="margin-top:0; color:#6366f1;">${method.toUpperCase()} Requirements</h4><div class="inline-form" id="fields-${method}"></div>`;
+        section.innerHTML = `<h4 style="margin-top:0; color:var(--accent);">${method.toUpperCase()} Requirements</h4><div class="inline-form" id="fields-${method}"></div>`;
 
         // Show a note for methods with special requirements (currency, card details, etc.)
         if (METHOD_NOTES[method]) {
             const note = document.createElement('p');
-            note.style.cssText = 'font-size:12px; color:#92400e; background:#fef3c7; padding:8px 12px; border-radius:6px; margin:4px 0 8px;';
+            note.style.cssText = 'font-size:12px; color:var(--status-action-text); background:var(--status-action-bg); padding:8px 12px; border-radius:6px; margin:4px 0 8px; border:1px solid var(--status-action-border);';
             note.textContent = METHOD_NOTES[method];
             section.insertBefore(note, section.querySelector('.inline-form'));
         }
@@ -326,7 +326,7 @@ function handleToggleChange() {
                 const group = document.createElement('div');
                 group.className = 'form-group';
                 group.innerHTML = `
-                    <label class="text-label" style="font-family: monospace; font-size: 11px; letter-spacing: 0.3px; color: #4f46e5;">${field.path}</label>
+                    <label class="text-label" style="font-family: monospace; font-size: 11px; letter-spacing: 0.3px; color: var(--accent);">${field.path}</label>
                     <input type="text" class="text-input patch-field" data-method="${method}" data-path="${field.path}" value="${field.value}">
                 `;
                 section.querySelector('.inline-form').appendChild(group);
@@ -406,27 +406,27 @@ async function handleFinalState(response, selectedMethod) {
 
 function renderMethodUnavailable(statusArea, methodName, flags) {
     const flagPills = flags.map(f =>
-        `<span style="display:inline-block; background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; font-family:monospace; font-size:11px; padding:3px 8px; border-radius:20px; margin:3px 4px 3px 0;">${f}</span>`
+        `<span style="display:inline-block; background:var(--bg-subtle); border:1px solid var(--border-strong); color:var(--text-secondary); font-family:monospace; font-size:11px; padding:3px 8px; border-radius:20px; margin:3px 4px 3px 0;">${f}</span>`
     ).join('');
 
     statusArea.className = '';
-    statusArea.style.cssText = 'display:block; margin-top:15px; padding:20px; border-radius:12px; text-align:left; background:linear-gradient(135deg,#fef9ec 0%,#fff7ed 100%); border:1.5px solid #fbbf24;';
+    statusArea.style.cssText = 'display:block; margin-top:15px; padding:20px; border-radius:12px; text-align:left; background:var(--status-action-bg); border:1.5px solid var(--status-action-border);';
     statusArea.innerHTML = `
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
             <span style="font-size:22px;">🔒</span>
             <div>
-                <div style="font-size:14px; font-weight:700; color:#92400e; letter-spacing:0.5px;">${methodName.toUpperCase()} — NOT AVAILABLE</div>
-                <div style="font-size:11px; color:#b45309; margin-top:2px;">
-                    Status: <code style="background:#fef3c7; padding:1px 5px; border-radius:4px;">${flags.length ? 'available' : 'unknown'}</code>
+                <div style="font-size:14px; font-weight:700; color:var(--status-action-text); letter-spacing:0.5px;">${methodName.toUpperCase()} — NOT AVAILABLE</div>
+                <div style="font-size:11px; color:var(--status-action-text); margin-top:2px; opacity:0.85;">
+                    Status: <code style="background:var(--status-action-bg); padding:1px 5px; border-radius:4px; border:1px solid var(--status-action-border);">${flags.length ? 'available' : 'unknown'}</code>
                     — requirements still unmet after PATCH
                 </div>
             </div>
         </div>
-        <div style="font-size:12px; color:#78350f; font-weight:600; margin-bottom:8px;">Unresolved flags from the Payments Setups API:</div>
+        <div style="font-size:12px; color:var(--status-action-text); font-weight:600; margin-bottom:8px;">Unresolved flags from the Payments Setups API:</div>
         <div style="margin-bottom:12px; line-height:2;">
-            ${flagPills || '<span style="font-size:12px;color:#a16207;">No flags returned — check the JSON response below.</span>'}
+            ${flagPills || `<span style="font-size:12px; color:var(--status-action-text); opacity:0.8;">No flags returned — check the JSON response below.</span>`}
         </div>
-        <div style="font-size:11px; color:#a16207; border-top:1px solid #fde68a; padding-top:10px; line-height:1.7;">
+        <div style="font-size:11px; color:var(--status-action-text); border-top:1px solid var(--status-action-border); padding-top:10px; line-height:1.7; opacity:0.85;">
             The Payments Setups API does not currently support <strong>${methodName}</strong> for this configuration.<br>
             Each flag above maps directly to a missing or invalid field in the PATCH request.<br>
             Review the full response in the JSON panel below for details.
@@ -452,8 +452,8 @@ async function initializeCardSetupFlow() {
 
     // Replace the note + empty fields with a loader message while the session is created
     cardSection.innerHTML = `
-        <h4 style="margin-top:0; color:#6366f1;">CARD — Flow Tokenization</h4>
-        <p style="font-size:12px; color:#64748b; margin:4px 0 12px;">Creating payment session…</p>
+        <h4 style="margin-top:0; color:var(--accent);">CARD — Flow Tokenization</h4>
+        <p style="font-size:12px; color:var(--text-secondary); margin:4px 0 12px;">Creating payment session…</p>
         <div id="setup-card-form-host"></div>
     `;
 
@@ -483,6 +483,7 @@ async function initializeCardSetupFlow() {
             body: JSON.stringify(sessionBody),
         });
         paymentSession = await res.json();
+        _cardActiveSession = paymentSession; // store for theme re-mount
         addToApiLog('POST', `card tokenization session: ${paymentSession.id} - /payment-sessions`, paymentSession.id ? 201 : 422, sessionBody, paymentSession);
     } catch (err) {
         showKlarnaToast('Failed to create card session. Check the console.', 'error');
@@ -509,7 +510,7 @@ async function initializeCardSetupFlow() {
     const payBtn = document.createElement('button');
     payBtn.id = 'setup-card-pay-btn';
     payBtn.className = 'main-button';
-    payBtn.style.cssText = 'background:#059669; margin-top:20px; width:100%;';
+    payBtn.style.cssText = 'background:var(--success); margin-top:20px; width:100%;';
     payBtn.innerText = 'Pay';
 
     payBtn.onclick = async () => {
@@ -720,17 +721,17 @@ function renderPayPalPendingState(setupId, statusArea) {
         statusArea.style.cssText = `
             display: block; margin-top: 15px; padding: 16px 20px;
             border-radius: 12px; text-align: left;
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-            border: 1.5px solid #fbbf24;
+            background: var(--status-action-bg);
+            border: 1.5px solid var(--status-action-border);
         `;
         statusArea.innerHTML = `
             <div style="display:flex; align-items:center; gap:12px;">
                 <span style="font-size:22px;">⏳</span>
                 <div>
-                    <div style="font-size:14px; font-weight:700; color:#92400e;">PayPal Approved — Confirming Payment</div>
-                    <div style="font-size:12px; color:#b45309; margin-top:4px; line-height:1.6;">
+                    <div style="font-size:14px; font-weight:700; color:var(--status-action-text);">PayPal Approved — Confirming Payment</div>
+                    <div style="font-size:12px; color:var(--status-action-text); margin-top:4px; line-height:1.6; opacity:0.85;">
                         Your PayPal authorisation was received. Waiting for
-                        <code style="background:#fef9c3; padding:1px 6px; border-radius:4px;">payment_method_ready</code>
+                        <code style="background:var(--status-action-bg); padding:1px 6px; border-radius:4px; border:1px solid var(--status-action-border);">payment_method_ready</code>
                         — or click 'Confirm Payment' above to confirm manually.
                     </div>
                 </div>
@@ -742,7 +743,7 @@ function renderPayPalPendingState(setupId, statusArea) {
     const btn = document.createElement('button');
     btn.id = 'make-paypal-payment-btn';
     btn.className = 'main-button';
-    btn.style.cssText = 'background:#059669; margin-top:16px; width:100%;';
+    btn.style.cssText = 'background:var(--success); margin-top:16px; width:100%;';
     btn.innerText = 'Confirm Payment';
 
     btn.onclick = async () => {
@@ -785,7 +786,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
     const btn = document.createElement('button');
     btn.id = 'final-confirm-btn';
     btn.className = 'main-button';
-    btn.style.background = '#059669';
+    btn.style.background = 'var(--success)';
     btn.style.marginTop = '20px';
     btn.style.width = '100%';
     btn.innerText = label;
@@ -879,7 +880,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                                 const btnKlarna = document.createElement('button');
                                 btnKlarna.id = 'make-klarna-payment-btn';
                                 btnKlarna.className = 'main-button';
-                                btnKlarna.style.background = '#059669';
+                                btnKlarna.style.background = 'var(--success)';
                                 btnKlarna.style.marginTop = '20px';
                                 btnKlarna.style.width = '100%';
                                 btnKlarna.innerText = 'Make Payment Now';
@@ -948,7 +949,7 @@ function showSuccessWithReset(data) {
         <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 10px;">
             <p style="margin: 0;">Payment Processed! Status: <strong>${data.status || 'Success'}</strong></p>
             <button id="reset-session-btn" class="main-button"
-                style="background: #475569; font-size: 13px; width: auto; padding: 10px 20px;">
+                style="background: var(--text-secondary); font-size: 13px; width: auto; padding: 10px 20px;">
                 Reset Session
             </button>
         </div>
@@ -1218,7 +1219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const redirectBtn = document.createElement('button');
                 redirectBtn.className = 'main-button';
                 redirectBtn.style.marginTop = '10px';
-                redirectBtn.style.background = '#0ea5e9';
+                redirectBtn.style.background = 'var(--primary)';
                 redirectBtn.innerText = 'Follow Redirect URL';
                 redirectBtn.onclick = () => window.location.href = result._links.redirect.href;
                 output.parentElement.appendChild(redirectBtn);
@@ -1260,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!errEl) {
             errEl = document.createElement('p');
             errEl.id = 'amount-mismatch-error';
-            errEl.style.cssText = 'font-size:12px; color:#b91c1c; background:#fee2e2; padding:6px 10px; border-radius:6px; margin:6px 0 0;';
+            errEl.style.cssText = 'font-size:12px; color:var(--status-error-text); background:var(--status-error-bg); padding:6px 10px; border-radius:6px; margin:6px 0 0; border:1px solid var(--status-error-border);';
             document.getElementById('setup-amount').parentElement.appendChild(errEl);
         }
 
@@ -1362,3 +1363,23 @@ function stopSetupWebhookPolling() {
         setupWebhookPoller = null;
     }
 }
+
+// ── Theme change: re-render method cards + re-mount card tokenizer ────────────
+document.addEventListener('themechange', async () => {
+    // Re-render method toggle cards (picks up new --border, --bg-card, --text-primary)
+    if (activeSetupResponse?.payment_methods) {
+        const methods = Object.keys(activeSetupResponse.payment_methods);
+        if (methods.length > 0) renderMethodToggles(methods);
+    }
+
+    // Re-mount card tokenizer if it is currently visible
+    const formHost = document.getElementById('setup-card-form-host');
+    if (_cardActiveSession && formHost) {
+        formHost.innerHTML = '';
+        try {
+            await mountCardTokenizer(formHost, _cardActiveSession);
+        } catch (e) {
+            console.warn('Card tokenizer re-mount after theme change failed:', e);
+        }
+    }
+});

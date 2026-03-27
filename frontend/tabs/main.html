@@ -48,6 +48,14 @@
         <div id="apple-container" class="payment-container"></div>
     </div>
 
+    <!-- Sidebar backdrop (mobile) -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+    <!-- API Log toggle button (visible on mobile/tablet only) -->
+    <button class="api-log-toggle" id="api-log-toggle" onclick="toggleSidebar()" aria-label="Toggle API Log">
+        <span>📋</span> API LOG
+    </button>
+
     <!-- API Activity Log Sidebar -->
     <div id="api-sidebar" class="api-log-sidebar">
         <div class="sidebar-header">
@@ -82,6 +90,28 @@
 
 <!-- Toast notification -->
 <div id="toast-container" style="display:none;"></div>
+
+<script>
+function toggleSidebar() {
+    var sidebar = document.getElementById('api-sidebar');
+    var backdrop = document.getElementById('sidebar-backdrop');
+    var btn = document.getElementById('api-log-toggle');
+    var isOpen = sidebar.classList.toggle('sidebar-open');
+    backdrop.classList.toggle('active', isOpen);
+    btn.textContent = isOpen ? '✕ CLOSE' : '📋 API LOG';
+    if (isOpen) btn.style.bottom = '4px';
+    else btn.style.bottom = '20px';
+}
+function closeSidebar() {
+    var sidebar = document.getElementById('api-sidebar');
+    var backdrop = document.getElementById('sidebar-backdrop');
+    var btn = document.getElementById('api-log-toggle');
+    sidebar.classList.remove('sidebar-open');
+    backdrop.classList.remove('active');
+    btn.textContent = '📋 API LOG';
+    btn.style.bottom = '20px';
+}
+</script>
 
 <!-- Transaction Verification Loader Overlay -->
 <div id="payment-loader" class="loader-overlay" style="display: none;">

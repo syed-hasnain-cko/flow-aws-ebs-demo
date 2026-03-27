@@ -659,6 +659,8 @@ pre {
 }
 
 .details-container {
+    display: flex;
+    flex-wrap: wrap;
     gap: 40px;
     margin-top: 30px;
     align-items: flex-start;
@@ -745,16 +747,20 @@ pre {
     text-align: left;
     background: var(--bg-subtle);
     border: 1px solid var(--border);
+    border-left: 3px solid var(--success);
     border-radius: var(--radius-md);
     padding: 20px;
-    margin-top: 15px;
+    margin-top: 16px;
     animation: fadeIn 0.3s ease;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .token-row {
     display: flex;
     justify-content: space-between;
-    padding: 8px 0;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
     border-bottom: 1px solid var(--border);
 }
 
@@ -762,17 +768,23 @@ pre {
 
 .token-label {
     color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
 }
 
 .token-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    color: #b35e14;
-    background: #fff9f2;
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12.5px;
+    color: var(--accent);
+    background: var(--bg-chip);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 5px;
+    word-break: break-all;
+    text-align: right;
 }
 
 #flow-container .success-payment-message:empty {
@@ -1152,4 +1164,287 @@ pre {
     max-height: 600px;
     overflow-y: auto;
     border: 1px solid #334155;
+}
+
+/* ================================================================
+   PAYMENT SETUP — SDK WIDGET + STATUS AREA
+   ================================================================ */
+.sdk-widget-box {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.final-status-area {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ================================================================
+   RESPONSIVE — SIDEBAR TOGGLE (hidden on desktop)
+   ================================================================ */
+.api-log-toggle {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1600;
+    background: #0f172a;
+    color: #38bdf8;
+    border: 1px solid #334155;
+    border-radius: 50px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.50);
+    font-family: 'Monaco', 'Consolas', monospace;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.api-log-toggle:hover,
+.api-log-toggle:active {
+    background: #1e293b;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+}
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1490;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+.sidebar-backdrop.active {
+    display: block;
+}
+
+/* ================================================================
+   RESPONSIVE — TABLET  ≤ 900px
+   ================================================================ */
+@media (max-width: 900px) {
+
+    /* Show toggle, convert sidebar to bottom drawer */
+    .api-log-toggle { display: flex; }
+
+    .api-log-sidebar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        width: 100%;
+        max-width: 100%;
+        max-height: 0;
+        border-radius: 16px 16px 0 0;
+        overflow: hidden;
+        transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1500;
+    }
+    .api-log-sidebar.sidebar-open {
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+    .sidebar-header {
+        border-radius: 16px 16px 0 0;
+    }
+
+    /* Header */
+    header { padding: 0 20px; }
+    .header-inner {
+        height: auto;
+        padding: 12px 0;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Wrapper */
+    .wrapper {
+        padding: 0 16px;
+        margin: 20px auto;
+    }
+
+    /* Cards */
+    .context-area {
+        padding: 20px 22px;
+    }
+
+    /* Modal */
+    .modal-content {
+        width: 95%;
+    }
+}
+
+/* ================================================================
+   RESPONSIVE — MOBILE  ≤ 600px
+   ================================================================ */
+@media (max-width: 600px) {
+
+    /* Header — compact single row */
+    header { padding: 0 14px; }
+    .header-inner {
+        padding: 10px 0;
+        gap: 6px;
+    }
+    .header-logo-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 17px;
+        border-radius: 8px;
+    }
+    .header-brand { gap: 10px; }
+    .header-brand h1 { font-size: 0.92rem; }
+    .header-subtitle { display: none; }
+    .theme-select {
+        font-size: 12px;
+        padding: 6px 28px 6px 10px;
+        border-radius: 7px;
+    }
+
+    /* Wrapper */
+    .wrapper {
+        padding: 0 12px;
+        margin: 14px auto;
+    }
+
+    /* Cards */
+    .context-area {
+        padding: 16px;
+        border-radius: var(--radius-md);
+        margin-bottom: 16px;
+    }
+
+    /* Tab bar — equal columns, full width */
+    .tab-container {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        padding: 3px;
+        border-radius: 10px;
+        margin-bottom: 18px;
+        gap: 2px;
+    }
+    .tab-link {
+        padding: 9px 6px;
+        font-size: 11px;
+        text-align: center;
+        border-radius: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: 0;
+    }
+
+    /* Forms — single column */
+    .inline-form {
+        grid-template-columns: 1fr !important;
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+
+    /* Buttons — full width, stacked */
+    .button-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .main-button {
+        width: 100%;
+        text-align: center;
+        padding: 12px 18px;
+        font-size: 14px;
+        border-radius: var(--radius-md);
+    }
+    /* Keep anchor <a> buttons looking right */
+    a.main-button {
+        display: block;
+        box-sizing: border-box;
+    }
+
+    /* Payment Setup: methods grid → single column */
+    #methods-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Payment container */
+    .payment-container { padding: 16px; }
+
+    /* Pre / code blocks */
+    pre { font-size: 11.5px; padding: 12px; }
+    .json-code-block { font-size: 11.5px; padding: 12px; }
+
+    /* Token rows — stack label + value */
+    .token-row {
+        flex-direction: column;
+        gap: 3px;
+        padding: 10px 0;
+    }
+
+    /* Status / success / failure page */
+    .status-container {
+        padding: 24px 16px;
+        border-radius: var(--radius-lg);
+    }
+    .status-image { width: 64px; height: 64px; margin-bottom: 14px; }
+
+    /* Details container: stack vertically */
+    .details-container {
+        flex-direction: column !important;
+        gap: 16px;
+        margin-top: 20px;
+    }
+
+    /* Modal — bottom sheet */
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .modal-content {
+        width: 100%;
+        max-width: 100%;
+        max-height: 88vh;
+        border-radius: 16px 16px 0 0;
+        margin: 0;
+    }
+
+    /* Toast — above sidebar toggle */
+    #toast-container {
+        bottom: 80px !important;
+        right: 12px !important;
+        left: 12px !important;
+        min-width: 0 !important;
+        text-align: center;
+    }
+    .toast-container {
+        bottom: 80px;
+        right: 12px;
+        left: 12px;
+        min-width: 0;
+        text-align: center;
+    }
+
+    /* Chip labels — slightly smaller */
+    .chip-label { font-size: 12px; padding: 6px 12px; }
+
+    /* Section headers */
+    .section-header { font-size: 0.9rem; }
+}
+
+/* ================================================================
+   RESPONSIVE — VERY SMALL  ≤ 380px
+   ================================================================ */
+@media (max-width: 380px) {
+    .tab-link { font-size: 10px; padding: 8px 4px; }
+    .header-brand h1 { font-size: 0.82rem; }
+    .header-logo-icon { width: 30px; height: 30px; font-size: 15px; }
+    .context-area { padding: 14px 12px; }
 }

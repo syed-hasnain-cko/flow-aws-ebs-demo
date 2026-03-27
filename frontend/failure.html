@@ -74,7 +74,11 @@
             </div>
         </div>
 
-               <div id="api-sidebar" class="api-log-sidebar">
+        <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+        <button class="api-log-toggle" id="api-log-toggle" onclick="toggleSidebar()" aria-label="Toggle API Log">
+            <span>📋</span> API LOG
+        </button>
+        <div id="api-sidebar" class="api-log-sidebar">
     <div class="sidebar-header">
         <span class="header-label">API ACTIVITY LOG</span>
         <button onclick="clearApiLogs()" class="clear-logs-btn" title="Clear All Logs">
@@ -227,6 +231,26 @@
             var sel = document.getElementById('theme-selector');
             if (sel) sel.value = t;
         })();
+    </script>
+    <script>
+        function toggleSidebar() {
+            var sidebar = document.getElementById('api-sidebar');
+            var backdrop = document.getElementById('sidebar-backdrop');
+            var btn = document.getElementById('api-log-toggle');
+            var isOpen = sidebar.classList.toggle('sidebar-open');
+            backdrop.classList.toggle('active', isOpen);
+            btn.textContent = isOpen ? '✕ CLOSE' : '📋 API LOG';
+            btn.style.bottom = isOpen ? '4px' : '20px';
+        }
+        function closeSidebar() {
+            var sidebar = document.getElementById('api-sidebar');
+            var backdrop = document.getElementById('sidebar-backdrop');
+            var btn = document.getElementById('api-log-toggle');
+            sidebar.classList.remove('sidebar-open');
+            backdrop.classList.remove('active');
+            btn.textContent = '📋 API LOG';
+            btn.style.bottom = '20px';
+        }
     </script>
 </body>
 </html>
