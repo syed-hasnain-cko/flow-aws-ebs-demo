@@ -1,4 +1,6 @@
 <div class="context-area">
+
+    <!-- General fields – apply to both wallets -->
     <div class="inline-form">
         <div class="form-group">
             <label for="name-input-google" class="text-label">Name</label>
@@ -22,6 +24,7 @@
             </select>
         </div>
     </div>
+
     <div class="inline-form">
         <div class="form-group">
             <label for="3ds-toggle-google" class="toggle-label">3DS</label>
@@ -38,130 +41,173 @@
             </label>
         </div>
         <div class="form-group">
+            <label for="country-select-google-pay" class="select-label">Country</label>
+            <select id="country-select-google-pay" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="currency-select-google-pay" class="select-label">Currency</label>
+            <select id="currency-select-google-pay" class="select-input"></select>
+        </div>
+    </div>
+
+    <!-- ── Wallet Selector ─────────────────────────────────── -->
+    <div class="wallet-selector-section">
+        <p class="wallet-selector-label">Choose wallet to test</p>
+        <div class="wallet-selector">
+
+            <div class="wallet-option" id="select-apple-pay" data-wallet="apple">
+                <svg class="wallet-logo" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                </svg>
+                <span>Apple Pay</span>
+            </div>
+
+            <div class="wallet-option" id="select-google-pay" data-wallet="google">
+                <svg class="wallet-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21.8 12.2c0-.7-.1-1.3-.2-2H12v3.8h5.5c-.2 1.2-1 2.2-2 2.8v2.3h3.3c1.9-1.8 3-4.4 3-6.9z" fill="#4285F4"/>
+                    <path d="M12 22c2.7 0 5-0.9 6.7-2.4l-3.3-2.5c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3v2.6C4.8 19.9 8.2 22 12 22z" fill="#34A853"/>
+                    <path d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3C2.4 8.6 2 10.3 2 12s.4 3.4 1 4.6L6.4 14z" fill="#FBBC05"/>
+                    <path d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 2.9 14.7 2 12 2 8.2 2 4.8 4.1 3 7.4l3.4 2.6C7.2 7.6 9.4 5.9 12 5.9z" fill="#EA4335"/>
+                </svg>
+                <span>Google Pay</span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Shared wallet fields (visible once any wallet is selected) ── -->
+    <div id="shared-wallet-fields" style="display:none">
+        <div class="inline-form">
+            <div class="form-group full-width">
+                <label class="select-label">Allowed Schemes</label>
+                <div class="chip-group" id="schemes-chips">
+                    <input type="checkbox" id="scheme-amex" class="chip-input" value="AMEX" checked>
+                    <label for="scheme-amex" class="chip-label">Amex</label>
+                    <input type="checkbox" id="scheme-mastercard" class="chip-input" value="MASTERCARD" checked>
+                    <label for="scheme-mastercard" class="chip-label">Mastercard</label>
+                    <input type="checkbox" id="scheme-visa" class="chip-input" value="VISA" checked>
+                    <label for="scheme-visa" class="chip-label">Visa</label>
+                    <input type="checkbox" id="scheme-discover" class="chip-input" value="DISCOVER" checked>
+                    <label for="scheme-discover" class="chip-label">Discover</label>
+                    <input type="checkbox" id="scheme-jcb" class="chip-input" value="JCB" checked>
+                    <label for="scheme-jcb" class="chip-label">JCB</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Apple Pay specific fields ──────────────────────── -->
+    <div id="apple-pay-fields" class="wallet-specific-fields" style="display:none">
+        <div class="wallet-fields-header">
+            <span class="wallet-fields-badge apple-badge">
+                <svg viewBox="0 0 14 14" fill="currentColor" style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;">
+                    <path d="M10.91 11.5c-.48.72-1 1.42-1.77 1.44-.78.02-1.03-.46-1.91-.46-.89 0-1.16.44-1.9.48-.76.03-1.34-.77-1.82-1.47C2.47 9.87 1.71 7.27 2.73 5.46c.5-.88 1.41-1.44 2.39-1.46.74-.01 1.45.5 1.91.5.45 0 1.31-.62 2.21-.53.38.02 1.43.15 2.11 1.15-.05.03-1.26.74-1.25 2.21.02 1.75 1.54 2.34 1.56 2.35-.02.04-.24.84-.8 1.82M7.55 2c.42-.48 1.13-.85 1.71-.87.07.68-.2 1.37-.6 1.85-.4.5-1.06.88-1.71.82-.09-.67.24-1.36.6-1.8z"/>
+                </svg>
+                Apple Pay Options
+            </span>
+        </div>
+        <div class="inline-form">
             <div class="form-group">
-                <label for="country-select-google-pay" class="select-label">Country</label>
-                <select id="country-select-google-pay" class="select-input"></select>
+                <label for="apple-button-type" class="select-label">Button Type</label>
+                <select id="apple-button-type" class="select-input">
+                    <option value="plain">Plain</option>
+                    <option value="buy" selected>Buy</option>
+                    <option value="check-out">Check Out</option>
+                    <option value="book">Book</option>
+                    <option value="subscribe">Subscribe</option>
+                </select>
             </div>
-        </div>
-        <div class="form-group">
             <div class="form-group">
-                <label for="currency-select-google-pay" class="select-label">Currency</label>
-                <select id="currency-select-google-pay" class="select-input"></select>
+                <label for="apple-button-style" class="select-label">Button Style</label>
+                <select id="apple-button-style" class="select-input">
+                    <option value="black" selected>Black</option>
+                    <option value="white">White</option>
+                    <option value="white-outline">White Outline</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="apple-active-card-toggle" class="toggle-label">Require Active Card</label>
+                <label class="switch">
+                    <input type="checkbox" id="apple-active-card-toggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="form-group full-width">
+                <label class="select-label">Merchant Capabilities</label>
+                <div class="chip-group" id="apple-caps-chips">
+                    <input type="checkbox" id="cap-3ds" class="chip-input apple-chip-input" value="supports3DS" checked>
+                    <label for="cap-3ds" class="chip-label">3DS</label>
+                    <input type="checkbox" id="cap-debit" class="chip-input apple-chip-input" value="supportsDebit" checked>
+                    <label for="cap-debit" class="chip-label">Debit</label>
+                    <input type="checkbox" id="cap-credit" class="chip-input apple-chip-input" value="supportsCredit" checked>
+                    <label for="cap-credit" class="chip-label">Credit</label>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="inline-form">
-        <div class="form-group full-width">
-            <label class="select-label">Google Auth Methods</label>
-            <div class="chip-group" id="auth-methods-chips">
-                <input type="checkbox" id="auth-pan" class="chip-input" value="PAN_ONLY" checked>
-                <label for="auth-pan" class="chip-label">PAN Only</label>
-                <input type="checkbox" id="auth-3ds" class="chip-input" value="CRYPTOGRAM_3DS" checked>
-                <label for="auth-3ds" class="chip-label">3DS Cryptogram</label>
+    <!-- ── Google Pay specific fields ─────────────────────── -->
+    <div id="google-pay-fields" class="wallet-specific-fields" style="display:none">
+        <div class="wallet-fields-header">
+            <span class="wallet-fields-badge google-badge">
+                <svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;vertical-align:-1px;margin-right:4px;">
+                    <path d="M12.7 7.1c0-.4 0-.7-.1-1.1H7v2.2h3.2c-.1.7-.6 1.3-1.2 1.6v1.4h1.9c1.1-1 1.8-2.5 1.8-4.1z" fill="#4285F4"/>
+                    <path d="M7 13c1.6 0 2.9-.5 3.9-1.4l-1.9-1.4c-.5.4-1.2.6-2 .6-1.5 0-2.8-1-3.3-2.4H1.7v1.5C2.8 11.7 4.8 13 7 13z" fill="#34A853"/>
+                    <path d="M3.7 8.4c-.1-.4-.2-.7-.2-1.1s.1-.8.2-1.1V4.7H1.7C1.3 5.5 1 6.2 1 7s.3 1.5.7 2.1l2-1.7z" fill="#FBBC05"/>
+                    <path d="M7 3.4c.9 0 1.6.3 2.2.9l1.6-1.6C9.9 1.7 8.6 1 7 1 4.8 1 2.8 2.3 1.7 4.2l2 1.6C4.2 4.4 5.5 3.4 7 3.4z" fill="#EA4335"/>
+                </svg>
+                Google Pay Options
+            </span>
+        </div>
+        <div class="inline-form">
+            <div class="form-group full-width">
+                <label class="select-label">Auth Methods</label>
+                <div class="chip-group" id="auth-methods-chips">
+                    <input type="checkbox" id="auth-pan" class="chip-input" value="PAN_ONLY" checked>
+                    <label for="auth-pan" class="chip-label">PAN Only</label>
+                    <input type="checkbox" id="auth-3ds" class="chip-input" value="CRYPTOGRAM_3DS" checked>
+                    <label for="auth-3ds" class="chip-label">3DS Cryptogram</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="google-locale" class="select-label">Language (Locale)</label>
+                <select id="google-locale" class="select-input">
+                    <option value="en" selected>English</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="ar">Arabic</option>
+                    <option value="es">Spanish</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="google-button-type" class="select-label">Button Type</label>
+                <select id="google-button-type" class="select-input">
+                    <option value="buy" selected>Buy</option>
+                    <option value="plain">Plain</option>
+                    <option value="donate">Donate</option>
+                    <option value="checkout">Checkout</option>
+                    <option value="pay">Pay</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="google-button-color" class="select-label">Button Color</label>
+                <select id="google-button-color" class="select-input">
+                    <option value="default" selected>Default (Black)</option>
+                    <option value="white">White</option>
+                </select>
             </div>
         </div>
-        <div class="form-group full-width">
-            <label class="select-label">Allowed Schemes</label>
-            <div class="chip-group" id="schemes-chips">
-                <input type="checkbox" id="scheme-amex" class="chip-input" value="AMEX" checked>
-                <label for="scheme-amex" class="chip-label">Amex</label>
-                <input type="checkbox" id="scheme-mastercard" class="chip-input" value="MASTERCARD" checked>
-                <label for="scheme-mastercard" class="chip-label">Mastercard</label>
-                <input type="checkbox" id="scheme-visa" class="chip-input" value="VISA" checked>
-                <label for="scheme-visa" class="chip-label">Visa</label>
-                <input type="checkbox" id="scheme-discover" class="chip-input" value="DISCOVER" checked>
-                <label for="scheme-discover" class="chip-label">Discover</label>
-                <input type="checkbox" id="scheme-jcb" class="chip-input" value="JCB" checked>
-                <label for="scheme-jcb" class="chip-label">JCB</label>
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="google-locale" class="select-label">Language (Locale)</label>
-            <select id="google-locale" class="select-input">
-                <option value="en" selected>English</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="ar">Arabic</option>
-                <option value="es">Spanish</option>
-            </select>
-        </div>
-        <div class="form-group"></div>
-    </div>
-
-    <div class="inline-form">
-        <div class="form-group">
-            <label for="apple-button-type" class="select-label">Apple Button Type</label>
-            <select id="apple-button-type" class="select-input">
-                <option value="plain">Plain</option>
-                <option value="buy" selected>Buy</option>
-                <option value="check-out">Check Out</option>
-                <option value="book">Book</option>
-                <option value="subscribe">Subscribe</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="apple-button-style" class="select-label">Apple Button Style</label>
-            <select id="apple-button-style" class="select-input">
-                <option value="black" selected>Black</option>
-                <option value="white">White</option>
-                <option value="white-outline">White Outline</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="apple-active-card-toggle" class="toggle-label">Apple Pay Require Active Card</label>
-            <label class="switch">
-                <input type="checkbox" id="apple-active-card-toggle" checked>
-                <span class="slider round"></span>
-            </label>
-        </div>
-        <div class="form-group full-width">
-            <label class="select-label">Apple Merchant Capabilities</label>
-            <div class="chip-group" id="apple-caps-chips">
-                <input type="checkbox" id="cap-3ds" class="chip-input apple-chip-input" value="supports3DS" checked>
-                <label for="cap-3ds" class="chip-label">3DS</label>
-                <input type="checkbox" id="cap-debit" class="chip-input apple-chip-input" value="supportsDebit" checked>
-                <label for="cap-debit" class="chip-label">Debit</label>
-                <input type="checkbox" id="cap-credit" class="chip-input apple-chip-input" value="supportsCredit" checked>
-                <label for="cap-credit" class="chip-label">Credit</label>
+        <div class="inline-form">
+            <div class="form-group full-width">
+                <label class="select-label">Allowed Card Types</label>
+                <div class="chip-group" id="card-type-chips">
+                    <input type="checkbox" id="type-credit" class="chip-input" value="credit" checked>
+                    <label for="type-credit" class="chip-label">Allow Credit Cards</label>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="inline-form">
-        <div class="form-group">
-            <label for="google-button-type" class="select-label">G-Pay Button Type</label>
-            <select id="google-button-type" class="select-input">
-                <option value="buy" selected>Buy</option>
-                <option value="plain">Plain</option>
-                <option value="donate">Donate</option>
-                <option value="checkout">Checkout</option>
-                <option value="pay">Pay</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="google-button-color" class="select-label">G-Pay Button Color</label>
-            <select id="google-button-color" class="select-input">
-                <option value="default" selected>Default (Black)</option>
-                <option value="white">White</option>
-            </select>
-        </div>
-    </div>
-
-    <div class="inline-form">
-        <div class="form-group full-width">
-            <label class="select-label">G-Pay Allowed Card Types</label>
-            <div class="chip-group" id="card-type-chips">
-                <input type="checkbox" id="type-credit" class="chip-input" value="credit" checked>
-                <label for="type-credit" class="chip-label">G-Pay Allow Credit Cards</label>
-            </div>
-        </div>
-    </div>
-
-    <div class="button-group">
-        <button id="google-button" class="main-button">Render Google Pay</button>
-        <button id="apple-button" class="main-button">Render Apple Pay</button>
-    </div>
 </div>
 
 <div id="google-container" class="payment-container"></div>
