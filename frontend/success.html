@@ -121,6 +121,8 @@
 
     <script src="frontend-config.js"></script>
     <script src="utils.js"></script>
+    <script src="modules/api-log.js"></script>
+    <script src="modules/payment-actions.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
             // Handle Wallet Logs
@@ -206,7 +208,7 @@
                         'payment_capture_pending', 'payment_refund_pending',
                         'payment_authorization_incremented', 'payment_pending',
                         'payment_refunded', 'payment_voided',
-                        'payment_declined', 'payment_expired', 'payment_canceled'
+                        'payment_declined', 'payment_expired', 'payment_canceled','card_verified'
                     ];
 
                     if (refreshEvents.includes(event.type)) {

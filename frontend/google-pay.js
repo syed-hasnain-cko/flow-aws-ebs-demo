@@ -1,3 +1,7 @@
+// google-pay.js is wrapped in an IIFE to keep all locals off window.
+// Only window.onGooglePayLoaded is intentionally global (called by the SDK script tag).
+(function() {
+
 let googleCurrency = undefined;
 let googleTotalPrice = undefined;
 let merchantId = undefined;
@@ -253,7 +257,7 @@ console.log(paymentRequest)
       if(data.payment.status == 'Pending' && data.payment._links?.redirect){
         window.location.href = data.payment._links?.redirect?.href;
       }
-      else if(data.payment.status == 'Authorized' || data.payment.status == 'Captured'){
+      else if(data.payment.status == 'Authorized' || data.payment.status == 'Captured' || data.payment.status == 'Card Verified'){
         window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.payment.id}`
       }
       else{
@@ -305,3 +309,5 @@ amountInput.addEventListener('input', (e) => {
 let currency = CURRENCIES.find(c => c.iso4217 == googleCurrency);
 paymentRequest.amount = parseInt(amountInput.value*currency?.base);
 });
+
+})(); // end IIFE
