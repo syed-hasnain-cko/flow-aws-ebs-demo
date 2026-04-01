@@ -18,17 +18,3 @@ applications:
       cache:
         paths:
           - node_modules/**/*
-  - appRoot: backend
-    backend:
-      phases:
-        build:
-          commands:
-            - amplifyPush --simple
-      artifacts:
-        files:
-          - "**/*"
-        baseDirectory: .
-        type: zip
-      service:
-        type: LambdaFunction
-        entryPoint: server.js
