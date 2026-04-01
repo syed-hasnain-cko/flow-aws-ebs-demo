@@ -11,8 +11,19 @@ const cko = new Checkout(config.sk, { pk: config.pk, timeout: 10000 });
 
 const API_SECRET_KEY = config.sk;
 
-router.post('/payment-sessions', async (req, res) => {
+// Structured JSON logger — searchable in log output
+function log(level, route, message, data = {}) {
+    console.log(JSON.stringify({
+        level, route, message,
+        timestamp: new Date().toISOString(),
+        ...data
+    }));
+}
 
+router.post('/payment-sessions', async (req, res) => {
+    if (!req.body || !req.body.amount || !req.body.currency) {
+        return res.status(400).send({ error: 'amount and currency are required' });
+    }
     try {
         const response = await axios.post(`${process.env.GW_URL}/payment-sessions`, req.body, {
             headers: {
@@ -38,7 +49,7 @@ router.post('/payment-setups', async (req, res) => {
         });
         res.send(response.data);
     } catch (error) {
-        console.error("Payment Setup Error:", error.response ? error.response.data : error.message);
+        log('error', '/payment-setups', 'setup_error', { message: error.response ? JSON.stringify(error.response.data) : error.message });
         res.status(500).send(error.response ? error.response.data : { error: "Internal Server Error" });
     } 
 });
@@ -74,6 +85,9 @@ router.get('/get-payment-actions', async(req, res) => {
 })
 
 router.post('/capture-payment', async(req,res) => {
+    if (!req.query.paymentId || !/^pay_[a-zA-Z0-9]+$/.test(req.query.paymentId)) {
+        return res.status(400).send({ error: 'Invalid or missing paymentId' });
+    }
     try{
         const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/captures`, {}, {
             headers: {
@@ -90,6 +104,9 @@ router.post('/capture-payment', async(req,res) => {
 })
 
 router.post('/void-payment', async(req,res) => {
+    if (!req.query.paymentId || !/^pay_[a-zA-Z0-9]+$/.test(req.query.paymentId)) {
+        return res.status(400).send({ error: 'Invalid or missing paymentId' });
+    }
     try{
         const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/voids`,{}, {
             headers: {
@@ -106,6 +123,9 @@ router.post('/void-payment', async(req,res) => {
 })
 
 router.post('/refund-payment', async(req,res) => {
+    if (!req.query.paymentId || !/^pay_[a-zA-Z0-9]+$/.test(req.query.paymentId)) {
+        return res.status(400).send({ error: 'Invalid or missing paymentId' });
+    }
     try{
         const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/refunds`, {}, {
             headers: {
@@ -122,8 +142,13 @@ router.post('/refund-payment', async(req,res) => {
 })
 
 router.post("/google-pay", async (req, res) => {
-    const { signature, protocolVersion, signedMessage, currency, price } =
-      req.body;
+    const { signature, protocolVersion, signedMessage, currency, price } = req.body;
+    if (!signature || !protocolVersion || !signedMessage) {
+        return res.status(400).send({ error: 'Missing required Google Pay token fields' });
+    }
+    if (!req.body.amount || typeof req.body.amount !== 'number' || req.body.amount <= 0) {
+        return res.status(400).send({ error: 'amount must be a positive number' });
+    }
     try {
       const token = await cko.tokens.request({
         type: "googlepay",
@@ -134,7 +159,7 @@ router.post("/google-pay", async (req, res) => {
         },
       });
   
-      console.log("Google Pay tokenization outcome", token);
+      log('info', '/google-pay', 'tokenization_outcome', { tokenType: token.type });
   
       const payment = await cko.payments.request({
         source: {
@@ -166,8 +191,8 @@ router.post("/google-pay", async (req, res) => {
  
         });
     } catch (error) {
-      console.log(error);
-      res.sendStatus(500)(error);
+      log('error', '/google-pay', 'payment_error', { message: error.message });
+      res.status(500).send({ error: error.message || 'Google Pay processing failed' });
     }
   });
 
@@ -200,8 +225,8 @@ router.post("/google-pay", async (req, res) => {
     );
     res.send(response.data);
   } catch (err) {
-    console.log(err);
-    
+    log('error', '/validate-apple-session', 'session_error', { message: err.message });
+    res.status(500).send({ error: err.message });
   }
 });
 
@@ -223,7 +248,7 @@ router.post("/apple-pay", async (req, res) => {
       },
     });
 
-    console.log("Apple Pay tokenization outcome", token);
+    log('info', '/apple-pay', 'tokenization_outcome', { tokenType: token.type });
 
       const payment = await cko.payments.request({
         source: {
@@ -248,8 +273,8 @@ router.post("/apple-pay", async (req, res) => {
         token : token,
         payment: payment
       }
+      log('info', '/apple-pay', 'payment_outcome', { paymentId: payment?.id, status: payment?.status });
       res.send(paymentAndTokenResponse);
-      console.log("Apple Pay payment outcome", payment);
   } catch (err) {
     res.status(500).send(err);
   }
@@ -275,7 +300,7 @@ router.post("/payments", async (req, res) => {
         });
         res.send({ payment });
     } catch (error) {
-        console.log(error);
+        log('error', '/payments', 'payment_error', { message: error.message });
         res.status(500).send({ error: error.message || 'Payment processing failed' });
     }
 });

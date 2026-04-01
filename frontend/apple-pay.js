@@ -1,8 +1,15 @@
+// apple-pay.js is wrapped in an IIFE to keep all locals off window.
+// Only window.addApplePayButton is intentionally global (called by wallets.js / tab UI).
+(function() {
+
 let appleCurrency = undefined;
 let appleTotalPrice = undefined;
 let applePaymentRequest;
 let request;
 
+// NOTE: These element IDs use the '-google' suffix intentionally.
+// The Wallets tab shares a single set of form fields for both Apple Pay and Google Pay.
+// Do NOT rename these to '-apple' — it would break the shared form.
 const threeDSToggleApple = document.getElementById('3ds-toggle-google');
 const captureToggleApple = document.getElementById('capture-toggle-google');
 const paymentTypeSelectApple = document.getElementById('payment-type-select-google');
@@ -28,31 +35,7 @@ applePaymentRequest = {
   }
 }
 
-const CURRENCIES_APPLE = [
-  { iso4217: 'AED', base: 100 },
-  { iso4217: 'ARS', base: 100 },
-  { iso4217: 'AUD', base: 100 },
-  { iso4217: 'BHD', base: 1000 },
-  { iso4217: 'BRL', base: 100 },
-  { iso4217: 'CHF', base: 100 },
-  { iso4217: 'CNY', base: 100 },
-  { iso4217: 'COP', base: 100 },
-  { iso4217: 'EGP', base: 100 },
-  { iso4217: 'EUR', base: 100 },
-  { iso4217: 'GBP', base: 100 },
-  { iso4217: 'HKD', base: 100 },
-  { iso4217: 'KWD', base: 1000 },
-  { iso4217: 'MXN', base: 100 },
-  { iso4217: 'NOK', base: 100 },
-  { iso4217: 'NZD', base: 100 },
-  { iso4217: 'PLN', base: 100 },
-  { iso4217: 'QAR', base: 100 },
-  { iso4217: 'SEK', base: 100 },
-  { iso4217: 'SGD', base: 100 },
-  { iso4217: 'SAR', base: 100 },
-  { iso4217: 'USD', base: 100 },
-];
-
+// CURRENCIES is provided globally by modules/data.js (CURRENCIES_APPLE removed — duplicate)
 
 const appleButtonType = document.getElementById('apple-button-type');
 const appleButtonStyle = document.getElementById('apple-button-style');
@@ -66,7 +49,7 @@ document.getElementById('apple-button').addEventListener('click', function() {
 
 
 
-window.addApplePayButton = function() { 
+window.addApplePayButton = function() {
     window.activeWallet = 'apple';
     const container = document.getElementById("google-container");
     container.innerHTML = ''; // Force clear
@@ -105,14 +88,14 @@ function startApplePaySession() {
     // Update to read from chips
 let allowedCardNetworksApple = window.getChipSelectedValues("schemes-chips");
 let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
-    
+
     appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
     appleTotalPrice = document.querySelector("#amount-input-google").value;
     let countryCodeApple = document.querySelector("#country-select-google-pay").value;
 
     let allowedNetworks = modifyCardNetworks(allowedCardNetworksApple);
-    
-    
+
+
     // Dynamically pull Merchant Capabilities from the UI
     if (merchantCapabilities.length === 0) merchantCapabilities = ["supports3DS"];
 
@@ -149,9 +132,9 @@ session.onpaymentauthorized = function(event) {
 
     const debugContainer = document.getElementById('apple-pay-debugger');
     const logElement = document.getElementById('apple-sdk-log');
-    
+
     debugContainer.style.display = 'block';
-    
+
     // We use your existing formatJSON helper for consistency
     logElement.innerHTML = formatJSON({
         token: {
@@ -184,7 +167,7 @@ function validateApplePaySession(appleUrl, callback) {
      fetch(`${window.APP_CONFIG.apiBaseUrl}/validate-apple-session`, {
         method: "POST",
         headers: {
-            'Content-Type': 'application/json' 
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(
             {appleUrl},
@@ -203,7 +186,7 @@ function validateApplePaySession(appleUrl, callback) {
       console.log(data)
       callback(data)})
     .catch((error) => {
-        
+
         console.error("Error:", error);
     });
 }
@@ -211,7 +194,7 @@ function validateApplePaySession(appleUrl, callback) {
 function performPayment(details, callback) {
 
     document.getElementById('payment-loader').style.display = 'flex';
-    
+
     // Integration Engineer View: Quick table of the key metadata
     console.table({
         "Network": details.token.paymentMethod.network,
@@ -223,7 +206,7 @@ function performPayment(details, callback) {
         JSON.stringify(details.token.paymentData)
     );
 
-let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
+let currency = CURRENCIES.find(c => c.iso4217 == appleCurrency);
 
   applePaymentRequest = {
     details : details,
@@ -255,7 +238,7 @@ let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
     .then((response) => response.json())
     .then((data) => {
       addToApiLog('POST', `apple pay payment - /payments`, data.payment?.id ? 201 : 422, applePaymentRequest, data);
-      if(data.payment.status == 'Authorized' || data.payment.status == 'Captured'){
+      if(data.payment.status == 'Authorized' || data.payment.status == 'Captured' || data.payment.status == 'Card Verified'){
         window.location.href = `${window.location.protocol}//${window.location.host}/success.html?paymentId=${data.payment.id}`
       }
       else{
@@ -297,6 +280,8 @@ applePaymentRequest.customer.email = e.target.value;
 });
 
 amountInputApple.addEventListener('input', (e) => {
-let currency = CURRENCIES_APPLE.find(c => c.iso4217 == appleCurrency);
-applePaymentRequest.amount = parseInt(amountInput.value*currency?.base);
+let currency = CURRENCIES.find(c => c.iso4217 == appleCurrency);
+applePaymentRequest.amount = parseInt(amountInputApple.value*currency?.base);
 });
+
+})(); // end IIFE
