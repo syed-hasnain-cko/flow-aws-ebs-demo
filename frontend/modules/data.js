@@ -28,6 +28,27 @@ const CURRENCIES = [
   {iso4217: 'KRW', base: 100 },
 ];
 
+// Payout funds transfer types — scheme-specific codes assigned by Checkout.com.
+// These are PLACEHOLDER values. Replace with your actual assigned FTT codes
+// for Visa and Mastercard in your sandbox/production account.
+const PAYOUT_FUNDS_TRANSFER_TYPES = {
+    visa: [
+        { value: 'AA',  label: 'AA — Account-to-Account' },
+        { value: 'PP',  label: 'PP — Person-to-Person (Visa Direct)' },
+        { value: 'FT',  label: 'FT — Funds Transfer' },
+        { value: 'WT',  label: 'WT - Staged Digital Wallet (SDW) transfer' },
+        { value: 'TU',  label: 'TU - Prepaid Card Load / Top Up' },
+        { value: 'FD',  label: 'FD — Fund disbursement' },
+        { value: 'PD',  label: 'PD — Payroll disbursement' },
+    ],
+    mastercard: [
+        { value: 'C55',  label: 'C55 — Business Disbursement' },
+        { value: 'C07', label: 'C07 — Person-to-Person' },
+        { value: 'C52', label: 'C52 — AA — Account-to-Account' },
+        { value: 'C65',  label: 'C65 - B2B Transfers' },
+    ]
+};
+
 const COUNTRIES = [
   { name: 'Germany', alpha2Code: 'DE' },
   { name: 'United Kingdom', alpha2Code: 'GB' },
@@ -58,3 +79,48 @@ const COUNTRIES = [
   { name: 'Australia', alpha2Code: 'AU' },
   { name: 'United Arab Emirates', alpha2Code: 'AE' },
 ];
+
+// Payout test cards — grouped by response code, per scheme.
+// CVV: 100 for all. Expiry: any future date (use 12/28).
+const PAYOUT_TEST_CARDS = {
+    visa: [
+        { responseCode: '10000', label: 'Approved — Happy Flow', cards: [
+            { number: '4921817844445119', country: 'GB' },
+            { number: '4978313915783283', country: 'FR' },
+            { number: '4076613139850359', country: 'SG' },
+            { number: '4024764449971519', country: 'US' },
+        ]},
+        { responseCode: '20005', label: 'Declined — Do Not Honour', cards: [
+            { number: '4818192525595285', country: 'GB' },
+            { number: '4558473893020179', country: 'FR' },
+            { number: '4811553373235190', country: 'SG' },
+            { number: '4610179846730147', country: 'US' },
+        ]},
+        { responseCode: '20057', label: 'Declined — Transaction Not Permitted', cards: [
+            { number: '4818192160565981', country: 'GB' },
+            { number: '4975992266555193', country: 'FR' },
+            { number: '4815649658513826', country: 'SG' },
+            { number: '4610174464118832', country: 'US' },
+        ]},
+    ],
+    mastercard: [
+        { responseCode: '10000', label: 'Approved — Happy Flow', cards: [
+            { number: '5355224968521878', country: 'GB' },
+            { number: '5132728491870081', country: 'FR' },
+            { number: '5526303170157160', country: 'SG' },
+            { number: '5318773012490080', country: 'US' },
+        ]},
+        { responseCode: '20005', label: 'Declined — Do Not Honour', cards: [
+            { number: '5574357535453624', country: 'GB' },
+            { number: '5132724072801678', country: 'FR' },
+            { number: '5274926611111018', country: 'SG' },
+            { number: '5109110000000030', country: 'US' },
+        ]},
+        { responseCode: '20057', label: 'Declined — Transaction Not Permitted', cards: [
+            { number: '5355224739676852', country: 'GB' },
+            { number: '5136406072992030', country: 'FR' },
+            { number: '5274926611111026', country: 'SG' },
+            { number: '5109119931560251', country: 'US' },
+        ]},
+    ],
+};

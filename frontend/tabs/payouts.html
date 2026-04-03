@@ -1,0 +1,421 @@
+<div class="context-area">
+
+    <!-- ─── 1. Payout Type Selector ──────────────────────────────────── -->
+    <h2 class="section-header">1. Select Payout Type</h2>
+    <div class="wallet-selector-section">
+        <p class="wallet-selector-label">Choose payout method to test</p>
+        <div class="wallet-selector">
+
+            <div class="wallet-option" id="select-card-payout" data-payout="card">
+                <svg class="wallet-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor"/>
+                    <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor"/>
+                    <line x1="6" y1="15" x2="10" y2="15" stroke="currentColor"/>
+                </svg>
+                <span>Card Payout</span>
+            </div>
+
+            <div class="wallet-option" id="select-bank-payout" data-payout="bank">
+                <svg class="wallet-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M8 10v11M12 10v11M16 10v11M20 10v11"
+                        stroke="currentColor" stroke-linecap="round"/>
+                </svg>
+                <span>Bank Payout</span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ─── Common Fields ────────────────────────────────────────────── -->
+    <div id="payout-common-fields" style="display:none">
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+        <h2 class="section-header">2. Payout Details</h2>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="payout-amount" class="text-label" style="color:var(--text-secondary)">amount</label>
+                <input type="number" id="payout-amount" class="text-input" value="1000">
+            </div>
+            <div class="form-group">
+                <label for="payout-currency" class="select-label" style="color:var(--text-secondary)">currency</label>
+                <select id="payout-currency" class="select-input"></select>
+            </div>
+            <div class="form-group">
+                <label for="payout-reference" class="text-label" style="color:var(--text-secondary)">reference
+                    <em style="font-style:normal; font-size:11px; opacity:0.5">(optional)</em></label>
+                <input type="text" id="payout-reference" class="text-input" placeholder="e.g. payout-001">
+            </div>
+        </div>
+        <!-- Lock banner — appears while any payout awaits its webhook -->
+        <div id="payout-lock-banner" style="display:none; margin-top:16px; padding:11px 16px; border-radius:10px;
+            background:var(--bg-subtle); border:1px solid var(--primary); align-items:center; gap:10px; font-size:13px; color:var(--text-secondary);">
+            <svg style="width:14px;height:14px;flex-shrink:0;animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5">
+                <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity="0.2"/>
+                <path d="M21 12a9 9 0 00-9-9"/>
+            </svg>
+            <span id="payout-lock-label">Payout pending — scheme &amp; submit locked until webhook arrives</span>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- CARD PAYOUT FIELDS                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="card-payout-fields" style="display:none">
+
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+        <h2 class="section-header">3. Card Scheme &amp; Instruction</h2>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="payout-card-scheme" class="select-label" style="color:var(--text-secondary)">Card Scheme</label>
+                <select id="payout-card-scheme" class="select-input">
+                    <option value="">-- Select scheme --</option>
+                    <option value="visa">Visa</option>
+                    <option value="mastercard">Mastercard</option>
+                </select>
+            </div>
+            <div class="form-group" id="payout-ftt-group" style="display:none">
+                <label for="payout-funds-transfer-type" class="select-label" style="color:var(--text-secondary)">instruction.funds_transfer_type</label>
+                <select id="payout-funds-transfer-type" class="select-input"></select>
+            </div>
+            <div class="form-group">
+                <label for="payout-purpose" class="select-label" style="color:var(--text-secondary)">instruction.purpose
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(required for AR/BD/CL/CO/EG/IN/MX/SA)</em></label>
+                <select id="payout-purpose" class="select-input">
+                    <option value="">-- None --</option>
+                    <option value="family_support" selected>family_support</option>
+                    <option value="expatriation">expatriation</option>
+                    <option value="travel_and_tourism">travel_and_tourism</option>
+                    <option value="education">education</option>
+                    <option value="medical_treatment">medical_treatment</option>
+                    <option value="emergency_need">emergency_need</option>
+                    <option value="leisure">leisure</option>
+                    <option value="savings">savings</option>
+                    <option value="gifts">gifts</option>
+                    <option value="donations">donations</option>
+                    <option value="financial_services">financial_services</option>
+                    <option value="it_services">it_services</option>
+                    <option value="investment">investment</option>
+                    <option value="insurance">insurance</option>
+                    <option value="loan_payment">loan_payment</option>
+                    <option value="pension">pension</option>
+                    <option value="royalties">royalties</option>
+                    <option value="other">other</option>
+                    <option value="income">income</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Scheme banner -->
+        <div id="payout-scheme-banner" style="display:none; margin: 0 0 20px; padding: 10px 16px; border-radius: 8px;
+            background: var(--bg-subtle); border: 1px solid var(--border); font-size: 13px; color: var(--text-secondary);">
+        </div>
+
+        <!-- Test cards panel — populated by renderTestCards() in payouts.js -->
+        <style>
+            .tc-chip {
+                display: inline-flex; align-items: center; gap: 3px;
+                padding: 3px 9px; border-radius: 6px; font-size: 12px;
+                font-family: monospace; cursor: pointer; user-select: none;
+                background: var(--bg-subtle); border: 1px solid var(--border);
+                color: var(--text-primary); transition: background 0.12s, color 0.12s;
+                vertical-align: middle; line-height: 1.4;
+            }
+            .tc-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+        </style>
+        <div id="payout-test-cards" style="display:none;"></div>
+
+        <!-- ── Flow Card Field ──────────────────────────────────────── -->
+        <div id="payout-card-form-wrapper" style="display:none">
+            <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
+                <h2 class="section-header" style="margin:0">4. Card Details</h2>
+                <span id="payout-scheme-chip" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px;
+                    background:var(--primary); color:#fff; text-transform:uppercase; letter-spacing:0.5px;"></span>
+                <span style="font-size:12px; color:var(--text-secondary); opacity:0.7;">Flow Tokenizer</span>
+            </div>
+
+            <!-- Loading state -->
+            <div id="payout-card-loading" style="display:none; align-items:center; gap:8px; padding:20px 0;
+                font-size:13px; color:var(--text-secondary);">
+                <svg style="width:16px;height:16px;animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity="0.2"/>
+                    <path d="M21 12a9 9 0 00-9-9"/>
+                </svg>
+                Loading card field…
+            </div>
+            <style>#payout-card-loading{display:none;}@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+            <!-- Card form panel -->
+            <div style="border-radius: 12px; border: 1px solid var(--border); overflow: hidden;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 14px;">
+                <div style="background: var(--bg-card); padding: 20px 20px 16px;">
+                    <div id="payout-card-form-host" style="min-height: 140px;"></div>
+                </div>
+            </div>
+
+            <!-- Token badge (shown after tokenize) -->
+            <div id="payout-card-token-badge" style="display:none; font-size:12px; padding:8px 14px;
+                background: var(--bg-subtle); border: 1px solid var(--border); border-radius:8px;
+                margin-bottom:8px; word-break:break-all; color:var(--text-secondary);">
+                <strong style="color:var(--success);">✓ Token ready:</strong>
+                <span id="payout-card-token-value" style="font-family:monospace;"></span>
+            </div>
+        </div>
+
+        <!-- ── 5. Destination Account Holder ───────────────────────── -->
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+        <h2 class="section-header">5. destination.account_holder</h2>
+
+        <!-- All rows use 2-column grid — labels are long uppercase paths that overflow in 3-4 col grids -->
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label for="payout-dest-ah-type" class="select-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.type</label>
+                <select id="payout-dest-ah-type" class="select-input">
+                    <option value="individual" selected>individual</option>
+                    <option value="corporate">corporate</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="payout-dest-email" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.email
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional)</em></label>
+                <input type="email" id="payout-dest-email" class="text-input" value="">
+            </div>
+        </div>
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group" id="payout-dest-fname-group">
+                <label for="payout-dest-first-name" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.first_name</label>
+                <input type="text" id="payout-dest-first-name" class="text-input" value="John">
+            </div>
+            <div class="form-group" id="payout-dest-lname-group">
+                <label for="payout-dest-last-name" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.last_name</label>
+                <input type="text" id="payout-dest-last-name" class="text-input" value="Doe">
+            </div>
+            <div class="form-group" id="payout-dest-company-group" style="display:none">
+                <label for="payout-dest-company" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.company_name</label>
+                <input type="text" id="payout-dest-company" class="text-input" value="">
+            </div>
+        </div>
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label for="payout-dest-addr-line1" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.billing_address.address_line1
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional)</em></label>
+                <input type="text" id="payout-dest-addr-line1" class="text-input" value="">
+            </div>
+            <div class="form-group">
+                <label for="payout-dest-addr-city" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.billing_address.city
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional)</em></label>
+                <input type="text" id="payout-dest-addr-city" class="text-input" value="">
+            </div>
+        </div>
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label for="payout-dest-addr-zip" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.billing_address.zip
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional)</em></label>
+                <input type="text" id="payout-dest-addr-zip" class="text-input" value="">
+            </div>
+            <div class="form-group">
+                <label for="payout-dest-addr-country" class="select-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.billing_address.country
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional)</em></label>
+                <select id="payout-dest-addr-country" class="select-input"></select>
+            </div>
+        </div>
+
+        <!-- ── 6. Sender (collapsible) ──────────────────────────────── -->
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <h2 class="section-header" style="margin:0">6. sender</h2>
+            <span style="font-size:11px; color:var(--text-secondary); opacity:0.65; font-style:italic;">required for money transfer FTTs</span>
+            <label class="switch" style="margin-left:auto;">
+                <input type="checkbox" id="payout-sender-enable">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div id="payout-sender-fields" style="display:none">
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="payout-sender-type" class="select-label" style="color:var(--text-secondary)">sender.type</label>
+                    <select id="payout-sender-type" class="select-input">
+                        <option value="individual" selected>individual</option>
+                        <option value="corporate">corporate</option>
+                        <option value="government">government</option>
+                    </select>
+                </div>
+                <div class="form-group" id="payout-sender-fname-group">
+                    <label for="payout-sender-first-name" class="text-label" style="color:var(--text-secondary)">sender.first_name</label>
+                    <input type="text" id="payout-sender-first-name" class="text-input" value="">
+                </div>
+                <div class="form-group" id="payout-sender-lname-group">
+                    <label for="payout-sender-last-name" class="text-label" style="color:var(--text-secondary)">sender.last_name</label>
+                    <input type="text" id="payout-sender-last-name" class="text-input" value="">
+                </div>
+                <div class="form-group" id="payout-sender-company-group" style="display:none">
+                    <label for="payout-sender-company" class="text-label" style="color:var(--text-secondary)">sender.company_name</label>
+                    <input type="text" id="payout-sender-company" class="text-input" value="">
+                </div>
+            </div>
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="payout-sender-reference" class="text-label" style="color:var(--text-secondary)">sender.reference</label>
+                    <input type="text" id="payout-sender-reference" class="text-input" placeholder="5–15 alphanumeric chars">
+                </div>
+                <div class="form-group">
+                    <label for="payout-sender-sof" class="select-label" style="color:var(--text-secondary)">sender.source_of_funds</label>
+                    <select id="payout-sender-sof" class="select-input">
+                        <option value="credit">credit</option>
+                        <option value="debit" selected>debit</option>
+                        <option value="prepaid">prepaid</option>
+                        <option value="deposit_account">deposit_account</option>
+                        <option value="mobile_money_account">mobile_money_account</option>
+                        <option value="cash">cash</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="payout-sender-addr-line1" class="text-label" style="color:var(--text-secondary)">sender.address.address_line1</label>
+                    <input type="text" id="payout-sender-addr-line1" class="text-input" value="">
+                </div>
+                <div class="form-group">
+                    <label for="payout-sender-addr-city" class="text-label" style="color:var(--text-secondary)">sender.address.city</label>
+                    <input type="text" id="payout-sender-addr-city" class="text-input" value="">
+                </div>
+                <div class="form-group">
+                    <label for="payout-sender-addr-country" class="select-label" style="color:var(--text-secondary)">sender.address.country</label>
+                    <select id="payout-sender-addr-country" class="select-input"></select>
+                </div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="card-payout-submit-btn" class="main-button" disabled>Submit Card Payout</button>
+            <span id="card-payout-hint" style="font-size:12px; color:var(--text-secondary); margin-left:8px;">
+                Select a card scheme above to load the card field
+            </span>
+        </div>
+
+    </div><!-- /card-payout-fields -->
+
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- BANK PAYOUT FIELDS                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <div id="bank-payout-fields" style="display:none">
+
+        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+        <h2 class="section-header">3. Destination Bank Account</h2>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="payout-bank-country" class="select-label" style="color:var(--text-secondary)">destination.country</label>
+                <select id="payout-bank-country" class="select-input"></select>
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-account-type" class="select-label" style="color:var(--text-secondary)">destination.account_type</label>
+                <select id="payout-bank-account-type" class="select-input">
+                    <option value="savings">savings</option>
+                    <option value="current" selected>current</option>
+                    <option value="cash">cash</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-iban" class="text-label" style="color:var(--text-secondary)">destination.iban</label>
+                <input type="text" id="payout-bank-iban" class="text-input" placeholder="e.g. GB29NWBK60161331926819">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-account-number" class="text-label" style="color:var(--text-secondary)">destination.account_number
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(non-IBAN countries)</em></label>
+                <input type="text" id="payout-bank-account-number" class="text-input" value="">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-bank-code" class="text-label" style="color:var(--text-secondary)">destination.bank_code
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(routing #, US)</em></label>
+                <input type="text" id="payout-bank-bank-code" class="text-input" value="">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-swift-bic" class="text-label" style="color:var(--text-secondary)">destination.swift_bic
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(8 or 11 chars)</em></label>
+                <input type="text" id="payout-bank-swift-bic" class="text-input" value="">
+            </div>
+        </div>
+
+        <h2 class="section-header">4. destination.account_holder</h2>
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label for="payout-bank-ah-type" class="select-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.type</label>
+                <select id="payout-bank-ah-type" class="select-input">
+                    <option value="individual" selected>individual</option>
+                    <option value="corporate">corporate</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-ah-country" class="select-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.billing_address.country</label>
+                <select id="payout-bank-ah-country" class="select-input"></select>
+            </div>
+        </div>
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group" id="payout-bank-ah-fname-group">
+                <label for="payout-bank-ah-first-name" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.first_name</label>
+                <input type="text" id="payout-bank-ah-first-name" class="text-input" value="John">
+            </div>
+            <div class="form-group" id="payout-bank-ah-lname-group">
+                <label for="payout-bank-ah-last-name" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.last_name</label>
+                <input type="text" id="payout-bank-ah-last-name" class="text-input" value="Doe">
+            </div>
+            <div class="form-group" id="payout-bank-ah-company-group" style="display:none">
+                <label for="payout-bank-ah-company" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.company_name</label>
+                <input type="text" id="payout-bank-ah-company" class="text-input" value="">
+            </div>
+        </div>
+
+        <h2 class="section-header">5. Billing Descriptor &amp; Instruction</h2>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="payout-billing-desc-ref" class="text-label" style="color:var(--text-secondary)">billing_descriptor.reference</label>
+                <input type="text" id="payout-billing-desc-ref" class="text-input" value="PayoutRef001"
+                    placeholder="Recommended &lt;11 chars">
+            </div>
+            <div class="form-group">
+                <label for="payout-instruction-scheme" class="select-label" style="color:var(--text-secondary)">instruction.scheme
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional — restricts rail)</em></label>
+                <select id="payout-instruction-scheme" class="select-input">
+                    <option value="">-- Auto --</option>
+                    <option value="local">local</option>
+                    <option value="instant">instant</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="bank-payout-submit-btn" class="main-button">Submit Bank Payout</button>
+        </div>
+
+    </div><!-- /bank-payout-fields -->
+
+</div><!-- /context-area -->
+
+
+<!-- ─── Payout History Queue ─────────────────────────────────────── -->
+<div id="payout-queue-panel" class="context-area" style="display:none;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <h2 class="section-header" style="margin:0">Payout History</h2>
+        <button id="payout-queue-clear" style="font-size:12px; padding:4px 14px; border-radius:20px;
+            background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-secondary);
+            cursor:pointer; font-family:inherit;">Clear Resolved</button>
+    </div>
+    <div id="payout-queue-list"></div>
+</div>

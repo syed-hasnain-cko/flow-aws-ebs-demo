@@ -141,3 +141,102 @@ These were identified as high-value but not yet created — create them if the u
 ### AWS Deployment Reminder
 
 Every new Express route in `api-route-controller.js` **must also be manually added in AWS API Gateway** (Method + Lambda proxy integration → `flowDemoLambdaSyed`) before it works in production. This is not automated.
+
+---
+
+## Session Summary (2026-04-01) — Architecture Improvements
+
+### What Was Done
+
+All 11 architecture improvement steps from the plan were applied to `main` branch (merged from `code-architecture-change`). The branch had the updated wallets tab UI, which was preserved throughout.
+
+### New Files Created
+
+| File | Purpose |
+|---|---|
+| `frontend/modules/api-log.js` | `apiLogHistory`, `addToApiLog()`, modal handlers — moved from `utils.js` |
+| `frontend/modules/payment-actions.js` | `fetchPaymentDetails`, `voidPayment`, `capturePayment`, `refundPayment`, `updatePaymentDetailsData`, `getPaymentSetup`, `confirmPaymentSetup` — moved from `utils.js` |
+| `frontend/modules/payment-setup-config.js` | `METHOD_REQUIREMENTS`, `METHODS_WITH_ORDER_ITEMS`, `METHOD_NOTES`, `METHOD_DISPLAY` — moved from `payment-setup.js` |
+
+### Bugs Fixed
+
+- **`frontend/websocket.js`** — De Morgan's law bug: changed all `||` → `&&` in the declined/failed event check (line 18). Was causing all failed payment events to show a success toast.
+- **`frontend/modules/data.js`** — Five wrong ISO country codes fixed: Czech Republic `CK`→`CZ`, Estonia `ES`→`EE`, New Zealand `AZ`→`NZ` (also fixed name `'Newzealand'`→`'New Zealand'`), Hong Kong display name fixed, UAE `AU`→`AE`.
+- **`frontend/apple-pay.js`** — Removed duplicate `CURRENCIES_APPLE` array; replaced with global `CURRENCIES`. Fixed `amountInput.value` → `amountInputApple.value` (was referencing a google-pay.js global that disappears after IIFE wrap). Added comment explaining shared `-google` element IDs are intentional.
+- **`backend/api-route-controller.js`** — Fixed broken `res.sendStatus(500)(error)` → `res.status(500).send(...)`. Fixed `/validate-apple-session` silently swallowing errors.
+
+### Structural Changes
+
+- **`frontend/google-pay.js`** — Wrapped in IIFE; `window.onGooglePayLoaded` still on `window`.
+- **`frontend/apple-pay.js`** — Wrapped in IIFE; `window.addApplePayButton` still on `window`.
+- **`frontend/utils.js`** — `api-log` and `payment-actions` sections removed (moved to modules). Retains: theme helpers, `getFlowAppearance`, `mountCardTokenizer`, `formatJSON`, `showToast`, `showKlarnaToast`, Klarna item helpers, theme MutationObserver.
+- **`frontend/modules/payment-setup.js`** — Data declarations removed (moved to `payment-setup-config.js`).
+- **`frontend/index.html`** — Script load order: `utils.js` → `api-log.js` → `payment-actions.js` → `data.js` → `wallets.js` → `flow.js` → `payment-setup-config.js` → `payment-setup.js`.
+- **`frontend/success.html`** and **`frontend/failure.html`** — Added `modules/api-log.js` and `modules/payment-actions.js` script tags (were missing, causing `ReferenceError`).
+- **`backend/api-route-controller.js`** — Added structured `log()` helper (emits JSON). Added input validation `400` guards on `/payment-sessions`, `/capture-payment`, `/void-payment`, `/refund-payment`, `/google-pay`.
+
+### Module Split Rule
+
+`payment-actions.js` is NOT wrapped in an IIFE because `updatePaymentDetailsData` is called by `websocket.js` as a plain global. All three new modules must load before feature modules (flow, payment-setup, wallets).
+
+### Current State
+
+All changes committed to `main`. Git was clean after merge. Next step when resuming: `git push origin main` to trigger Amplify deployment (not done — user logged off before pushing).
+
+---
+
+## Session Summary (2026-04-02) — Payouts Tab
+
+### What Was Built
+
+Full **Payouts** tab added to the app — supports both Card Payouts and Bank Payouts via Checkout.com `/payments` API (payout mode).
+
+### New Files Created
+
+| File | Purpose |
+|---|---|
+| `frontend/tabs/payouts.html` | Full payouts tab UI — payout type selector, card payout form, bank payout form, result + webhook status display |
+| `frontend/modules/payouts.js` | Payouts IIFE module — scheme selection, Flow card field mount, tokenize → /payouts submit, bank payout submit, webhook polling |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `frontend/modules/data.js` | Added `PAYOUT_FUNDS_TRANSFER_TYPES` constant (Visa: AA/PP/FT/WT/TU/FD/PD, Mastercard: C55/C07/C52/C65) |
+| `frontend/tabs/main.html` | Added Payouts tab button + `<div id="payouts-tab">` |
+| `frontend/tabs/loader.js` | Added `payouts-tab` HTML injection |
+| `frontend/script.js` | Added currency + country dropdown population for all payouts selects |
+| `frontend/index.html` | Added `<script src="modules/payouts.js">` |
+| `amplify/backend/function/flowDemoLambdaSyed/src/api-route-controller.js` | Added `POST /payouts` route (proxies to CKO `/payments`, injects `source.type: currency_account`) |
+| `amplify/backend/function/flowDemoLambdaSyed/src/config.js` | Added `currencyAccountId: process.env.CURRENCY_ACCOUNT_ID` |
+| `config.js` (root) | Added `currencyAccountId: process.env.CURRENCY_ACCOUNT_ID` |
+
+### Key Design Decisions
+
+- **Card Payouts**: Uses Flow tokenization-mode only. User picks Visa or Mastercard → card field mounts with `componentOptions.card.supportedSchemes: ['Visa']` or `['Mastercard']` to enforce scheme at input. Token passed to `/payouts` backend.
+- **Payment session prerequisite**: `mountPayoutCardField()` creates a throwaway payment session (`POST /payment-sessions`) just to get a `paymentSession` object for mounting the Flow card component. Session body includes `billing.address.country` from the destination form field (required to avoid `billing_required` validation error) and `disabled_payment_methods: ['remember_me']`.
+- **FTT dropdown**: Populated dynamically from `PAYOUT_FUNDS_TRANSFER_TYPES[scheme]` in `data.js` when scheme changes. User replaces placeholder values with actual scheme-assigned FTT codes.
+- **Currency Account ID**: Read from `config.currencyAccountId` (env var `CURRENCY_ACCOUNT_ID`) — not a UI field.
+- **Bank Payouts**: Renders IBAN, account_number, bank_code, swift_bic, account_holder fields. All labels use exact CKO API field paths (e.g. `destination.account_holder.billing_address.country`).
+- **Sender section**: Collapsible optional section — toggle shows/hides sender fields.
+- **Webhook polling**: After payout created, polls `GET /webhook-event?paymentId=` every 2s for 2 minutes. Handles: `payment_paid` (success), `payment_declined`/`payment_returned`/`payment_expired` (error).
+- **Theme re-mount**: Listens to `themechange` DOM event and re-mounts Flow card field with updated appearance.
+
+### Layout Patterns Established (reuse in future tabs)
+
+- Long API path labels (e.g. `destination.account_holder.first_name`) overflow in auto-fit 4-column grids. **Fix**: use `grid-template-columns: repeat(2, 1fr)` for any section with long-path labels, and add `white-space:normal; overflow-wrap:anywhere; line-height:1.5` to labels.
+- Always use `color: var(--text-secondary)` on labels — never `var(--text-muted)` or `opacity: 0.7` (too light on white background).
+- Flow card form container needs `padding: 20px 20px 16px` for comfortable spacing.
+
+### Bugs Fixed During Build
+
+- `billing_required` error on payment session creation → fixed by injecting `billing.address.country` from the destination country field into the session body.
+- Label overflow on all `account_holder` sections → fixed by switching to explicit 2-column grids.
+- Labels invisible on light theme → fixed by replacing `var(--text-muted)` with `var(--text-secondary)` everywhere in payouts.html.
+
+### Manual Steps Required Before Production Testing
+
+- [ ] Add `CURRENCY_ACCOUNT_ID=ca_...` to `.env` and to Lambda environment variables in AWS console
+- [ ] Add `POST /payouts` route in AWS API Gateway → Lambda proxy → `flowDemoLambdaSyed`
+- [ ] Deploy Lambda zip after route changes
+- [ ] Replace placeholder FTT codes in `data.js` `PAYOUT_FUNDS_TRANSFER_TYPES` with real scheme-assigned codes (already done by user for sandbox — Visa: AA/PP/FT/WT/TU/FD/PD, Mastercard: C55/C07/C52/C65)
