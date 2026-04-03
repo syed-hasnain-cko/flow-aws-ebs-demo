@@ -19,4 +19,5 @@
     document.getElementById('flow-tab').innerHTML = loadSync('tabs/flow.html');
     document.getElementById('google-tab').innerHTML = loadSync('tabs/wallets.html');
     document.getElementById('setup-tab').innerHTML = loadSync('tabs/payment-setup.html');
+    document.getElementById('payouts-tab').innerHTML = loadSync('tabs/payouts.html');
 })();

@@ -63,6 +63,31 @@ window.activeWallet = null;
         });
     }
 
+    // --- Payouts Tab: Currency ---
+    const _payoutCurrency = document.getElementById('payout-currency');
+    if (_payoutCurrency) {
+        _currencies.forEach(code => {
+            const option = document.createElement('option');
+            if (code === 'EUR') option.selected = true;
+            option.value = code;
+            option.text = code;
+            _payoutCurrency.appendChild(option);
+        });
+    }
+
+    // --- Payouts Tab: Countries (dest addr, bank dest, bank ah, sender addr) ---
+    ['payout-dest-addr-country', 'payout-bank-country', 'payout-bank-ah-country', 'payout-sender-addr-country'].forEach(selectId => {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        COUNTRIES.forEach(country => {
+            const option = document.createElement('option');
+            if (country.alpha2Code === 'DE') option.selected = true;
+            option.value = country.alpha2Code;
+            option.text = country.name;
+            sel.appendChild(option);
+        });
+    });
+
     // --- Payment Setup Tab: Country ---
     const _setupCountry = document.getElementById('setup-country');
     if (_setupCountry) {
