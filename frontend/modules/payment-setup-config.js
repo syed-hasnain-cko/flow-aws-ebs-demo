@@ -27,13 +27,22 @@ const METHOD_REQUIREMENTS = {
     ideal: [
         { id: 'ideal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'ideal-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        { id: 'ideal-description', label: 'Description', path: 'payment_methods.ideal.description', value: 'Order payment', maxLength: 35 },
     ],
     bancontact: [
         { id: 'bancontact-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'bancontact-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
         { id: 'bancontact-name', label: 'Customer Name', path: 'customer.name', value: 'Syed Hasnain' },
         { id: 'bancontact-email', label: 'Customer Email', path: 'customer.email.address', value: 'smhasnain@gmail.com' },
-        { id: 'bancontact-country', label: 'Customer Country', path: 'customer.billing_address.country', value: 'BE' },
+        { id: 'bancontact-country', label: 'Customer Country', path: 'customer.country', value: 'BE' },
+        { id: 'bancontact-account-holder-name', label: 'Account Holder Name', path: 'payment_methods.bancontact.account_holder_name', value: 'Syed H' },
+    ],
+        p24: [
+        { id: 'p24-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'p24-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        { id: 'p24-name', label: 'Customer Name', path: 'payment_methods.p24.account_holder.name', value: 'Syed Hasnain' },
+        { id: 'p24-email', label: 'Customer Email', path: 'payment_methods.p24.account_holder.email', value: 'smhasnain@gmail.com' },
+        { id: 'p24-customer', label: 'Customer Country', path: 'customer.country', value: 'PL' }
     ],
     twint: [
         { id: 'twint-ref', label: 'Reference', path: 'reference', value: '#Order_TWINT_001' },
@@ -46,6 +55,8 @@ const METHOD_REQUIREMENTS = {
         { id: 'kakaopay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
         { id: 'kakaopay-name', label: 'Customer Name', path: 'customer.name', value: 'Syed Hasnain' },
         { id: 'kakaopay-email', label: 'Customer Email', path: 'customer.email.address', value: 'smhasnain@gmail.com' },
+        { id: 'kakaopay-terminal-type', label: 'Terminal type', path: 'payment_methods.kakaopay.terminal_type', value: 'web' },
+        { id: 'kakaopay-os-type', label: 'OS type', path: 'payment_methods.kakaopay.os_type', value: 'android' },
     ],
     sepa: [
         { id: 'sepa-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
@@ -54,7 +65,18 @@ const METHOD_REQUIREMENTS = {
         { id: 'sepa-zip', label: 'Billing Zip', path: 'billing.address.zip', value: 'W1T 4TP' },
         { id: 'sepa-addr', label: 'Address Line 1', path: 'billing.address.address_line1', value: '25 Berners St' },
         { id: 'sepa-addr-2', label: 'Address Line 2', path: 'billing.address.address_line2', value: 'xyz' },
-        { id: 'sepa-country', label: 'Billing Country', path: 'billing.address.country', value: 'GB' },
+        { id: 'sepa-billing-country', label: 'Billing Country', path: 'billing.address.country', value: 'DE' },
+        // payment_methods.sepa fields
+        { id: 'sepa-ah-type', label: 'Account Holder Type', path: 'payment_methods.sepa.account_holder.type', type: 'select', options: ['individual', 'corporate'], value: 'individual' },
+        { id: 'sepa-ah-first-name', label: 'First Name', path: 'payment_methods.sepa.account_holder.first_name', value: 'Syed', showIf: { id: 'sepa-ah-type', value: 'individual' } },
+        { id: 'sepa-ah-last-name', label: 'Last Name', path: 'payment_methods.sepa.account_holder.last_name', value: 'Hasnain', showIf: { id: 'sepa-ah-type', value: 'individual' } },
+        { id: 'sepa-ah-company', label: 'Company Name', path: 'payment_methods.sepa.account_holder.company_name', value: '', showIf: { id: 'sepa-ah-type', value: 'corporate' } },
+        { id: 'sepa-account-number', label: 'Account Number (IBAN)', path: 'payment_methods.sepa.account_number', value: 'DE89370400440532013000' },
+        { id: 'sepa-sepa-country', label: 'Account Country', path: 'payment_methods.sepa.country', value: 'DE' },
+        { id: 'sepa-sepa-currency', label: 'Account Currency', path: 'payment_methods.sepa.currency', value: 'EUR' },
+        { id: 'sepa-mandate-id', label: 'Mandate ID', path: 'payment_methods.sepa.mandate.id', value: 'mandate-001' },
+        { id: 'sepa-mandate-type', label: 'Mandate Type', path: 'payment_methods.sepa.mandate.type', type: 'select', options: ['core', 'b2b'], value: 'core' },
+        { id: 'sepa-mandate-date', label: 'Mandate Date Signed', path: 'payment_methods.sepa.mandate.date_of_signature', type: 'date', value: new Date().toISOString().slice(0, 10) },
     ],
     paypal: [
         { id: 'paypal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
@@ -75,8 +97,9 @@ const METHODS_WITH_ORDER_ITEMS = new Set(['klarna', 'paypal', 'kakaopay']);
 
 // Informational notes shown above the fields for certain methods
 const METHOD_NOTES = {
-    twint: '⚠️ Twint requires CHF currency. Re-initialize the setup with currency set to CHF if you see a currency flag.',
-    kakaopay: '⚠️ KakaoPay may require a specific currency (e.g. KRW). Re-initialize with the correct currency if you see a currency flag.',
+    twint: 'ℹ️ Twint requires CHF — currency will be set to CHF automatically when you patch.',
+    kakaopay: 'ℹ️ KakaoPay requires KRW — currency will be set to KRW automatically when you patch.',
+    sepa: 'ℹ️ SEPA requires EUR currency and a European bank account (IBAN). Mandate details are mandatory.',
     card: 'ℹ️ Card uses Checkout.com Flow for tokenization. Click "Update Payment Setup" to load the card form.',
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
 };
