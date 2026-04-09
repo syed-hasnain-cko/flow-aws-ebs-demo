@@ -124,3 +124,59 @@ const PAYOUT_TEST_CARDS = {
         ]},
     ],
 };
+
+// Bank payout test accounts — success and declined scenarios.
+const BANK_PAYOUT_TEST_ACCOUNTS = {
+    success: {
+        responseCode: '10000',
+        label: 'Approved — Happy Flow',
+        fields: [
+            { label: 'destination.country',       value: 'GB'       },
+            { label: 'destination.account_type',  value: 'current'  },
+            { label: 'destination.account_number',value: '55555555' },
+            { label: 'destination.bank_code',     value: '202015'   },
+            { label: 'account_holder.first_name', value: 'John'     },
+            { label: 'account_holder.last_name',  value: 'Smith'    },
+            { label: 'billing_address.country',   value: 'GB'       },
+        ],
+    },
+    declined: [
+        {
+            reason: 'Compliance error',
+            code: '50001',
+            ibans: [
+                'GB85HLFX11111100050001',
+                'ES1121000418910000050001',
+                'FR9220041010050000005000106',
+            ],
+            accountNumberSuffix: '50001',
+        },
+        {
+            reason: 'Invalid recipient error',
+            code: '50021',
+            ibans: [
+                'GB30HLFX11111100050021',
+                'ES5321000418910000050021',
+                'FR2420041010050000005002106',
+            ],
+            accountNumberSuffix: '50021',
+        },
+        {
+            reason: 'Processing error',
+            code: '50150',
+            ibans: [
+                'GB90HLFX11111100050105',
+                'ES1621000418910000050105',
+                'FR5120041010050000005015006',
+            ],
+            accountNumberSuffix: '50150',
+        },
+    ],
+    euCountries: [
+        { country: 'Estonia', code: 'EE', ibanExample: 'EE382200221020145685',        bicExample: 'HABAEE2X',    ibanLength: 20 },
+        { country: 'Finland', code: 'FI', ibanExample: 'FI2112345600000785',          bicExample: 'NDEAFIHH',    ibanLength: 18 },
+        { country: 'France',  code: 'FR', ibanExample: 'FR7630006000011234567890189', bicExample: 'BNPAFRPP',    ibanLength: 27 },
+        { country: 'Germany', code: 'DE', ibanExample: 'DE89370400440532013000',      bicExample: 'COBADEFFXXX', ibanLength: 22 },
+        { country: 'Greece',  code: 'GR', ibanExample: 'GR1601101250000000012300695', bicExample: 'ETHNGRAA',   ibanLength: 27 },
+    ],
+};

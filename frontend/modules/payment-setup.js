@@ -9,6 +9,12 @@ let setupWebhookPoller = null;
 
 const FAILED_STATUSES = ['Declined', 'Canceled', 'Expired', 'Failed'];
 
+function setStatus(el, type, text) {
+    el.className = `status-${type}`;
+    el.innerHTML = `<span class="status-icon"></span><span>${text}</span>`;
+    el.style.display = 'flex';
+}
+
 // METHOD_REQUIREMENTS, METHOD_DISPLAY, METHOD_NOTES, METHODS_WITH_ORDER_ITEMS
 // → moved to modules/payment-setup-config.js
 
@@ -230,15 +236,65 @@ function handleToggleChange() {
         }
 
         if (METHOD_REQUIREMENTS[method]) {
+            const inlineForm = section.querySelector('.inline-form');
+            const labelStyle = 'font-family:monospace;font-size:11px;letter-spacing:0.3px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;';
+
             METHOD_REQUIREMENTS[method].forEach(field => {
                 const group = document.createElement('div');
                 group.className = 'form-group';
-                group.innerHTML = `
-                    <label class="text-label" style="font-family: monospace; font-size: 11px; letter-spacing: 0.3px; color: var(--accent);">${field.path}</label>
-                    <input type="text" class="text-input patch-field" data-method="${method}" data-path="${field.path}" value="${field.value}">
-                `;
-                section.querySelector('.inline-form').appendChild(group);
+                group.id = `group-${field.id}`;
+
+                let inputHtml;
+                if (field.type === 'select') {
+                    const opts = field.options.map(o =>
+                        `<option value="${o}"${o === field.value ? ' selected' : ''}>${o}</option>`
+                    ).join('');
+                    inputHtml = `<select id="${field.id}" class="select-input patch-field" data-method="${method}" data-path="${field.path}">${opts}</select>`;
+                } else {
+                    const inputType = field.type || 'text';
+                    const maxLenAttr = field.maxLength ? ` maxlength="${field.maxLength}"` : '';
+                    const counterHtml = field.maxLength
+                        ? `<span class="char-counter" style="font-size:10px;color:var(--text-secondary);float:right;margin-top:2px;">${field.value.length}/${field.maxLength}</span>`
+                        : '';
+                    inputHtml = `<input type="${inputType}" id="${field.id}" class="text-input patch-field" data-method="${method}" data-path="${field.path}" value="${field.value}"${maxLenAttr}>${counterHtml}`;
+                }
+
+                group.innerHTML = `<label class="text-label" title="${field.path}" style="${labelStyle}">${field.path}</label>${inputHtml}`;
+
+                // Hide conditional fields whose condition isn't met by the default value
+                if (field.showIf) {
+                    const controller = METHOD_REQUIREMENTS[method].find(f => f.id === field.showIf.id);
+                    if (controller && controller.value !== field.showIf.value) {
+                        group.style.display = 'none';
+                    }
+                }
+
+                if (field.maxLength) {
+                    const input = group.querySelector('input');
+                    const counter = group.querySelector('.char-counter');
+                    if (input && counter) {
+                        input.addEventListener('input', () => { counter.textContent = `${input.value.length}/${field.maxLength}`; });
+                    }
+                }
+
+                inlineForm.appendChild(group);
             });
+
+            // Wire showIf toggle listeners after all groups exist in the DOM
+            METHOD_REQUIREMENTS[method]
+                .filter(f => f.type === 'select')
+                .forEach(field => {
+                    const selectEl = section.querySelector(`#${field.id}`);
+                    if (!selectEl) return;
+                    const dependents = METHOD_REQUIREMENTS[method].filter(f => f.showIf?.id === field.id);
+                    if (!dependents.length) return;
+                    selectEl.addEventListener('change', () => {
+                        dependents.forEach(f => {
+                            const groupEl = section.querySelector(`#group-${f.id}`);
+                            if (groupEl) groupEl.style.display = f.showIf.value === selectEl.value ? '' : 'none';
+                        });
+                    });
+                });
         }
 
         if (METHODS_WITH_ORDER_ITEMS.has(method)) {
@@ -283,15 +339,11 @@ async function handleFinalState(response, selectedMethod) {
     if (methodData.initialization === "enabled" || methodData.status === "ready") {
         if (methodData.status === "ready") {
             // ── READY: show confirm button (bizum, eps, ideal, bancontact, etc.) ──
-            statusArea.className = 'status-ready';
-            statusArea.innerText = `${methodName.toUpperCase()} is Ready!`;
-            statusArea.style.display = 'block';
+            setStatus(statusArea, 'ready', `${methodName.toUpperCase()} is Ready!`);
             renderConfirmButton(setupId, methodName, "Confirm & Redirect");
         } else if (methodData.status === "action_required" && methodData.action?.type === "sdk") {
             // ── ACTION REQUIRED: initialize provider SDK (klarna, paypal, etc.) ──
-            statusArea.className = 'status-action';
-            statusArea.innerText = `${methodName.toUpperCase()} requires SDK Authorization.`;
-            statusArea.style.display = 'block';
+            setStatus(statusArea, 'action', `${methodName.toUpperCase()} requires SDK Authorization.`);
 
             if (methodName === 'klarna') {
                 initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
@@ -557,8 +609,7 @@ function initializePayPalSDK(orderId, setupId, paymentType, captureEnabled) {
             },
             onError: function (err) {
                 console.error('PayPal Button Error:', err);
-                statusArea.className = 'status-error';
-                statusArea.innerText = 'PayPal error — see console for details.';
+                setStatus(statusArea, 'error', 'PayPal error — see console for details.');
             },
             onCancel: function () {
                 statusArea.className = 'status-action';
@@ -576,8 +627,7 @@ function initializePayPalSDK(orderId, setupId, paymentType, captureEnabled) {
     };
 
     script.onerror = () => {
-        statusArea.className = 'status-error';
-        statusArea.innerText = 'Failed to load PayPal SDK. Check the client ID in frontend-config.js.';
+        setStatus(statusArea, 'error', 'Failed to load PayPal SDK. Check the client ID in frontend-config.js.');
         widget.style.display = 'none';
     };
 }
@@ -707,7 +757,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
         btn.style.cursor = "not-allowed";
         btn.innerText = "Processing...";
 
-        if (methodName === 'bizum' || methodName === 'eps' || methodName === 'ideal' || methodName === 'twint') {
+        if (methodName === 'bizum' || methodName === 'eps' || methodName === 'ideal' || methodName === 'twint' || methodName === 'bancontact' || methodName === 'p24' || methodName === 'kakaopay') {
             try {
                 const data = await confirmPaymentSetup(setupId, methodName);
                 console.log("Confirmation Response:", data);
@@ -822,8 +872,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                         } else {
                             btn.remove();
                             console.log(response);
-                            statusArea.innerText = 'User canceled the payment on klarna or did not approve due to some reason.';
-                            statusArea.className = 'status-error';
+                            setStatus(statusArea, 'error', 'User canceled the payment on klarna or did not approve due to some reason.');
                             if (patchBtn) {
                                 patchBtn.disabled = false;
                                 patchBtn.style.opacity = "1";
@@ -1023,6 +1072,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update (Patch) Setup button
     document.getElementById('patch-setup-btn').addEventListener('click', async () => {
+        // Auto-set currency for methods that require a specific denomination
+        const FORCED_CURRENCY = { kakaopay: 'KRW', twint: 'CHF' };
+        const activeMethodForCurrency = Array.from(document.querySelectorAll('.method-toggle:checked')).map(t => t.dataset.method)[0];
+        if (activeMethodForCurrency && FORCED_CURRENCY[activeMethodForCurrency]) {
+            const currencyEl = document.getElementById('setup-currency');
+            if (currencyEl) currencyEl.value = FORCED_CURRENCY[activeMethodForCurrency];
+        }
+
         const patchBody = {
             payment_methods: {},
             amount: parseInt(document.getElementById('setup-amount').value),
@@ -1049,6 +1106,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.querySelectorAll('.patch-field').forEach(input => {
+            // Skip fields hidden by showIf conditional logic
+            if (input.closest('.form-group')?.style.display === 'none') return;
             const path = input.dataset.path.split('.');
             let current = patchBody;
             path.forEach((part, index) => {

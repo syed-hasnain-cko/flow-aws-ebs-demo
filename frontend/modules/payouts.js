@@ -54,6 +54,12 @@
             _payoutCardComponent = null;
             _activeScheme = null;
             hide('payout-test-cards');
+            // Default country selects to GB (matches success test account)
+            const bankCountry   = el('payout-bank-country');
+            const bankAhCountry = el('payout-bank-ah-country');
+            if (bankCountry   && !bankCountry.value)   bankCountry.value   = 'GB';
+            if (bankAhCountry && !bankAhCountry.value) bankAhCountry.value = 'GB';
+            renderBankTestAccounts();
         }
     }
 
@@ -63,6 +69,7 @@
         const scheme = val('payout-card-scheme');
         _activeScheme = scheme || null;
         _payoutCardComponent = null;
+        hide('payout-metadata-panel');
         clearPayoutResult();
 
         if (!scheme) {
@@ -70,6 +77,7 @@
             hide('payout-scheme-banner');
             hide('payout-card-form-wrapper');
             hide('payout-card-token-badge');
+            hide('payout-metadata-panel');
             hide('payout-test-cards');
             el('card-payout-submit-btn').disabled = true;
             el('card-payout-hint').style.display = '';
@@ -272,9 +280,21 @@
     // ─── Build bank payout body ───────────────────────────────────────
     function buildBankPayoutBody() {
         const ahType = val('payout-bank-ah-type');
+        const billingAddress = { country: val('payout-bank-ah-country') };
+        const addrLine1 = val('payout-bank-ah-addr-line1');
+        const addrLine2 = val('payout-bank-ah-addr-line2');
+        const addrCity  = val('payout-bank-ah-addr-city');
+        const addrZip   = val('payout-bank-ah-addr-zip');
+        const addrState = val('payout-bank-ah-addr-state');
+        if (addrLine1) billingAddress.address_line1 = addrLine1;
+        if (addrLine2) billingAddress.address_line2 = addrLine2;
+        if (addrCity)  billingAddress.city          = addrCity;
+        if (addrZip)   billingAddress.zip           = addrZip;
+        if (addrState) billingAddress.state         = addrState;
+
         const accountHolder = {
             type: ahType,
-            billing_address: { country: val('payout-bank-ah-country') },
+            billing_address: billingAddress,
         };
         if (ahType === 'individual') {
             accountHolder.first_name = val('payout-bank-ah-first-name');
@@ -354,8 +374,23 @@
             // Show token badge
             el('payout-card-token-value').textContent = token;
             show('payout-card-token-badge');
+            hide('payout-metadata-panel');
 
-            // Step 2: Build and submit payout
+            // Step 2: Card metadata eligibility pre-check
+            btn.textContent = '⏳ Checking eligibility…';
+            const { status: metaStatus, data: metadata } = await fetchCardMetadata(token);
+            if (metaStatus >= 400) {
+                showToast(`Card metadata check failed (${metaStatus}) — proceeding with payout`, 'error');
+            } else {
+                const eligible = isPayoutEligible(metadata);
+                renderMetadataPanel(metadata, eligible);
+                if (eligible === false) {
+                    showToast('Card not eligible for payouts — all transfer types are not_supported. Try a different card.', 'error');
+                    return;
+                }
+            }
+
+            // Step 3: Build and submit payout
             btn.textContent = 'Submitting Payout…';
             const body = buildCardPayoutBody(token);
 
@@ -462,6 +497,112 @@
     function showPayoutResult(data) {
         queuePayout({ status: 'failed', response: data });
     }
+
+
+    // ─── Card metadata: fetch ─────────────────────────────────────────
+    async function fetchCardMetadata(token) {
+        const body = { source: { type: 'token', token }, format: 'card_payouts' };
+        const res  = await fetch(`${API_BASE}/card-metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        addToApiLog('POST', '/card-metadata', res.status, body, data);
+        return { status: res.status, data };
+    }
+
+    // ─── Card metadata: eligibility check ────────────────────────────
+    // Returns true = eligible, false = ineligible, null = unknown (no card_payouts field)
+    function isPayoutEligible(metadata) {
+        const cp = metadata?.card_payouts;
+        if (!cp || Object.keys(cp).length === 0) return null;
+        return Object.values(cp).some(v => v !== 'not_supported');
+    }
+
+    // ─── Card metadata: render panel ──────────────────────────────────
+    function renderMetadataPanel(metadata, eligible) {
+        const panel = el('payout-metadata-panel');
+        if (!panel) return;
+
+        const ftLabels = {
+            domestic_non_money_transfer:     'Domestic Non-Money Transfer',
+            cross_border_non_money_transfer:  'Cross-Border Non-Money Transfer',
+            domestic_money_transfer:          'Domestic Money Transfer',
+            cross_border_money_transfer:      'Cross-Border Money Transfer',
+            domestic_gambling:               'Domestic Gambling',
+            cross_border_gambling:           'Cross-Border Gambling',
+        };
+        const eligColor = {
+            fast_funds:    'var(--success)',
+            standard:      '#f59e0b',
+            not_supported: 'var(--error)',
+            unknown:       'var(--text-secondary)',
+        };
+        const eligLabel = {
+            fast_funds:    'Fast Funds',
+            standard:      'Standard',
+            not_supported: 'Not Supported',
+            unknown:       'Unknown',
+        };
+
+        const scheme   = (metadata.scheme || '—').toUpperCase();
+        const cardType = metadata.card_type || '—';
+        const cardCat  = metadata.card_category || '—';
+        const issuer   = metadata.issuer || '—';
+        const country  = metadata.issuer_country || '';
+        const cp       = metadata.card_payouts || {};
+        const isVisa   = scheme.toLowerCase() === 'visa';
+        const schemeBg = isVisa ? '#1a1f71' : '#eb001b';
+
+        const eligRows = Object.entries(ftLabels).map(([key, label]) => {
+            const v = cp[key];
+            if (!v) return '';
+            const c = eligColor[v] || 'var(--text-secondary)';
+            const l = eligLabel[v] || v;
+            return `<div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:5px 0; border-bottom:1px solid var(--border);">
+                      <span style="font-size:11px; color:var(--text-secondary);">${label}</span>
+                      <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
+                          border:1px solid ${c}; color:${c}; white-space:nowrap;">${l}</span>
+                    </div>`;
+        }).join('');
+
+        const ineligibleBanner = eligible === false ? `
+            <div style="margin-bottom:12px; padding:10px 14px; border-radius:8px;
+                background:rgba(239,68,68,0.08); border:1px solid var(--error);
+                display:flex; align-items:flex-start; gap:10px;">
+                <span style="font-size:15px; flex-shrink:0; line-height:1.4;">⛔</span>
+                <div>
+                    <div style="font-size:12px; font-weight:700; color:var(--error); margin-bottom:2px;">Card Not Eligible for Payouts</div>
+                    <div style="font-size:11px; color:var(--text-secondary);">All transfer types are <strong>not_supported</strong> for this card. Please try a different card.</div>
+                </div>
+            </div>` : '';
+
+        const borderColor = eligible === false ? 'var(--error)' : eligible === true ? 'var(--success)' : 'var(--border)';
+
+        panel.innerHTML = `
+            <div style="border:1px solid ${borderColor}; border-radius:10px; overflow:hidden;">
+                <div style="padding:9px 14px; background:var(--bg-subtle); border-bottom:1px solid var(--border);
+                    display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:4px;
+                        background:${schemeBg}; color:#fff;">${scheme}</span>
+                    <span style="font-size:12px; font-weight:600; color:var(--text-primary);">${cardType}</span>
+                    <span style="font-size:12px; color:var(--text-secondary);">·</span>
+                    <span style="font-size:12px; color:var(--text-secondary);">${cardCat}</span>
+                    <span style="font-size:12px; color:var(--text-secondary);">·</span>
+                    <span style="font-size:12px; color:var(--text-secondary);">${issuer}${country ? ` (${country})` : ''}</span>
+                </div>
+                <div style="padding:12px 14px;">
+                    ${ineligibleBanner}
+                    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+                        color:var(--text-secondary); margin-bottom:6px;">Payout Eligibility (card_payouts)</div>
+                    ${eligRows || '<em style="font-size:11px; color:var(--text-secondary);">No card_payouts data returned</em>'}
+                </div>
+            </div>`;
+        show('payout-metadata-panel');
+    }
+
 
     // ─── Queue: add entry ─────────────────────────────────────────────
     function queuePayout({ id, type, scheme, amount, currency, status, response }) {
@@ -586,7 +727,9 @@
             const idShort    = entry.id ? entry.id.slice(0, 22) + '…' : '—';
             const webhookLabel = entry.webhookType
                 ? `<span style="color:${sc.color}; font-weight:600;">${entry.webhookType}</span>`
-                : '<em style="color:var(--text-secondary); opacity:0.6; font-style:italic; font-size:11px;">polling…</em>';
+                : entry.status === 'failed'
+                    ? '<em style="color:var(--error); font-style:italic; font-size:11px;">no webhook</em>'
+                    : '<em style="color:var(--text-secondary); opacity:0.6; font-style:italic; font-size:11px;">polling…</em>';
 
             const responseJson = JSON.stringify(entry.response, null, 2);
             const webhookJson  = entry.webhookData ? JSON.stringify(entry.webhookData, null, 2) : null;
@@ -646,6 +789,7 @@
         if (_pendingCount > 0) return;
         _payoutQueue.length = 0;
         hide('payout-queue-panel');
+        hide('payout-metadata-panel');
         stopQueuePolling();
     }
 
@@ -704,6 +848,111 @@
         });
         show('payout-test-cards');
     }
+
+    // ─── Render bank test accounts panel ─────────────────────────────
+    function renderBankTestAccounts() {
+        const container = el('payout-bank-test-accounts');
+        if (!container) return;
+        if (typeof BANK_PAYOUT_TEST_ACCOUNTS === 'undefined') { hide('payout-bank-test-accounts'); return; }
+
+        const copyIcon = `<svg style="width:10px;height:10px;display:inline;vertical-align:middle;opacity:0.6;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+
+        const success    = BANK_PAYOUT_TEST_ACCOUNTS.success;
+        const declined   = BANK_PAYOUT_TEST_ACCOUNTS.declined;
+        const euCountries = BANK_PAYOUT_TEST_ACCOUNTS.euCountries || [];
+
+        const successChips = success.fields.map(f => `
+            <div style="display:inline-flex; align-items:center; gap:5px; padding:4px 10px;
+                border:1px solid var(--border); border-radius:8px; background:var(--bg-card);">
+                <span style="font-size:10px; color:var(--text-secondary); opacity:0.65;">${f.label.split('.').pop()}</span>
+                <span class="tc-chip" data-copy="${f.value}"
+                    style="font-size:11px; font-weight:600; cursor:pointer;">${f.value} ${copyIcon}</span>
+            </div>`).join('');
+
+        const declinedSections = declined.map((d, i) => {
+            const border = i > 0 ? 'border-top:1px solid var(--border);' : '';
+            const accountRows = d.ibans.map(acct => `
+                <div><span class="tc-chip" data-copy="${acct}"
+                    style="font-family:monospace; font-size:11px; padding:3px 10px;
+                    border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
+                    display:inline-flex; align-items:center; gap:6px; cursor:pointer;"
+                    >${acct} ${copyIcon}</span></div>`).join('');
+            return `
+                <div style="${border} padding:10px 16px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                        <span style="font-size:11px; font-weight:700; color:var(--error);
+                            text-transform:uppercase; letter-spacing:0.04em;">${d.reason}</span>
+                        <span class="tc-chip" data-copy="${d.code}"
+                            style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px;
+                            border:1px solid var(--error); color:var(--error); cursor:pointer;"
+                            >${d.code} ${copyIcon}</span>
+                    </div>
+                    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+                        color:var(--text-secondary); margin-bottom:6px;">Bank account numbers / IBANs</div>
+                    <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
+                        ${accountRows}
+                    </div>
+                    <div style="font-size:11px; color:var(--text-secondary);">
+                        Account number: any ending in
+                        <span class="tc-chip" data-copy="${d.accountNumberSuffix}"
+                            style="margin-left:4px; font-size:11px; font-weight:700; padding:2px 9px;
+                            border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
+                            display:inline-flex; align-items:center; gap:5px; cursor:pointer;"
+                            >…${d.accountNumberSuffix} ${copyIcon}</span>
+                    </div>
+                </div>`;
+        }).join('');
+
+        const euRows = euCountries.map((c, i) => {
+            const border = i > 0 ? 'border-top:1px solid var(--border);' : '';
+            return `
+                <div style="${border} padding:8px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px;
+                        background:var(--bg-subtle); border:1px solid var(--border);
+                        color:var(--text-secondary); flex-shrink:0;">${c.code}</span>
+                    <span style="font-size:12px; font-weight:600; color:var(--text-primary); min-width:70px;">${c.country}</span>
+                    <span style="font-size:10px; color:var(--text-secondary); opacity:0.6; flex-shrink:0;">IBAN (${c.ibanLength} chars)</span>
+                    <span class="tc-chip" data-copy="${c.ibanExample}"
+                        style="font-family:monospace; font-size:11px; padding:2px 9px;
+                        border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
+                        display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex:1; min-width:0;"
+                        >${c.ibanExample} ${copyIcon}</span>
+                    <span style="font-size:10px; color:var(--text-secondary); opacity:0.6; flex-shrink:0;">BIC</span>
+                    <span class="tc-chip" data-copy="${c.bicExample}"
+                        style="font-family:monospace; font-size:11px; padding:2px 9px;
+                        border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
+                        display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex-shrink:0;"
+                        >${c.bicExample} ${copyIcon}</span>
+                </div>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:20px;">
+                <div style="padding:10px 16px; background:var(--bg-subtle); border-bottom:1px solid var(--border);
+                    font-size:12px; font-weight:700; color:var(--text-primary);">Bank Payout Test Accounts</div>
+                <div style="padding:10px 16px; border-bottom:1px solid var(--border);">
+                    <div style="font-size:11px; font-weight:700; color:var(--success);
+                        text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
+                        ${success.responseCode} — ${success.label}
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px;">${successChips}</div>
+                </div>
+                <div style="padding:8px 16px; background:var(--bg-subtle); border-bottom:1px solid var(--border);
+                    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+                    color:var(--text-secondary);">Declined Scenarios</div>
+                ${declinedSections}
+                <div style="padding:8px 16px; background:var(--bg-subtle); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+                    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+                    color:var(--text-secondary);">EU Country — Example IBAN &amp; SWIFT BIC</div>
+                ${euRows}
+            </div>`;
+
+        container.querySelectorAll('.tc-chip').forEach(chip => {
+            chip.addEventListener('click', () => copyChip(chip.dataset.copy, chip));
+        });
+        show('payout-bank-test-accounts');
+    }
+
 
     // ─── Account holder type toggles ──────────────────────────────────
     function onCardDestAhTypeChange() {

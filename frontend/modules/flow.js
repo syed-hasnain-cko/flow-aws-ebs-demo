@@ -140,6 +140,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                 }
             },
             handleClick: (_self) => {
+                console.log("handleClick is clicked")
                 let isTnCChecked = handleTnCValidation(_self.selectedPaymentMethodId);
                 if (isTnCChecked) {
                     return { continue: true };

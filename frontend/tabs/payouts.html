@@ -164,6 +164,9 @@
                 <strong style="color:var(--success);">✓ Token ready:</strong>
                 <span id="payout-card-token-value" style="font-family:monospace;"></span>
             </div>
+
+            <!-- Card Metadata Panel (shown after eligibility pre-check) -->
+            <div id="payout-metadata-panel" style="display:none; margin-top:4px; margin-bottom:4px;"></div>
         </div>
 
         <!-- ── 5. Destination Account Holder ───────────────────────── -->
@@ -314,6 +317,21 @@
 
         <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
         <h2 class="section-header">3. Destination Bank Account</h2>
+
+        <!-- Bank Payout Test Accounts Panel -->
+        <div id="payout-bank-test-accounts" style="display:none;"></div>
+
+        <!-- EU entity info banner -->
+        <div style="display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin-bottom:16px;
+            border-radius:10px; background:rgba(59,130,246,0.07); border:1px solid rgba(59,130,246,0.35);">
+            <span style="font-size:14px; flex-shrink:0; line-height:1.4;">ℹ️</span>
+            <div style="font-size:12px; color:var(--text-secondary); line-height:1.6;">
+                <strong style="color:var(--text-primary);">European entity — EU bank payouts only.</strong>
+                Use a <strong>EU bank account</strong> (IBAN-based) and set currency to <strong>EUR</strong>.
+                Non-EU destinations or non-EUR currency will be rejected.
+            </div>
+        </div>
+
         <div class="inline-form">
             <div class="form-group">
                 <label for="payout-bank-country" class="select-label" style="color:var(--text-secondary)">destination.country</label>
@@ -329,17 +347,17 @@
             </div>
             <div class="form-group">
                 <label for="payout-bank-iban" class="text-label" style="color:var(--text-secondary)">destination.iban</label>
-                <input type="text" id="payout-bank-iban" class="text-input" placeholder="e.g. GB29NWBK60161331926819">
+                <input type="text" id="payout-bank-iban" class="text-input" value="DE89370400440532013000" placeholder="e.g. DE89370400440532013000">
             </div>
             <div class="form-group">
                 <label for="payout-bank-account-number" class="text-label" style="color:var(--text-secondary)">destination.account_number
                     <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(non-IBAN countries)</em></label>
-                <input type="text" id="payout-bank-account-number" class="text-input" value="">
+                <input type="text" id="payout-bank-account-number" class="text-input" value="55555555">
             </div>
             <div class="form-group">
                 <label for="payout-bank-bank-code" class="text-label" style="color:var(--text-secondary)">destination.bank_code
                     <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(routing #, US)</em></label>
-                <input type="text" id="payout-bank-bank-code" class="text-input" value="">
+                <input type="text" id="payout-bank-bank-code" class="text-input" value="202015">
             </div>
             <div class="form-group">
                 <label for="payout-bank-swift-bic" class="text-label" style="color:var(--text-secondary)">destination.swift_bic
@@ -373,12 +391,43 @@
             <div class="form-group" id="payout-bank-ah-lname-group">
                 <label for="payout-bank-ah-last-name" class="text-label"
                     style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.last_name</label>
-                <input type="text" id="payout-bank-ah-last-name" class="text-input" value="Doe">
+                <input type="text" id="payout-bank-ah-last-name" class="text-input" value="Smith">
             </div>
             <div class="form-group" id="payout-bank-ah-company-group" style="display:none">
                 <label for="payout-bank-ah-company" class="text-label"
                     style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">destination.account_holder.company_name</label>
                 <input type="text" id="payout-bank-ah-company" class="text-input" value="">
+            </div>
+        </div>
+
+        <!-- Billing address fields -->
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label for="payout-bank-ah-addr-line1" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">billing_address.address_line1</label>
+                <input type="text" id="payout-bank-ah-addr-line1" class="text-input" value="Unter den Linden 1">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-ah-addr-line2" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">billing_address.address_line2
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional, max 10 for SEPA)</em></label>
+                <input type="text" id="payout-bank-ah-addr-line2" class="text-input" value="">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-ah-addr-city" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">billing_address.city</label>
+                <input type="text" id="payout-bank-ah-addr-city" class="text-input" value="Berlin">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-ah-addr-zip" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">billing_address.zip</label>
+                <input type="text" id="payout-bank-ah-addr-zip" class="text-input" value="10117">
+            </div>
+            <div class="form-group">
+                <label for="payout-bank-ah-addr-state" class="text-label"
+                    style="color:var(--text-secondary); white-space:normal; overflow-wrap:anywhere; line-height:1.5;">billing_address.state
+                    <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(ISO 3166-2, optional)</em></label>
+                <input type="text" id="payout-bank-ah-addr-state" class="text-input" value="" placeholder="e.g. BE for Berlin">
             </div>
         </div>
 
