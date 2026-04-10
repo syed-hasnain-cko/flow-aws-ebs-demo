@@ -192,6 +192,14 @@ function handleToggleChange() {
         });
     }
 
+    // Auto-set currency when switching methods
+    const FORCED_CURRENCY = { kakaopay: 'KRW', twint: 'CHF' };
+    const currencyEl = document.getElementById('setup-currency');
+    if (currencyEl) {
+        const method = this.checked ? this.dataset.method : null;
+        currencyEl.value = (method && FORCED_CURRENCY[method]) ? FORCED_CURRENCY[method] : 'EUR';
+    }
+
     const activeToggles = Array.from(document.querySelectorAll('.method-toggle:checked')).map(t => t.dataset.method);
     const inputsArea = document.getElementById('dynamic-inputs-area');
     const patchBtn = document.getElementById('patch-setup-btn');

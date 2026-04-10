@@ -112,18 +112,18 @@ async function getPaymentSetup(setupId){
 }
 
 async function confirmPaymentSetup(setupId, methodName){
-            try{
-           const queryParams = new URLSearchParams({ setupId, methodName });
-            const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
-            const response = res.json();
-              await addToApiLog('POST', `confirm ${methodName} payment setup: ${response.id} - /payments/setups/${setupId}/confirm/${methodName}`, response.id ? 201 : 422, {}, response)
-            return response;
-            }
-            catch(e){
-                showKlarnaToast('Failed to confirm payment setup. Please try again.', 'error');
-                console.error('confirmPaymentSetup error:', e);
-            }
-        }
+    try {
+        const queryParams = new URLSearchParams({ setupId, methodName });
+        const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/confirm-payment-setups?${queryParams.toString()}`, { method: 'POST' });
+        const response = await res.json();
+        const logStatus = res.ok ? (response.id ? 201 : 200) : res.status;
+        await addToApiLog('POST', `confirm ${methodName} payment setup: ${response.id || setupId} - /payments/setups/${setupId}/confirm/${methodName}`, logStatus, {}, response);
+        return response;
+    } catch(e) {
+        showKlarnaToast('Failed to confirm payment setup. Please try again.', 'error');
+        console.error('confirmPaymentSetup error:', e);
+    }
+}
 
 async function updatePaymentDetailsData(id){
     let paymentData = await fetchPaymentDetails(id);

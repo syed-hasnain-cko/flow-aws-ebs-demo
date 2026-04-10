@@ -1,20 +1,39 @@
 // =============================================
 // API Log Module
 // In-memory API call log displayed in the sidebar.
+// Persists across page navigations via sessionStorage.
 // Depends on: nothing (pure DOM + memory)
 // =============================================
 
-let apiLogHistory = [];
+const API_LOG_STORAGE_KEY = 'cko-api-log';
 
-function addToApiLog(method, endpoint, status, requestBody, responseBody) {
+let apiLogHistory = {};
+
+function _saveToStorage(entries) {
+    try {
+        sessionStorage.setItem(API_LOG_STORAGE_KEY, JSON.stringify(entries));
+    } catch (e) {
+        // sessionStorage full or unavailable — silently ignore
+    }
+}
+
+function _loadFromStorage() {
+    try {
+        return JSON.parse(sessionStorage.getItem(API_LOG_STORAGE_KEY) || '[]');
+    } catch (e) {
+        return [];
+    }
+}
+
+function _renderEntry(id, method, endpoint, status, requestBody, responseBody) {
     const logContainer = document.getElementById('log-entries');
-    const entryId = Date.now();
+    if (!logContainer) return;
 
-    apiLogHistory[entryId] = { request: requestBody, response: responseBody };
+    apiLogHistory[id] = { request: requestBody, response: responseBody };
 
     const entry = document.createElement('div');
     entry.className = 'log-entry';
-    entry.onclick = () => openLogModal(entryId);
+    entry.onclick = () => openLogModal(id);
 
     const isError = status >= 400;
     const dotClass = isError ? 'dot-error' : 'dot-success';
@@ -31,19 +50,37 @@ function addToApiLog(method, endpoint, status, requestBody, responseBody) {
     logContainer.prepend(entry);
 }
 
+// Restore persisted log entries on page load (oldest first so newest ends up on top)
+document.addEventListener('DOMContentLoaded', () => {
+    const stored = _loadFromStorage();
+    stored.forEach(e => _renderEntry(e.id, e.method, e.endpoint, e.status, e.request, e.response));
+});
+
+function addToApiLog(method, endpoint, status, requestBody, responseBody) {
+    const id = Date.now();
+
+    const stored = _loadFromStorage();
+    stored.push({ id, method, endpoint, status, request: requestBody, response: responseBody });
+    _saveToStorage(stored);
+
+    _renderEntry(id, method, endpoint, status, requestBody, responseBody);
+}
+
 
 window.clearApiLogs = function() {
     const logContainer = document.getElementById('log-entries');
     if (logContainer) {
         logContainer.innerHTML = '';
     }
-    apiLogHistory = [];
+    apiLogHistory = {};
+    sessionStorage.removeItem(API_LOG_STORAGE_KEY);
     console.log("API Logs cleared.");
 };
 
 
 window.openLogModal = function(id) {
     const data = apiLogHistory[id];
+    if (!data) return;
     document.getElementById('modal-req-body').innerText = JSON.stringify(data.request, null, 2);
     document.getElementById('modal-res-body').innerText = JSON.stringify(data.response, null, 2);
     document.getElementById('log-modal').style.display = 'flex';
