@@ -192,8 +192,7 @@ function handleToggleChange() {
         });
     }
 
-    // Auto-set currency when switching methods
-    const FORCED_CURRENCY = { kakaopay: 'KRW', twint: 'CHF' };
+    // Auto-set currency when switching methods (FORCED_CURRENCY defined in payment-setup-config.js)
     const currencyEl = document.getElementById('setup-currency');
     if (currencyEl) {
         const method = this.checked ? this.dataset.method : null;
@@ -353,10 +352,11 @@ async function handleFinalState(response, selectedMethod) {
             // ── ACTION REQUIRED: initialize provider SDK (klarna, paypal, etc.) ──
             setStatus(statusArea, 'action', `${methodName.toUpperCase()} requires SDK Authorization.`);
 
-            if (methodName === 'klarna') {
+            const confirmFlow = METHOD_DISPLAY[methodName]?.confirmFlow;
+            if (confirmFlow === 'klarna') {
                 initializeKlarnaSDK(methodData.action.client_token, methodData.action.session_id, setupId);
-            } 
-            else if (methodName === 'paypal') {
+            }
+            else if (confirmFlow === 'paypal') {
                 const orderId = methodData.action.order_id;
                 const paymentType = document.getElementById('setup-payment-type').value;
                 const captureEnabled = document.getElementById('setup-capture-toggle').checked;
@@ -765,7 +765,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
         btn.style.cursor = "not-allowed";
         btn.innerText = "Processing...";
 
-        if (methodName === 'bizum' || methodName === 'eps' || methodName === 'ideal' || methodName === 'twint' || methodName === 'bancontact' || methodName === 'p24' || methodName === 'kakaopay') {
+        if ((METHOD_DISPLAY[methodName]?.confirmFlow ?? 'redirect') === 'redirect') {
             try {
                 const data = await confirmPaymentSetup(setupId, methodName);
                 console.log("Confirmation Response:", data);
@@ -796,7 +796,7 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                 btn.style.cursor = "pointer";
                 btn.innerText = "Retry Confirmation";
             }
-        } else if (methodName === 'klarna') {
+        } else if (METHOD_DISPLAY[methodName]?.confirmFlow === 'klarna') {
             try {
                 window.Klarna.Payments.init({
                     client_token: clientToken,
@@ -1080,8 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update (Patch) Setup button
     document.getElementById('patch-setup-btn').addEventListener('click', async () => {
-        // Auto-set currency for methods that require a specific denomination
-        const FORCED_CURRENCY = { kakaopay: 'KRW', twint: 'CHF' };
+        // Auto-set currency for methods that require a specific denomination (FORCED_CURRENCY from payment-setup-config.js)
         const activeMethodForCurrency = Array.from(document.querySelectorAll('.method-toggle:checked')).map(t => t.dataset.method)[0];
         if (activeMethodForCurrency && FORCED_CURRENCY[activeMethodForCurrency]) {
             const currencyEl = document.getElementById('setup-currency');

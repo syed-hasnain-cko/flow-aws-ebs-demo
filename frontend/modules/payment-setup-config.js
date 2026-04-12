@@ -37,6 +37,14 @@ const METHOD_REQUIREMENTS = {
         { id: 'bancontact-country', label: 'Customer Country', path: 'customer.country', value: 'BE' },
         { id: 'bancontact-account-holder-name', label: 'Account Holder Name', path: 'payment_methods.bancontact.account_holder_name', value: 'Syed H' },
     ],
+     alma: [
+        { id: 'alma-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'alma-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+       { id: 'alma-billing-country', label: 'Billing Country', path: 'billing.address.country', value: 'FR' },
+       { id: 'alma-city', label: 'Billing City', path: 'billing.address.city', value: 'Paris' },
+        { id: 'alma-zip', label: 'Billing Zip', path: 'billing.address.zip', value: 'W1T 4TP' },
+        { id: 'alma-addr', label: 'Address Line 1', path: 'billing.address.address_line1', value: '25 Berners St' },
+     ],
         p24: [
         { id: 'p24-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'p24-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
@@ -104,20 +112,35 @@ const METHOD_NOTES = {
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
 };
 
-// Brand colours, abbreviations and Simple Icons CDN logos for each payment method card.
+// Methods that require a specific currency — set automatically on toggle + patch.
+// Add new entries here; no changes needed in payment-setup.js.
+const FORCED_CURRENCY = {
+    kakaopay: 'KRW',
+    twint:    'CHF',
+};
+
+// Brand colours, abbreviations, Simple Icons CDN logos, and confirm flow for each payment method.
+// confirmFlow values:
+//   'redirect' — confirm → follow _links.redirect.href  (most APMs)
+//   'klarna'   — init Klarna Payments SDK then authorize
+//   'paypal'   — init PayPal SDK with orderId
+//   'card'     — Flow tokenization (handled in handleFinalState, never reaches renderConfirmButton)
 // logo: null → falls back to abbr text inside the coloured badge.
+// To add a new redirect APM: add entry here with confirmFlow:'redirect' + add to METHOD_REQUIREMENTS above. Done.
 const METHOD_DISPLAY = {
-    klarna:     { bg: '#FFB3C7', color: '#1a1a1a', abbr: 'K',    logo: 'https://cdn.simpleicons.org/klarna/000000'     },
-    bizum:      { bg: '#004EE4', color: '#fff',    abbr: 'BZ',   logo: 'https://cdn.simpleicons.org/bizum/ffffff'      },
-    eps:        { bg: '#CC0000', color: '#fff',    abbr: 'EPS',  logo: null                                            },
-    ideal:      { bg: '#CC0066', color: '#fff',    abbr: 'iD',   logo: 'https://cdn.simpleicons.org/ideal/ffffff'      },
-    bancontact: { bg: '#005498', color: '#fff',    abbr: 'BC',   logo: 'https://cdn.simpleicons.org/bancontact/ffffff' },
-    twint:      { bg: '#00A0E6', color: '#fff',    abbr: 'TW',   logo: 'https://cdn.simpleicons.org/twint/ffffff'      },
-    kakaopay:   { bg: '#FAE100', color: '#3C1E1E', abbr: 'KP',   logo: 'https://cdn.simpleicons.org/kakaotalk/3C1E1E' },
-    sepa:       { bg: '#003399', color: '#fff',    abbr: 'SEPA', logo: null                                            },
-    paypal:     { bg: '#009CDE', color: '#fff',    abbr: 'PP',   logo: 'https://cdn.simpleicons.org/paypal/ffffff'     },
-    googlepay:  { bg: '#4285F4', color: '#fff',    abbr: 'G',    logo: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg'  },
-    applepay:   { bg: '#1c1c1e', color: '#fff',    abbr: '🍎',   logo: 'https://cdn.simpleicons.org/applepay/ffffff'   },
-    card:       { bg: '#17a34a', color: '#fff',    abbr: 'CKO',  logo: 'https://cdn.simpleicons.org/checkout/ffffff'   },
-    instrument: { bg: '#64748b', color: '#fff',    abbr: '🔧',   logo: null                                            },
+    klarna:     { bg: '#FFB3C7', color: '#1a1a1a', abbr: 'K',    logo: 'https://cdn.simpleicons.org/klarna/000000',     confirmFlow: 'klarna'   },
+    bizum:      { bg: '#004EE4', color: '#fff',    abbr: 'BZ',   logo: 'https://cdn.simpleicons.org/bizum/ffffff',      confirmFlow: 'redirect' },
+    eps:        { bg: '#CC0000', color: '#fff',    abbr: 'EPS',  logo: null,                                            confirmFlow: 'redirect' },
+    ideal:      { bg: '#CC0066', color: '#fff',    abbr: 'iD',   logo: 'https://cdn.simpleicons.org/ideal/ffffff',      confirmFlow: 'redirect' },
+    bancontact: { bg: '#005498', color: '#fff',    abbr: 'BC',   logo: 'https://cdn.simpleicons.org/bancontact/ffffff', confirmFlow: 'redirect' },
+    twint:      { bg: '#00A0E6', color: '#fff',    abbr: 'TW',   logo: 'https://cdn.simpleicons.org/twint/ffffff',      confirmFlow: 'redirect' },
+    kakaopay:   { bg: '#FAE100', color: '#3C1E1E', abbr: 'KP',   logo: 'https://cdn.simpleicons.org/kakaotalk/3C1E1E', confirmFlow: 'redirect' },
+    sepa:       { bg: '#003399', color: '#fff',    abbr: 'SEPA', logo: null,                                            confirmFlow: 'redirect' },
+    paypal:     { bg: '#009CDE', color: '#fff',    abbr: 'PP',   logo: 'https://cdn.simpleicons.org/paypal/ffffff',     confirmFlow: 'paypal'   },
+    googlepay:  { bg: '#4285F4', color: '#fff',    abbr: 'G',    logo: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.svg', confirmFlow: 'redirect' },
+    applepay:   { bg: '#1c1c1e', color: '#fff',    abbr: '🍎',   logo: 'https://cdn.simpleicons.org/applepay/ffffff',   confirmFlow: 'redirect' },
+    card:       { bg: '#17a34a', color: '#fff',    abbr: 'CKO',  logo: 'https://cdn.simpleicons.org/checkout/ffffff',  confirmFlow: 'card'     },
+    instrument: { bg: '#64748b', color: '#fff',    abbr: '🔧',   logo: null,                                            confirmFlow: 'redirect' },
+    p24:        { bg: '#D40E2B', color: '#fff',    abbr: 'P24',  logo: null,                                            confirmFlow: 'redirect' },
+    alma:       { bg: '#FA5022', color: '#fff',    abbr: 'AL',   logo: null,                                            confirmFlow: 'redirect' },
 };
