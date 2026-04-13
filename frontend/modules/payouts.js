@@ -20,7 +20,8 @@
     // Payout queue — each entry: { id, type, scheme, amount, currency, status, response, webhookType, webhookData, startTime }
     // status: 'pending' | 'paid' | 'declined' | 'returned' | 'expired' | 'failed'
     const _payoutQueue = [];
-    let _pendingCount  = 0;
+    let _pendingCardCount = 0;
+    let _pendingBankCount = 0;
     let _queuePollInterval = null;
 
     // ─── DOM helpers ──────────────────────────────────────────────────
@@ -54,11 +55,11 @@
             _payoutCardComponent = null;
             _activeScheme = null;
             hide('payout-test-cards');
-            // Default country selects to GB (matches success test account)
+            // Default country selects to DE (matches success test account)
             const bankCountry   = el('payout-bank-country');
             const bankAhCountry = el('payout-bank-ah-country');
-            if (bankCountry   && !bankCountry.value)   bankCountry.value   = 'GB';
-            if (bankAhCountry && !bankAhCountry.value) bankAhCountry.value = 'GB';
+            if (bankCountry   && !bankCountry.value)   bankCountry.value   = 'DE';
+            if (bankAhCountry && !bankAhCountry.value) bankAhCountry.value = 'DE';
             renderBankTestAccounts();
         }
     }
@@ -620,8 +621,9 @@
         };
         _payoutQueue.unshift(entry);
         if (entry.status === 'pending') {
-            _pendingCount++;
-            lockPayoutForm();
+            if (entry.type === 'card') _pendingCardCount++;
+            else                       _pendingBankCount++;
+            updateLockState();
             startQueuePolling();
         }
         renderQueue();
@@ -634,11 +636,10 @@
         entry.status      = status;
         entry.webhookType = webhookType;
         entry.webhookData = webhookData;
-        _pendingCount = Math.max(0, _pendingCount - 1);
-        if (_pendingCount === 0) {
-            unlockPayoutForm();
-            stopQueuePolling();
-        }
+        if (entry.type === 'card') _pendingCardCount = Math.max(0, _pendingCardCount - 1);
+        else                       _pendingBankCount = Math.max(0, _pendingBankCount - 1);
+        updateLockState();
+        if (_pendingCardCount + _pendingBankCount === 0) stopQueuePolling();
         renderQueue();
     }
 
@@ -680,27 +681,29 @@
         if (_queuePollInterval) { clearInterval(_queuePollInterval); _queuePollInterval = null; }
     }
 
-    // ─── Queue: lock / unlock form ────────────────────────────────────
-    function lockPayoutForm() {
+    // ─── Queue: lock state ────────────────────────────────────────────
+    // Card form (scheme + submit) only locks when card payouts are pending.
+    // Bank payouts show a banner but never touch the card form controls.
+    function updateLockState() {
         const scheme = el('payout-card-scheme');
         const btn    = el('card-payout-submit-btn');
-        if (scheme) scheme.disabled = true;
-        if (btn)    btn.disabled = true;
         const banner = el('payout-lock-banner');
-        if (banner) {
-            banner.style.display = 'flex';
-            const lbl = el('payout-lock-label');
-            if (lbl) lbl.textContent = `${_pendingCount} payout${_pendingCount > 1 ? 's' : ''} pending webhook — scheme & submit locked until resolved`;
-        }
-    }
+        const lbl    = el('payout-lock-label');
+        const total  = _pendingCardCount + _pendingBankCount;
 
-    function unlockPayoutForm() {
-        const scheme = el('payout-card-scheme');
-        if (scheme) scheme.disabled = false;
-        const btn = el('card-payout-submit-btn');
-        if (btn) btn.disabled = !_payoutCardComponent; // only re-enable if card field is loaded
-        const banner = el('payout-lock-banner');
-        if (banner) banner.style.display = 'none';
+        if (scheme) scheme.disabled = _pendingCardCount > 0;
+        if (btn)    btn.disabled    = _pendingCardCount > 0 || !_payoutCardComponent;
+
+        if (banner) banner.style.display = total > 0 ? 'flex' : 'none';
+        if (lbl && total > 0) {
+            if (_pendingCardCount > 0 && _pendingBankCount > 0) {
+                lbl.textContent = `${_pendingCardCount} card + ${_pendingBankCount} bank payout${total > 1 ? 's' : ''} pending webhook`;
+            } else if (_pendingCardCount > 0) {
+                lbl.textContent = `${_pendingCardCount} card payout${_pendingCardCount > 1 ? 's' : ''} pending webhook — scheme & submit locked`;
+            } else {
+                lbl.textContent = `${_pendingBankCount} bank payout${_pendingBankCount > 1 ? 's' : ''} pending webhook`;
+            }
+        }
     }
 
     // ─── Queue: render ─────────────────────────────────────────────────
@@ -786,7 +789,7 @@
     // ─── Clear payout result area ─────────────────────────────────────
     function clearPayoutResult() {
         // Only wipe resolved entries; if pending entries exist keep them
-        if (_pendingCount > 0) return;
+        if (_pendingCardCount + _pendingBankCount > 0) return;
         _payoutQueue.length = 0;
         hide('payout-queue-panel');
         hide('payout-metadata-panel');
@@ -849,107 +852,174 @@
         show('payout-test-cards');
     }
 
+    // ─── Fill bank payout form from test account data ─────────────────
+    function fillBankForm(fields) {
+        const FIELD_ID_MAP = {
+            'destination.country':        'payout-bank-country',
+            'destination.account_number': 'payout-bank-iban',
+            'destination.swift_bic':      'payout-bank-swift-bic',
+            'account_holder.first_name':  'payout-bank-ah-first-name',
+            'account_holder.last_name':   'payout-bank-ah-last-name',
+            'billing_address.country':    'payout-bank-ah-country',
+        };
+        fields.forEach(({ label, value }) => {
+            const fieldId = FIELD_ID_MAP[label];
+            if (!fieldId) return;
+            const input = document.getElementById(fieldId);
+            if (input) input.value = value;
+        });
+    }
+
     // ─── Render bank test accounts panel ─────────────────────────────
     function renderBankTestAccounts() {
         const container = el('payout-bank-test-accounts');
         if (!container) return;
         if (typeof BANK_PAYOUT_TEST_ACCOUNTS === 'undefined') { hide('payout-bank-test-accounts'); return; }
 
-        const copyIcon = `<svg style="width:10px;height:10px;display:inline;vertical-align:middle;opacity:0.6;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
-
-        const success    = BANK_PAYOUT_TEST_ACCOUNTS.success;
-        const declined   = BANK_PAYOUT_TEST_ACCOUNTS.declined;
+        const success     = BANK_PAYOUT_TEST_ACCOUNTS.success;
+        const declined    = BANK_PAYOUT_TEST_ACCOUNTS.declined;
         const euCountries = BANK_PAYOUT_TEST_ACCOUNTS.euCountries || [];
 
-        const successChips = success.fields.map(f => `
-            <div style="display:inline-flex; align-items:center; gap:5px; padding:4px 10px;
-                border:1px solid var(--border); border-radius:8px; background:var(--bg-card);">
-                <span style="font-size:10px; color:var(--text-secondary); opacity:0.65;">${f.label.split('.').pop()}</span>
-                <span class="tc-chip" data-copy="${f.value}"
-                    style="font-size:11px; font-weight:600; cursor:pointer;">${f.value} ${copyIcon}</span>
-            </div>`).join('');
+        // Summary badges shown on the happy flow card
+        const successBadges = success.fields.map(f =>
+            `<span style="font-size:10px; padding:2px 7px; border-radius:4px;
+                background:var(--bg-subtle); border:1px solid var(--border);
+                color:var(--text-secondary); font-family:monospace; white-space:nowrap;">
+                <span style="opacity:0.6;">${f.label.split('.').pop()}:</span> <strong>${f.value}</strong></span>`
+        ).join('');
 
+        // Declined: each IBAN becomes a clickable row (country extracted from IBAN prefix)
         const declinedSections = declined.map((d, i) => {
-            const border = i > 0 ? 'border-top:1px solid var(--border);' : '';
-            const accountRows = d.ibans.map(acct => `
-                <div><span class="tc-chip" data-copy="${acct}"
-                    style="font-family:monospace; font-size:11px; padding:3px 10px;
-                    border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
-                    display:inline-flex; align-items:center; gap:6px; cursor:pointer;"
-                    >${acct} ${copyIcon}</span></div>`).join('');
+            const topBorder = i > 0 ? 'border-top:1px solid var(--border);' : '';
+            const ibanRows = d.ibans.map(iban => {
+                const country = iban.substring(0, 2);
+                return `
+                <div class="btr-row" data-fill-iban="${iban}" data-fill-country="${country}"
+                    style="padding:7px 16px 7px 36px; display:flex; align-items:center; gap:8px;
+                    cursor:pointer; border-top:1px solid var(--border);">
+                    <span style="font-size:10px; font-weight:700; padding:1px 6px; border-radius:3px;
+                        background:var(--bg-subtle); border:1px solid var(--border);
+                        color:var(--text-secondary); flex-shrink:0; font-family:monospace;">${country}</span>
+                    <span style="font-family:monospace; font-size:11px; color:var(--text-primary); flex:1;">${iban}</span>
+                    <span class="btr-hint" style="font-size:10px; font-weight:700; opacity:0;
+                        flex-shrink:0; letter-spacing:0.03em; transition:opacity 0.12s;">↗ load</span>
+                </div>`;
+            }).join('');
             return `
-                <div style="${border} padding:10px 16px;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                <div style="${topBorder}">
+                    <div style="padding:8px 16px 4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <span style="font-size:11px; font-weight:700; color:var(--error);
                             text-transform:uppercase; letter-spacing:0.04em;">${d.reason}</span>
-                        <span class="tc-chip" data-copy="${d.code}"
-                            style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px;
-                            border:1px solid var(--error); color:var(--error); cursor:pointer;"
-                            >${d.code} ${copyIcon}</span>
+                        <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px;
+                            border:1px solid var(--error); color:var(--error);">${d.code}</span>
                     </div>
-                    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
-                        color:var(--text-secondary); margin-bottom:6px;">Bank account numbers / IBANs</div>
-                    <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:8px;">
-                        ${accountRows}
-                    </div>
-                    <div style="font-size:11px; color:var(--text-secondary);">
-                        Account number: any ending in
-                        <span class="tc-chip" data-copy="${d.accountNumberSuffix}"
-                            style="margin-left:4px; font-size:11px; font-weight:700; padding:2px 9px;
-                            border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
-                            display:inline-flex; align-items:center; gap:5px; cursor:pointer;"
-                            >…${d.accountNumberSuffix} ${copyIcon}</span>
-                    </div>
+                    ${ibanRows}
                 </div>`;
         }).join('');
 
+        // EU country rows — each row fills IBAN + BIC + both country selects
         const euRows = euCountries.map((c, i) => {
-            const border = i > 0 ? 'border-top:1px solid var(--border);' : '';
+            const topBorder = i > 0 ? 'border-top:1px solid var(--border);' : '';
             return `
-                <div style="${border} padding:8px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div class="btr-row" data-fill-eu
+                    data-country="${c.code}" data-iban="${c.ibanExample}" data-bic="${c.bicExample}"
+                    style="${topBorder} padding:8px 16px; display:flex; align-items:center;
+                    gap:10px; flex-wrap:wrap; cursor:pointer;">
                     <span style="font-size:10px; font-weight:800; padding:2px 7px; border-radius:4px;
                         background:var(--bg-subtle); border:1px solid var(--border);
                         color:var(--text-secondary); flex-shrink:0;">${c.code}</span>
-                    <span style="font-size:12px; font-weight:600; color:var(--text-primary); min-width:70px;">${c.country}</span>
-                    <span style="font-size:10px; color:var(--text-secondary); opacity:0.6; flex-shrink:0;">IBAN (${c.ibanLength} chars)</span>
-                    <span class="tc-chip" data-copy="${c.ibanExample}"
-                        style="font-family:monospace; font-size:11px; padding:2px 9px;
-                        border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
-                        display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex:1; min-width:0;"
-                        >${c.ibanExample} ${copyIcon}</span>
-                    <span style="font-size:10px; color:var(--text-secondary); opacity:0.6; flex-shrink:0;">BIC</span>
-                    <span class="tc-chip" data-copy="${c.bicExample}"
-                        style="font-family:monospace; font-size:11px; padding:2px 9px;
-                        border:1px solid var(--border); border-radius:6px; background:var(--bg-card);
-                        display:inline-flex; align-items:center; gap:6px; cursor:pointer; flex-shrink:0;"
-                        >${c.bicExample} ${copyIcon}</span>
+                    <span style="font-size:12px; font-weight:600; color:var(--text-primary); min-width:64px;">${c.country}</span>
+                    <span style="font-size:10px; color:var(--text-secondary); opacity:0.55; flex-shrink:0;">IBAN</span>
+                    <span style="font-family:monospace; font-size:11px; color:var(--text-primary);
+                        flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.ibanExample}</span>
+                    <span style="font-size:10px; color:var(--text-secondary); opacity:0.55; flex-shrink:0;">BIC</span>
+                    <span style="font-family:monospace; font-size:11px; color:var(--text-primary); flex-shrink:0;">${c.bicExample}</span>
+                    <span class="btr-hint" style="font-size:10px; font-weight:700; opacity:0;
+                        flex-shrink:0; letter-spacing:0.03em; transition:opacity 0.12s;">↗ load</span>
                 </div>`;
         }).join('');
 
         container.innerHTML = `
+            <style>
+                .btr-row:hover { background: var(--bg-subtle) !important; }
+                .btr-row:hover .btr-hint { opacity: 1 !important; color: var(--primary); }
+            </style>
             <div style="border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:20px;">
                 <div style="padding:10px 16px; background:var(--bg-subtle); border-bottom:1px solid var(--border);
-                    font-size:12px; font-weight:700; color:var(--text-primary);">Bank Payout Test Accounts</div>
-                <div style="padding:10px 16px; border-bottom:1px solid var(--border);">
-                    <div style="font-size:11px; font-weight:700; color:var(--success);
-                        text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">
-                        ${success.responseCode} — ${success.label}
-                    </div>
-                    <div style="display:flex; flex-wrap:wrap; gap:6px;">${successChips}</div>
+                    display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <span style="font-size:12px; font-weight:700; color:var(--text-primary);">Bank Payout Test Accounts</span>
+                    <span style="font-size:11px; color:var(--text-secondary); opacity:0.65;">
+                        Click any scenario to auto-fill the form
+                    </span>
                 </div>
-                <div style="padding:8px 16px; background:var(--bg-subtle); border-bottom:1px solid var(--border);
+                <div class="btr-row" data-fill-success style="padding:12px 16px;
+                    border-bottom:1px solid var(--border); cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+                        <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px;
+                            border:1px solid var(--success); color:var(--success);">${success.responseCode}</span>
+                        <span style="font-size:12px; font-weight:700; color:var(--success);">${success.label}</span>
+                        <span class="btr-hint" style="font-size:10px; font-weight:700; opacity:0; margin-left:auto;
+                            flex-shrink:0; letter-spacing:0.03em; transition:opacity 0.12s;">↗ load all fields</span>
+                    </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:5px;">${successBadges}</div>
+                </div>
+                <div style="padding:7px 16px; background:var(--bg-subtle); border-bottom:1px solid var(--border);
                     font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
-                    color:var(--text-secondary);">Declined Scenarios</div>
+                    color:var(--text-secondary);">Declined Scenarios — click row to load</div>
                 ${declinedSections}
-                <div style="padding:8px 16px; background:var(--bg-subtle); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+                <div style="padding:7px 16px; background:var(--bg-subtle);
+                    border-top:1px solid var(--border); border-bottom:1px solid var(--border);
                     font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
-                    color:var(--text-secondary);">EU Country — Example IBAN &amp; SWIFT BIC</div>
+                    color:var(--text-secondary);">EU Country Examples — click row to load</div>
                 ${euRows}
             </div>`;
 
-        container.querySelectorAll('.tc-chip').forEach(chip => {
-            chip.addEventListener('click', () => copyChip(chip.dataset.copy, chip));
+        // Happy flow card — loads all fields
+        container.querySelector('[data-fill-success]').addEventListener('click', () => {
+            fillBankForm(BANK_PAYOUT_TEST_ACCOUNTS.success.fields);
+            const hint = container.querySelector('[data-fill-success] .btr-hint');
+            if (hint) {
+                hint.textContent = '✓ Loaded';
+                hint.style.opacity = '1';
+                setTimeout(() => { hint.textContent = '↗ load all fields'; hint.style.opacity = ''; }, 1500);
+            }
         });
+
+        // Declined IBAN rows — fills IBAN + destination/billing country
+        container.querySelectorAll('[data-fill-iban]').forEach(row => {
+            row.addEventListener('click', () => {
+                fillBankForm([
+                    { label: 'destination.account_number', value: row.dataset.fillIban    },
+                    { label: 'destination.country',        value: row.dataset.fillCountry },
+                    { label: 'billing_address.country',    value: row.dataset.fillCountry },
+                ]);
+                const hint = row.querySelector('.btr-hint');
+                if (hint) {
+                    hint.textContent = '✓ Loaded';
+                    hint.style.opacity = '1';
+                    setTimeout(() => { hint.textContent = '↗ load'; hint.style.opacity = ''; }, 1500);
+                }
+            });
+        });
+
+        // EU rows — fills IBAN + BIC + both country selects
+        container.querySelectorAll('[data-fill-eu]').forEach(row => {
+            row.addEventListener('click', () => {
+                fillBankForm([
+                    { label: 'destination.country',        value: row.dataset.country },
+                    { label: 'destination.account_number', value: row.dataset.iban    },
+                    { label: 'destination.swift_bic',      value: row.dataset.bic     },
+                    { label: 'billing_address.country',    value: row.dataset.country },
+                ]);
+                const hint = row.querySelector('.btr-hint');
+                if (hint) {
+                    hint.textContent = '✓ Loaded';
+                    hint.style.opacity = '1';
+                    setTimeout(() => { hint.textContent = '↗ load'; hint.style.opacity = ''; }, 1500);
+                }
+            });
+        });
+
         show('payout-bank-test-accounts');
     }
 
@@ -1037,8 +1107,9 @@
         const clearBtn = el('payout-queue-clear');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
-                if (_pendingCount > 0) {
-                    showToast(`${_pendingCount} payout${_pendingCount > 1 ? 's' : ''} still pending — cannot clear`, 'error');
+                const _pendingTotal = _pendingCardCount + _pendingBankCount;
+                if (_pendingTotal > 0) {
+                    showToast(`${_pendingTotal} payout${_pendingTotal > 1 ? 's' : ''} still pending — cannot clear`, 'error');
                     return;
                 }
                 _payoutQueue.length = 0;
