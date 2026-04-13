@@ -78,6 +78,7 @@ const COUNTRIES = [
   { name: 'Hong Kong', alpha2Code: 'HK' },
   { name: 'Australia', alpha2Code: 'AU' },
   { name: 'United Arab Emirates', alpha2Code: 'AE' },
+  { name: 'Greece', alpha2Code: 'GR' },
 ];
 
 // Payout test cards — grouped by response code, per scheme.
@@ -131,13 +132,12 @@ const BANK_PAYOUT_TEST_ACCOUNTS = {
         responseCode: '10000',
         label: 'Approved — Happy Flow',
         fields: [
-            { label: 'destination.country',       value: 'GB'       },
-            { label: 'destination.account_type',  value: 'current'  },
-            { label: 'destination.account_number',value: '55555555' },
-            { label: 'destination.bank_code',     value: '202015'   },
-            { label: 'account_holder.first_name', value: 'John'     },
-            { label: 'account_holder.last_name',  value: 'Smith'    },
-            { label: 'billing_address.country',   value: 'GB'       },
+            { label: 'destination.country',       value: 'DE'                    },
+            { label: 'destination.account_number',value: 'DE89370400440532013000' },
+            { label: 'destination.swift_bic',     value: 'COBADEFFXXX'           },
+            { label: 'account_holder.first_name', value: 'John'                  },
+            { label: 'account_holder.last_name',  value: 'Smith'                 },
+            { label: 'billing_address.country',   value: 'DE'                    },
         ],
     },
     declined: [
