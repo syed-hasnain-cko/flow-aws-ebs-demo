@@ -268,7 +268,7 @@ Full **Payouts** tab added to the app — supports both Card Payouts and Bank Pa
 - **502 from API Gateway = Lambda returned no response** — caused by `unhandledRejection` swallowing errors before Express sends. Fix: wrap entire route in a single outer `try/catch` that guarantees `res.json()` is always called.
 - **API Gateway 502 vs 500**: 502 = Lambda timed out or returned malformed response. 500 = Lambda ran but CKO rejected. Add `console.log('[route] config state:', ...)` at route entry to surface missing env vars without CloudWatch.
 - **`currencyAccountId` is now exposed via `GET /config`** — `window.APP_CONFIG.currencyAccountId` is available on frontend. Use it for API log enrichment.
-- **Payout queue pattern**: `_payoutQueue[]` array + `_pendingCount` int + single `setInterval` polling all pending entries. `queuePayout()` adds, `resolveQueueEntry()` updates. Lock/unlock via `disabled` on scheme `<select>` and submit `<button>`.
+- **Payout queue pattern**: `_payoutQueue[]` array + `_pendingCardCount`/`_pendingBankCount` ints + single `setInterval` polling all pending entries. `queuePayout()` adds, `resolveQueueEntry()` updates. `updateLockState()` manages lock UI (card controls lock only for card payouts).
 - **Test card chips**: store card data in `data.js` as `PAYOUT_TEST_CARDS`, render with `renderTestCards(scheme)` using `.tc-chip` CSS class + event delegation on container for copy-to-clipboard.
 
 ### Bugs Fixed
@@ -387,3 +387,62 @@ Backend is fully deployed and up to date as of 2026-04-10. Frontend pushed to ma
 ### Resume Here Next Session
 
 Frontend pushed to main (`ea62977`) — Amplify build should be live. End-to-end test: run an iDEAL payment via Payment Setup tab and verify (1) confirm step logs green in API sidebar, (2) after redirect back to success page the full log (create/patch/confirm) is visible, (3) switching from Twint to any other method resets currency to EUR immediately.
+
+---
+
+## Session Summary (2026-04-13) — Payment Setup Confirm Flow Config-Driven
+
+### What Was Built / Changed
+
+- Replaced all hardcoded method-name checks in `payment-setup.js` with a `confirmFlow` config property lookup — adding a new redirect APM now requires zero changes to the logic file.
+- Added `confirmFlow` to every `METHOD_DISPLAY` entry in `payment-setup-config.js`; added missing `p24` and `alma` entries to `METHOD_DISPLAY`.
+- Moved `FORCED_CURRENCY` constant to top-level in `payment-setup-config.js` (was duplicated inline twice in `payment-setup.js`).
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `frontend/modules/payment-setup-config.js` | Added `confirmFlow` to all `METHOD_DISPLAY` entries; added `p24` + `alma` entries; moved `FORCED_CURRENCY` to module top-level |
+| `frontend/modules/payment-setup.js` | Replaced 4 hardcoded method-name checks with `METHOD_DISPLAY[methodName]?.confirmFlow` lookups; removed 2 inline `FORCED_CURRENCY` definitions |
+
+### Key Patterns Established
+
+- **`confirmFlow` property** in `METHOD_DISPLAY`: `'redirect'` | `'klarna'` | `'paypal'` | `'card'`. All dispatch logic reads this. To add any new redirect APM: add entry to `METHOD_REQUIREMENTS` + `METHOD_DISPLAY` with `confirmFlow: 'redirect'`. Zero changes to `payment-setup.js`.
+- **`p24` and `alma` were missing from `METHOD_DISPLAY`** — any new method in `METHOD_REQUIREMENTS` must also have a `METHOD_DISPLAY` entry or `confirmFlow` lookup returns `undefined` (falls back to `'redirect'` via `?? 'redirect'`).
+
+### Resume Here Next Session
+
+Changes pushed to main — Amplify build live. No pending manual steps.
+
+---
+
+## Session Summary (2026-04-13) — Bank Payout Test UX + Payout Lock Separation
+
+### What Was Built / Changed
+
+- **Bank test accounts panel fully redesigned** — hover-highlighted clickable rows replace static copy chips. Click any scenario to auto-fill the destination form fields instantly.
+- **Declined IBAN rows now fill destination fields** — clicking a declined IBAN fills `destination.iban`, `destination.country`, and `billing_address.country` (country extracted from IBAN prefix).
+- **Card/bank payout lock state separated** — card form (scheme dropdown + submit) only locks when a card payout is pending webhook; bank payouts show an informational banner only.
+- Replaced GB happy flow test account with DE (IBAN-based); default country selects changed to DE.
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `frontend/modules/data.js` | `BANK_PAYOUT_TEST_ACCOUNTS.success` replaced: GB domestic fields → DE IBAN (`DE89370400440532013000`) + BIC (`COBADEFFXXX`) |
+| `frontend/modules/payouts.js` | Added `fillBankForm()` helper; full rewrite of `renderBankTestAccounts()` (hover CSS, click-to-fill for all 3 sections); country defaults changed GB → DE; `_pendingCount` split into `_pendingCardCount` + `_pendingBankCount`; `lockPayoutForm`/`unlockPayoutForm` replaced with `updateLockState()` |
+
+### Key Patterns Established
+
+- **`fillBankForm(fields)`** maps `{ label, value }` pairs to form input IDs via `FIELD_ID_MAP`. Labels follow the `destination.*` / `account_holder.*` / `billing_address.*` path convention already used in `BANK_PAYOUT_TEST_ACCOUNTS`.
+- **Bank test panel interaction**: happy flow = `.btr-row[data-fill-success]` fills all 6 fields; declined rows = `.btr-row[data-fill-iban][data-fill-country]` fills IBAN + both country selects; EU rows = `.btr-row[data-fill-eu]` fills IBAN + BIC + both country selects. Hover state + `↗ load` hint injected via `<style>.btr-row:hover .btr-hint { opacity:1 }`.
+- **Separate payout lock counters**: `_pendingCardCount` / `_pendingBankCount` — `updateLockState()` reads both; only locks card controls when `_pendingCardCount > 0`. Banner message reflects which type(s) are pending.
+- **IBAN country extraction**: `iban.substring(0, 2)` gives the ISO country code from any standard IBAN. Used in declined row rendering to set `data-fill-country`.
+
+### Known Issue — Not Fixed
+
+- **Webhook `pid` param not read on success/failure pages**: `success.html:152` and `failure.html:128` fall back to `cko-session-id` instead of reading `pid` first. The redirect URL appends `?pid=payment_xxx&cko-session-id=sid_xxx` — the actual payment ID is in `pid`. Fix: add `urlParams.get('pid') ||` as the first check in both files. Webhook polling currently polls with the wrong ID for any payment method that uses the `pid` param.
+
+### Resume Here Next Session
+
+No pending manual steps — all frontend changes are uncommitted. Push to main to trigger Amplify deploy. Then fix the webhook `pid` bug: in `frontend/success.html` line 152 and `frontend/failure.html` line 128, add `urlParams.get('pid') ||` as the first item in the payment ID param lookup chain.
