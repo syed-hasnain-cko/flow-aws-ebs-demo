@@ -114,6 +114,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             }
             return true;
         };
+        
 
         const checkout = await CheckoutWebComponents({
             publicKey: window.APP_CONFIG.publicKey,
@@ -122,6 +123,12 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             paymentSession,
             appearance: appearance,
             showPayButton: showPayButtonLogic,
+            translations: {  // Injects your custom text overrides
+    "pl-PL": {
+      "blikCode.label": "Kod BLIK",
+      "blikCode.placeholder": "6-cyfrowy kod"
+    }
+  },
             componentOptions: {
                 flow: {
                     handlePaymentAdditionalContentMount,
@@ -133,11 +140,19 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                     data: {
                         cardholderName: 'Syed Hasnain'
                     },
-                    displayCardholderName: "bottom"
+                    displayCardholderName: "bottom",
+                    captureBillingAddress:true
                 },
                 stored_card: {
                     displayMode: "all"
-                }
+                },
+                googlepay: {
+              captureBillingAddress: true,
+            },
+            applepay: {
+              captureBillingAddress: true,
+            }
+          
             },
             handleClick: (_self) => {
                 console.log("handleClick is clicked")

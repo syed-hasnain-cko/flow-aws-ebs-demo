@@ -24,6 +24,10 @@ const METHOD_REQUIREMENTS = {
         { id: 'eps-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'eps-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
     ],
+        blik: [
+        { id: 'blik-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'blik-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
     ideal: [
         { id: 'ideal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'ideal-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
@@ -143,4 +147,5 @@ const METHOD_DISPLAY = {
     instrument: { bg: '#64748b', color: '#fff',    abbr: '🔧',   logo: null,                                            confirmFlow: 'redirect' },
     p24:        { bg: '#D40E2B', color: '#fff',    abbr: 'P24',  logo: null,                                            confirmFlow: 'redirect' },
     alma:       { bg: '#FA5022', color: '#fff',    abbr: 'AL',   logo: null,                                            confirmFlow: 'redirect' },
+    blik:       { bg: '#FA5022', color: '#fff',    abbr: 'BL',   logo: null,                                           confirmFlow: 'redirect' },
 };
