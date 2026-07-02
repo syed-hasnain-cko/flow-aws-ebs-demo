@@ -164,6 +164,13 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             },
             onSubmit: (_self) => {
             },
+            // Fires after the customer approves an Apple Pay / Google Pay payment
+            // (i.e. after biometrics). Inspect the wallet-provided details here and
+            // return { continue: true } to proceed with the payment.
+            onAuthorized: (_self, authorizeResult) => {
+                console.log("onAuthorized() Result: ", authorizeResult);
+                return { continue: true };
+            },
             onCardBinChanged: (_self, cardMetadata) => {
                 //console.log("OnCardBinChanged() Result: ", cardMetadata)
             },
