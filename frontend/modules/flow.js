@@ -169,6 +169,13 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             // return { continue: true } to proceed with the payment.
             onAuthorized: (_self, authorizeResult) => {
                 console.log("onAuthorized() Result: ", authorizeResult);
+                // Persist so it can also be logged on the success page after the
+                // wallet approval redirects away from this page.
+                try {
+                    sessionStorage.setItem('onAuthorized_result', JSON.stringify(authorizeResult));
+                } catch (e) {
+                    console.warn("Could not persist onAuthorized result:", e);
+                }
                 return { continue: true };
             },
             onCardBinChanged: (_self, cardMetadata) => {

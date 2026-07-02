@@ -123,6 +123,18 @@
     <script src="modules/payment-actions.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
+            // Log the onAuthorized result captured on the payment page before the
+            // wallet approval redirected here (Apple Pay / Google Pay via Flow).
+            const onAuthorizedResult = sessionStorage.getItem('onAuthorized_result');
+            if (onAuthorizedResult) {
+                try {
+                    console.log("onAuthorized() Result: ", JSON.parse(onAuthorizedResult));
+                } catch (e) {
+                    console.log("onAuthorized() Result (raw): ", onAuthorizedResult);
+                }
+                sessionStorage.removeItem('onAuthorized_result');
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             // Support multiple possible ID params
             let paymentId = urlParams.get('cko-payment-id') || urlParams.get('paymentId') || urlParams.get('cko-session-id');

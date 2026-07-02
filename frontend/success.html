@@ -125,6 +125,18 @@
     <script src="modules/payment-actions.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
+            // Log the onAuthorized result captured on the payment page before the
+            // wallet approval redirected here (Apple Pay / Google Pay via Flow).
+            const onAuthorizedResult = sessionStorage.getItem('onAuthorized_result');
+            if (onAuthorizedResult) {
+                try {
+                    console.log("onAuthorized() Result: ", JSON.parse(onAuthorizedResult));
+                } catch (e) {
+                    console.log("onAuthorized() Result (raw): ", onAuthorizedResult);
+                }
+                sessionStorage.removeItem('onAuthorized_result');
+            }
+
             // Handle Wallet Logs
             const storedLog = sessionStorage.getItem('wallet_debug_log');
             if (storedLog) {
