@@ -19,7 +19,7 @@ const performPaymentSubmission = async (submitData) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(submitData),
         });
-        const jsonResponse = response.json();
+        const jsonResponse = await response.json();
         await addToApiLog(
             'POST',
             `submit flow session: ${jsonResponse.id} - /payment-sessions/${jsonResponse.id}/submit`,
@@ -88,18 +88,24 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             element.appendChild(label);
         };
 
-        const handleSubmit = async (self, sessionData) => {
-            if (self.type == "card" || self.type == "stored_card") {
+        const handleSubmit = async (self, submitData) => {
+            // Alma (BNPL) does not support the manual-capture (capture:false) flow.
+            // Intercept only Alma and submit with capture:true so the payment is accepted.
+            // All other methods return undefined to let Flow perform its default submission.
+            if (self.type === "alma") {
                 const submitResponse = await performPaymentSubmission({
-                    amount: 2500,
-                    sessionData,
                     paymentSessionId: paymentSession.id,
-                    items: [{ name: "Order Total", unit_price: 2500, quantity: 1, total_amount: 2500 }],
-                    "3ds": { enabled: true },
-                    payment_type: "Unscheduled"
+                    sessionData: submitData,
+                    amount: paymentSessionBody.amount,
+                    items: paymentSessionBody.items,
+                    "3ds": paymentSessionBody['3ds'],
+                    payment_type: paymentSessionBody.payment_type,
+                    capture: true
                 });
+                // Must return the unmodified submit response body to Flow.
                 return submitResponse;
             }
+            return undefined;
         };
 
         const handleTnCValidation = (checkboxId) => {
@@ -219,7 +225,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
 
         const flowComponent = checkout.create("flow",
             {
-                //handleSubmit
+                handleSubmit
             }
         );
 
