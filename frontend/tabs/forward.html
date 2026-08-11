@@ -27,6 +27,16 @@
                 <input type="text" id="fwd-cfg-channel-id" class="text-input" placeholder="pc_...">
             </div>
         </div>
+        <div class="inline-form" style="grid-template-columns: repeat(2, 1fr); margin-top:10px;">
+            <div class="form-group">
+                <label for="fwd-cfg-stripe-key" class="text-label" style="color:var(--text-secondary)">Stripe API Key <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(destination auth for the Stripe preset)</em></label>
+                <input type="text" id="fwd-cfg-stripe-key" class="text-input" placeholder="sk_test_...">
+            </div>
+            <div class="form-group">
+                <label for="fwd-cfg-adyen-key" class="text-label" style="color:var(--text-secondary)">Adyen API Key <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(destination auth for the Adyen preset)</em></label>
+                <input type="text" id="fwd-cfg-adyen-key" class="text-input" placeholder="AQE...">
+            </div>
+        </div>
         <div class="button-group" style="margin-top:4px;">
             <button id="fwd-cfg-save-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Save Config</button>
             <button id="fwd-cfg-reset-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Reset to .env defaults</button>

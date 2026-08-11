@@ -58,35 +58,33 @@
             showToast('Could not load Forward API defaults from backend — enter credentials manually', 'error');
         }
 
-        // secretKey/publicKey/processingChannelId are editable in the Forward API Config
-        // panel and persisted in `stored` when saved. stripeKey/adyenKey have no panel field —
-        // they always come from .env, overridable only per-destination via the 🔑 editor.
+        // All five fields are editable in the Forward API Config panel and persisted
+        // together in `stored` when saved — env values are just the starting default.
         _config = {
             secretKey: stored?.secretKey ?? envDefaults.secretKey ?? '',
             publicKey: stored?.publicKey ?? envDefaults.publicKey ?? '',
             processingChannelId: stored?.processingChannelId ?? envDefaults.processingChannelId ?? '',
-            stripeKey: envDefaults.stripeApiKey || '',
-            adyenKey: envDefaults.adyenApiKey || '',
+            stripeKey: stored?.stripeKey ?? envDefaults.stripeApiKey ?? '',
+            adyenKey: stored?.adyenKey ?? envDefaults.adyenApiKey ?? '',
         };
 
         setVal('fwd-cfg-secret-key', _config.secretKey);
         setVal('fwd-cfg-public-key', _config.publicKey);
         setVal('fwd-cfg-channel-id', _config.processingChannelId);
+        setVal('fwd-cfg-stripe-key', _config.stripeKey);
+        setVal('fwd-cfg-adyen-key', _config.adyenKey);
         setVal('fwd-processing-channel-display', _config.processingChannelId);
     }
 
     function saveForwardConfig() {
         _config = {
-            ..._config,
             secretKey: val('fwd-cfg-secret-key'),
             publicKey: val('fwd-cfg-public-key'),
             processingChannelId: val('fwd-cfg-channel-id'),
+            stripeKey: val('fwd-cfg-stripe-key'),
+            adyenKey: val('fwd-cfg-adyen-key'),
         };
-        localStorage.setItem(CFG_STORAGE_KEY, JSON.stringify({
-            secretKey: _config.secretKey,
-            publicKey: _config.publicKey,
-            processingChannelId: _config.processingChannelId,
-        }));
+        localStorage.setItem(CFG_STORAGE_KEY, JSON.stringify(_config));
         setVal('fwd-processing-channel-display', _config.processingChannelId);
         const statusEl = el('fwd-cfg-status');
         statusEl.style.display = '';
@@ -322,10 +320,10 @@
             return `Bearer ${_config.secretKey || '<set a secret key in Forward API Config>'}`;
         }
         if (dest.autoAuth === 'forwardConfigStripeKey') {
-            return `Bearer ${_config.stripeKey || '<set FORWARD_STRIPE_API_KEY in .env>'}`;
+            return `Bearer ${_config.stripeKey || '<set Stripe API Key in Forward API Config>'}`;
         }
         if (dest.autoAuth === 'forwardConfigAdyenKey') {
-            return _config.adyenKey || '<set FORWARD_ADYEN_API_KEY in .env>';
+            return _config.adyenKey || '<set Adyen API Key in Forward API Config>';
         }
         const headerName = authHeaderName(dest).toLowerCase();
         const authHeader = (dest.headers || []).find(h => h.key.toLowerCase() === headerName);
@@ -369,11 +367,9 @@
 
         const current = resolveAuthValue(dest);
         const isAuto = !!dest.autoAuth && !getAuthOverrides()[dest.key];
-        const autoSourceLabel = {
-            forwardConfigSecretKey: 'Forward API Config',
-            forwardConfigStripeKey: '.env (FORWARD_STRIPE_API_KEY)',
-            forwardConfigAdyenKey: '.env (FORWARD_ADYEN_API_KEY)',
-        }[dest.autoAuth] || '';
+        // All three keys now live in the Forward API Config panel — that panel itself
+        // defaults from .env until edited, so "auto" always just means "from that panel".
+        const autoSourceLabel = dest.autoAuth ? 'Forward API Config' : '';
         box.style.display = 'flex';
         box.innerHTML = `
             <div style="flex:1; min-width:220px;">
