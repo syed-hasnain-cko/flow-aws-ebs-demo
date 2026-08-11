@@ -59,6 +59,33 @@
     <script src="modules/payment-setup-config.js"></script>
     <script src="modules/payment-setup.js"></script>
     <script src="modules/payouts.js"></script>
+    <script src="modules/forward-config.js"></script>
+
+    <!-- JWE encryption bridge for the Forward API tab. The app otherwise uses
+         plain scripts, but 'jose' ships as an ES module — this small module
+         script imports it from a CDN and exposes a plain function on window
+         so forward.js (a regular script) can call it like any other helper. -->
+    <script type="module">
+        import * as jose from 'https://cdn.jsdelivr.net/npm/jose@5/+esm';
+
+        let _jwksCache = null;
+        async function getJwk() {
+            if (_jwksCache) return _jwksCache;
+            const res = await fetch(`${window.APP_CONFIG?.apiBaseUrl || ''}/forward-jwks`);
+            const jwks = await res.json();
+            const keyProps = jwks.keys[0];
+            _jwksCache = { kid: keyProps.kid, jwk: await jose.importJWK(keyProps) };
+            return _jwksCache;
+        }
+
+        window.joseEncryptHeaders = async function (rawHeadersObj) {
+            const { kid, jwk } = await getJwk();
+            return await new jose.CompactEncrypt(new TextEncoder().encode(JSON.stringify(rawHeadersObj)))
+                .setProtectedHeader({ alg: 'RSA-OAEP-256', enc: 'A256GCM', kid })
+                .encrypt(jwk);
+        };
+    </script>
+    <script src="modules/forward.js"></script>
 
     <!-- 7. Main entry: dropdown population + tab switching -->
     <script src="script.js"></script>

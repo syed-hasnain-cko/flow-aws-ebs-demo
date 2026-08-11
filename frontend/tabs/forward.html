@@ -1,0 +1,434 @@
+<div class="context-area">
+
+    <!-- ─── Forward API Config ──────────────────────────────────────── -->
+    <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" id="fwd-config-toggle">
+        <h2 class="section-header" style="margin:0">Forward API Config</h2>
+        <span id="fwd-config-chevron" style="font-size:12px; color:var(--text-secondary); transition:transform 0.15s;">▸ expand</span>
+    </div>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin:4px 0 0;">
+        Separate credentials for Forward API testing only — switching these never affects any other tab. Pre-filled from your <code>.env</code>, editable and saved to this browser only.
+    </p>
+
+    <div id="fwd-config-panel" style="display:none; margin-top:16px;">
+        <div class="inline-form" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="form-group">
+                <label for="fwd-cfg-secret-key" class="text-label" style="color:var(--text-secondary)">Secret Key</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="password" id="fwd-cfg-secret-key" class="text-input" placeholder="sk_sbox_...">
+                    <button type="button" id="fwd-cfg-secret-toggle" class="copy-btn" title="Show/Hide" style="flex-shrink:0;">👁</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="fwd-cfg-public-key" class="text-label" style="color:var(--text-secondary)">Public Key</label>
+                <input type="text" id="fwd-cfg-public-key" class="text-input" placeholder="pk_sbox_...">
+            </div>
+            <div class="form-group">
+                <label for="fwd-cfg-channel-id" class="text-label" style="color:var(--text-secondary)">Processing Channel ID</label>
+                <input type="text" id="fwd-cfg-channel-id" class="text-input" placeholder="pc_...">
+            </div>
+        </div>
+        <div class="button-group" style="margin-top:4px;">
+            <button id="fwd-cfg-save-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Save Config</button>
+            <button id="fwd-cfg-reset-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Reset to .env defaults</button>
+        </div>
+        <div id="fwd-cfg-status" style="display:none; margin-top:8px; font-size:12px;"></div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 1. Use case ──────────────────────────────────────────────── -->
+    <h2 class="section-header">1. Use Case</h2>
+    <div class="wallet-selector-section">
+        <p class="wallet-selector-label">Is this a customer-initiated (CIT) or merchant-initiated (MIT) forward?</p>
+        <div class="wallet-selector">
+            <div class="wallet-option active" id="fwd-usecase-cit" data-usecase="cit">
+                <span>Customer-Initiated (CIT)</span>
+            </div>
+            <div class="wallet-option" id="fwd-usecase-mit" data-usecase="mit">
+                <span>Merchant-Initiated (MIT)</span>
+            </div>
+        </div>
+        <p id="fwd-usecase-hint" style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:8px;">
+            CIT: the cardholder is present — tokenizing a card via Flow is available. MIT: no cardholder present — you must forward a previously stored instrument (<code>src_id</code>).
+        </p>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 2. Source ────────────────────────────────────────────────── -->
+    <h2 class="section-header">2. Source</h2>
+    <div class="wallet-selector-section">
+        <p class="wallet-selector-label">What payment credential should be forwarded?</p>
+        <div class="wallet-selector">
+            <div class="wallet-option" id="fwd-source-token" data-source="token">
+                <span>Token (tok_...)</span>
+            </div>
+            <div class="wallet-option active" id="fwd-source-instrument" data-source="instrument">
+                <span>Instrument (src_...)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token source: Flow tokenization-only card form -->
+    <div id="fwd-token-fields" style="display:none; margin-top:18px;">
+        <div style="border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 14px;">
+            <div style="background: var(--bg-card); padding: 20px 20px 16px;">
+                <div id="fwd-token-card-host" style="min-height: 140px;"></div>
+            </div>
+        </div>
+        <div class="button-group" style="margin-top:0;">
+            <button id="fwd-tokenize-btn" class="main-button">Tokenize Card</button>
+        </div>
+        <div id="fwd-token-badge" style="display:none; font-size:12px; padding:8px 14px; margin-top:10px;
+            background: var(--bg-subtle); border: 1px solid var(--border); border-radius:8px; word-break:break-all; color:var(--text-secondary);">
+            <strong style="color:var(--success);">✓ Latest token:</strong>
+            <span id="fwd-token-value" style="font-family:monospace;"></span>
+        </div>
+    </div>
+
+    <!-- Instrument source: customer src_id picker -->
+    <div id="fwd-instrument-fields" style="margin-top:18px;">
+        <div class="inline-form">
+            <div class="form-group" style="grid-column: span 2;">
+                <label for="fwd-customer-id" class="text-label" style="color:var(--text-secondary)">Customer ID</label>
+                <input type="text" id="fwd-customer-id" class="text-input" value="cus_korriakiszvubcuzaqpv5ujusm">
+            </div>
+            <div class="form-group" style="align-self:end;">
+                <button id="fwd-customer-load-btn" class="main-button" type="button">Load Instruments</button>
+            </div>
+        </div>
+        <div class="form-group" style="margin-top:10px;">
+            <label for="fwd-instrument-select" class="select-label" style="color:var(--text-secondary)">Payment Instrument</label>
+            <select id="fwd-instrument-select" class="select-input">
+                <option value="">-- Load instruments first --</option>
+            </select>
+        </div>
+        <p id="fwd-instrument-hint" style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:6px;"></p>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 3. Destination ───────────────────────────────────────────── -->
+    <h2 class="section-header">3. Destination</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin:0 0 12px;">
+        Pick a saved destination or type any custom URL below — whichever you touch last is what's used.
+    </p>
+    <div id="fwd-dest-saved-list" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;"></div>
+    <div id="fwd-dest-auth-editor" style="display:none; align-items:flex-end; gap:12px; flex-wrap:wrap;
+        padding:12px 14px; border-radius:10px; background:var(--bg-subtle); border:1px solid var(--border); margin-bottom:14px;"></div>
+
+    <div class="inline-form" style="grid-template-columns: 100px 1fr;">
+        <div class="form-group">
+            <label for="fwd-dest-method" class="select-label" style="color:var(--text-secondary)">Method</label>
+            <select id="fwd-dest-method" class="select-input">
+                <option>GET</option><option>HEAD</option><option selected>POST</option><option>PUT</option>
+                <option>DELETE</option><option>OPTIONS</option><option>TRACE</option><option>PATCH</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="fwd-dest-url" class="text-label" style="color:var(--text-secondary)">destination_request.url</label>
+            <input type="text" id="fwd-dest-url" class="text-input" placeholder="https://example.com/payments">
+        </div>
+    </div>
+    <div id="fwd-dest-save-banner" style="display:none; margin-top:8px; padding:10px 14px; border-radius:8px;
+        background:var(--bg-subtle); border:1px solid var(--primary); font-size:12px; color:var(--text-secondary);
+        display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span>This looks like a new custom destination.</span>
+        <input type="text" id="fwd-dest-save-name" class="text-input" placeholder="Name it (e.g. My Processor)" style="max-width:220px; padding:4px 8px; font-size:12px;">
+        <button id="fwd-dest-save-btn" class="main-button" style="padding:5px 12px; font-size:12px;">Save for later</button>
+        <button id="fwd-dest-save-dismiss" class="copy-btn" style="font-size:12px;">Dismiss</button>
+    </div>
+    <div id="fwd-dest-manage-row" style="display:none; margin-top:10px; gap:8px;">
+        <button id="fwd-dest-update-btn" class="copy-btn" style="font-size:12px;">💾 Update saved destination with current fields</button>
+        <button id="fwd-dest-delete-btn" class="copy-btn" style="font-size:12px; color:var(--error);">🗑 Delete this saved destination</button>
+    </div>
+
+    <!-- MIT + Checkout.com only: payment_type / previous_payment_id / merchant_initiated
+         auto-wired into the Checkout.com destination body. Other destinations are untouched. -->
+    <div id="fwd-mit-checkout-panel" style="display:none; margin-top:16px; padding:14px 16px; border-radius:10px;
+        background:var(--bg-subtle); border:1px solid var(--primary);">
+        <div style="font-size:12px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">
+            MIT → Checkout.com payment details
+        </div>
+        <p style="font-size:12px; color:var(--text-secondary); opacity:0.8; margin:0 0 12px;">
+            These fields are wired automatically into the Checkout.com destination body: <code>merchant_initiated: true</code>, <code>payment_type</code>, and <code>previous_payment_id</code>. Other destinations are unaffected.
+        </p>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="fwd-mit-payment-type" class="select-label" style="color:var(--text-secondary)">payment_type</label>
+                <select id="fwd-mit-payment-type" class="select-input">
+                    <option value="Recurring" selected>Recurring</option>
+                    <option value="Installment">Installment</option>
+                    <option value="Unscheduled">Unscheduled</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="fwd-mit-previous-payment-id" class="text-label" style="color:var(--text-secondary)">previous_payment_id</label>
+                <input type="text" id="fwd-mit-previous-payment-id" class="text-input" placeholder="pay_... (or scheme transaction ID) from the initial CIT">
+            </div>
+        </div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 4. Query Parameters ─────────────────────────────────────────── -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+        <h2 class="section-header" style="margin:0">4. Query Parameters <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(destination_request.query, appended to the URL)</em></h2>
+        <label class="switch">
+            <input type="checkbox" id="fwd-query-enable">
+            <span class="slider round"></span>
+        </label>
+    </div>
+    <div id="fwd-query-fields" style="display:none">
+        <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 40px; background:var(--bg-subtle); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-secondary);">
+                <div style="padding:8px 12px;">Name</div>
+                <div style="padding:8px 12px;">Value</div>
+                <div></div>
+            </div>
+            <div id="fwd-query-rows"></div>
+        </div>
+        <div class="button-group" style="margin-top:10px;">
+            <button id="fwd-query-add-btn" type="button" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border); padding:6px 14px; font-size:13px;">+ Add Query Param</button>
+        </div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 5. Variables ─────────────────────────────────────────────────── -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+        <h2 class="section-header" style="margin:0">5. Variables <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(destination_request.variables — reference with {{variable_name}} in the body)</em></h2>
+        <label class="switch">
+            <input type="checkbox" id="fwd-variable-enable">
+            <span class="slider round"></span>
+        </label>
+    </div>
+    <div id="fwd-variable-fields" style="display:none">
+        <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 40px; background:var(--bg-subtle); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-secondary);">
+                <div style="padding:8px 12px;">Name</div>
+                <div style="padding:8px 12px;">Value</div>
+                <div></div>
+            </div>
+            <div id="fwd-variable-rows"></div>
+        </div>
+        <div class="button-group" style="margin-top:10px;">
+            <button id="fwd-variable-add-btn" type="button" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border); padding:6px 14px; font-size:13px;">+ Add Variable</button>
+        </div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 6. Headers ───────────────────────────────────────────────── -->
+    <h2 class="section-header">6. Headers</h2>
+    <div class="form-group" style="max-width:240px; margin-bottom:14px;">
+        <label for="fwd-headers-type" class="select-label" style="color:var(--text-secondary)">destination_request.headers type</label>
+        <select id="fwd-headers-type" class="select-input">
+            <option value="raw" selected>Raw</option>
+            <option value="encrypted">Encrypted (JWE)</option>
+        </select>
+    </div>
+
+    <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 40px; background:var(--bg-subtle); border-bottom:1px solid var(--border); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-secondary);">
+            <div style="padding:8px 12px;">Key</div>
+            <div style="padding:8px 12px;">Value</div>
+            <div></div>
+        </div>
+        <div id="fwd-headers-rows"></div>
+    </div>
+    <div class="button-group" style="margin-top:10px;">
+        <button id="fwd-headers-add-btn" type="button" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border); padding:6px 14px; font-size:13px;">+ Add Header</button>
+    </div>
+
+    <div id="fwd-headers-encrypted-wrap" style="display:none; margin-top:14px;">
+        <label class="text-label" style="color:var(--text-secondary); display:block; margin-bottom:6px;">
+            Live JWE preview (encrypted with Checkout.com's JWKS — re-computed on every raw header change)
+        </label>
+        <pre id="fwd-headers-encrypted-preview" class="json-code-block" style="white-space:pre-wrap; word-break:break-all; font-size:11px; max-height:140px; overflow-y:auto;">Add a raw header above to see the encrypted preview…</pre>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 7. Body & placeholders ───────────────────────────────────── -->
+    <h2 class="section-header">7. Body</h2>
+    <textarea id="fwd-body-textarea" class="text-input" style="width:100%; min-height:160px; font-family:monospace; font-size:12.5px; resize:vertical;" placeholder='{"source": {"type": "card", "number": "{{card_number}}"}, ...}'></textarea>
+
+    <div style="margin-top:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" id="fwd-ph-toggle">
+            <span style="font-size:13px; font-weight:600; color:var(--text-secondary);">Placeholder reference — click any chip to insert into the body</span>
+            <span id="fwd-ph-chevron" style="font-size:12px; color:var(--text-secondary);">▸ expand</span>
+        </div>
+        <div id="fwd-ph-panel" style="display:none; margin-top:10px; border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+            <div id="fwd-ph-tabs" style="display:flex; border-bottom:1px solid var(--border); background:var(--bg-subtle);"></div>
+            <div id="fwd-ph-body" style="padding:12px 14px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 8. Network Token & Signature ────────────────────────────────── -->
+    <h2 class="section-header">8. Network Token &amp; Signature <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(optional, advanced)</em></h2>
+
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <label class="switch">
+            <input type="checkbox" id="fwd-nt-enable">
+            <span class="slider round"></span>
+        </label>
+        <span class="text-label" style="color:var(--text-secondary); margin:0;">Enable <code>network_token</code></span>
+    </div>
+    <div id="fwd-nt-fields" style="display:none; margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <label class="switch">
+                <input type="checkbox" id="fwd-nt-cryptogram" checked>
+                <span class="slider round"></span>
+            </label>
+            <span class="text-label" style="color:var(--text-secondary); margin:0;">network_token.request_cryptogram</span>
+        </div>
+        <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin:6px 0 0;">
+            On for CIT (cardholder present, needs a cryptogram). Off for MIT (no cardholder, cryptogram not requested).
+        </p>
+    </div>
+
+    <div class="form-group" style="max-width:260px; margin-bottom:14px;">
+        <label for="fwd-signature-type" class="select-label" style="color:var(--text-secondary)">destination_request.signature</label>
+        <select id="fwd-signature-type" class="select-input">
+            <option value="">None</option>
+            <option value="dlocal">dLocal</option>
+            <option value="mastercard">Mastercard</option>
+            <option value="visa">Visa</option>
+        </select>
+    </div>
+
+    <div id="fwd-sig-dlocal" style="display:none; margin-bottom:10px;">
+        <div class="form-group">
+            <label for="fwd-sig-dlocal-secret" class="text-label" style="color:var(--text-secondary)">dlocal_parameters.secret_key</label>
+            <input type="text" id="fwd-sig-dlocal-secret" class="text-input" placeholder="dLocal secret key">
+        </div>
+        <p style="font-size:11px; color:var(--text-secondary); opacity:0.7; margin:6px 0 0;">Requires an <code>X-Login</code> header in section 6 — Forward API appends <code>X-Date</code> and <code>Authorization</code> automatically.</p>
+    </div>
+    <div id="fwd-sig-mastercard" style="display:none; margin-bottom:10px;">
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="fwd-sig-mc-consumer" class="text-label" style="color:var(--text-secondary)">mastercard_parameters.consumer_key</label>
+                <input type="text" id="fwd-sig-mc-consumer" class="text-input">
+            </div>
+            <div class="form-group">
+                <label for="fwd-sig-mc-signing" class="text-label" style="color:var(--text-secondary)">mastercard_parameters.signing_key</label>
+                <textarea id="fwd-sig-mc-signing" class="text-input" style="min-height:70px; font-family:monospace; font-size:11.5px;" placeholder="-----BEGIN RSA PRIVATE KEY-----"></textarea>
+            </div>
+        </div>
+        <p style="font-size:11px; color:var(--text-secondary); opacity:0.7; margin:6px 0 0;">Forward API appends the OAuth 1.0a <code>Authorization</code> header automatically.</p>
+    </div>
+    <div id="fwd-sig-visa" style="display:none; margin-bottom:10px;">
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="fwd-sig-visa-secret" class="text-label" style="color:var(--text-secondary)">visa_parameters.shared_secret</label>
+                <input type="text" id="fwd-sig-visa-secret" class="text-input">
+            </div>
+            <div class="form-group">
+                <label for="fwd-sig-visa-prefix" class="text-label" style="color:var(--text-secondary)">visa_parameters.remove_resource_path_prefix <em style="font-style:normal; font-size:11px; opacity:0.55;">(optional, default "/")</em></label>
+                <input type="text" id="fwd-sig-visa-prefix" class="text-input" placeholder="/">
+            </div>
+        </div>
+        <p style="font-size:11px; color:var(--text-secondary); opacity:0.7; margin:6px 0 0;">Requires an <code>apikey</code> query parameter in section 4 — Forward API appends the <code>X-PAY-TOKEN</code> header automatically.</p>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── 9. Meta ───────────────────────────────────────────────────── -->
+    <h2 class="section-header">9. Request Meta</h2>
+    <div class="inline-form">
+        <div class="form-group">
+            <label for="fwd-reference" class="text-label" style="color:var(--text-secondary)">reference</label>
+            <div style="display:flex; gap:6px;">
+                <input type="text" id="fwd-reference" class="text-input">
+                <button id="fwd-reference-regen" type="button" class="copy-btn" title="Regenerate">⟳</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="text-label" style="color:var(--text-secondary)">processing_channel_id</label>
+            <input type="text" id="fwd-processing-channel-display" class="text-input" disabled style="opacity:0.6;">
+        </div>
+    </div>
+
+    <div class="button-group" style="margin-top:20px;">
+        <button id="fwd-submit-btn" class="main-button">Forward Request</button>
+    </div>
+</div>
+
+<!-- ─── Request / Response viewer ────────────────────────────────────── -->
+<div class="context-area" style="margin-top:20px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <h2 class="section-header" style="margin:0">Request &amp; Response</h2>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary); cursor:pointer;">
+            <input type="checkbox" id="fwd-editor-unlock">
+            Unlock editor to edit before sending
+        </label>
+    </div>
+
+    <div id="fwd-editor-tabs" style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+        <button class="fwd-tab-btn fwd-tab-active" data-tab="request">Forward Request</button>
+        <button class="fwd-tab-btn" data-tab="response">Forward Response</button>
+        <button class="fwd-tab-btn" data-tab="dest-request">Destination Request</button>
+        <button class="fwd-tab-btn" data-tab="dest-response">Destination Response</button>
+    </div>
+
+    <div style="position:relative;">
+        <pre id="fwd-editor-pane" class="json-code-block" style="min-height:220px; max-height:420px; overflow:auto; font-size:12px;"></pre>
+        <textarea id="fwd-editor-textarea" class="text-input" style="display:none; width:100%; min-height:220px; max-height:420px; font-family:monospace; font-size:12px; resize:vertical;"></textarea>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+            <button id="fwd-editor-apply-btn" class="main-button" style="display:none; padding:6px 14px; font-size:12px;">Apply Edits to Form</button>
+            <button id="fwd-editor-copy-btn" class="copy-btn" type="button">Copy JSON</button>
+            <button id="fwd-editor-copy-curl-btn" class="copy-btn" type="button">Copy as cURL</button>
+            <button id="fwd-editor-export-postman-btn" class="copy-btn" type="button">Export Postman Collection</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .fwd-tab-btn {
+        padding: 7px 14px; font-size: 12px; font-weight: 600; border-radius: 20px;
+        border: 1px solid var(--border); background: var(--bg-subtle); color: var(--text-secondary);
+        cursor: pointer; transition: all 0.12s;
+    }
+    .fwd-tab-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .fwd-tab-btn.fwd-tab-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .fwd-dest-card {
+        border: 1px solid var(--border); border-radius: 10px; padding: 8px 8px 8px 16px;
+        font-size: 13px; font-weight: 600; color: var(--text-primary);
+        display: flex; align-items: center; gap: 8px; transition: all 0.12s; background: var(--bg-card);
+    }
+    .fwd-dest-card:hover { border-color: var(--primary); }
+    .fwd-dest-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow, rgba(0,0,0,0.08)); }
+    .fwd-dest-card span[data-dest-select] { cursor: pointer; padding: 2px 0; }
+    .fwd-dest-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .fwd-dest-auth-btn {
+        border: none; background: transparent; cursor: pointer; font-size: 13px; opacity: 0.55;
+        padding: 3px 5px; border-radius: 6px; line-height: 1;
+    }
+    .fwd-dest-auth-btn:hover { opacity: 1; background: var(--bg-subtle); }
+
+    .fwd-header-row input {
+        width: 100%; border: none; background: transparent; padding: 8px 12px;
+        font-size: 12.5px; font-family: monospace; color: var(--text-primary); outline: none;
+    }
+    .fwd-header-row { display: grid; grid-template-columns: 1fr 1fr 40px; border-bottom: 1px solid var(--border); align-items: center; }
+    .fwd-header-row:last-child { border-bottom: none; }
+    .fwd-header-del { background: none; border: none; cursor: pointer; color: var(--error); font-size: 15px; opacity: 0.6; }
+    .fwd-header-del:hover { opacity: 1; }
+
+    .fwd-ph-tab {
+        padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-secondary);
+        border-bottom: 2px solid transparent; white-space: nowrap;
+    }
+    .fwd-ph-tab.fwd-ph-tab-active { color: var(--primary); border-bottom-color: var(--primary); }
+    .fwd-ph-chip {
+        display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px;
+        font-size: 11.5px; font-family: monospace; cursor: pointer; user-select: none;
+        background: var(--bg-subtle); border: 1px solid var(--border); color: var(--text-primary);
+        transition: background 0.12s, color 0.12s;
+    }
+    .fwd-ph-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+</style>
