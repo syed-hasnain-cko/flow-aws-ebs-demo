@@ -148,6 +148,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                     },
                     displayCardholderName: "bottom",
                     captureBillingAddress:true
+                    
                 },
                 stored_card: {
                     displayMode: "all"
