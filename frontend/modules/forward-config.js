@@ -95,7 +95,7 @@ const FORWARD_BUILTIN_DESTINATIONS = [
         autoAuth: 'forwardConfigAdyenKey',
         headers: [
             { key: 'Content-Type', value: 'application/json' },
-            { key: 'X-API-KEY', value: '<set FORWARD_ADYEN_API_KEY in .env>' },
+            { key: 'X-API-KEY', value: '<set Adyen API Key in Forward API Config>' },
         ],
         query: [{ name: 'source', value: 'forward-api-demo' }],
         // Plain string value (not a JSON object) — Forward API does a literal text
