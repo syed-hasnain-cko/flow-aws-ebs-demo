@@ -100,8 +100,8 @@ window.activeWallet = null;
         });
     }
 
-    // --- Competitor Testing → Stripe Tab: Currency (Direct API + Checkout) ---
-    ['stripe-currency', 'stripe-checkout-currency'].forEach(selectId => {
+    // --- Competitor Testing → Stripe Tab: Currency (Direct API + Checkout + Payment Element + Payment Links) ---
+    ['stripe-currency', 'stripe-checkout-currency', 'stripe-pe-currency', 'stripe-link-currency'].forEach(selectId => {
         const sel = document.getElementById(selectId);
         if (!sel) return;
         _currencies.forEach(code => {

@@ -67,6 +67,9 @@ API_BASE_URL                # AWS API Gateway URL (for Lambda deployment)
 WEBHOOK_SECRET              # Webhook signature validation
 AWS_URL_WEBHOOK_SECRET      # Webhook secret for the Lambda endpoint
 ENV                         # DEV or PROD
+STRIPE_SECRET_KEY           # Competitor Testing → Stripe tab (rk_/sk_ sandbox key)
+STRIPE_PUBLISHABLE_KEY      # Competitor Testing → Stripe tab (pk_ sandbox key)
+STRIPE_WEBHOOK_SECRET       # Signing secret from the Stripe Dashboard webhook endpoint (whsec_...)
 ```
 
 ### API Endpoints
@@ -92,6 +95,19 @@ All routes defined in `amplify/backend/function/src/flowDemoSyedLambda/api-route
 - `POST /payouts` — Create payout (proxies to CKO `/payments`, injects `source.type: currency_account`)
 - `POST /card-metadata` — Proxy to CKO `POST /metadata/card`; used for payout eligibility pre-check (Beta API)
 
+### Competitor Testing — Stripe Endpoints
+
+Defined in `amplify/backend/function/flowDemoLambdaSyed/src/competitors/stripe-routes.js`, mounted at `/competitors/stripe/*` via `router.use()` in `api-route-controller.js`. Each future partner gets its own sibling route file under `competitors/`, mounted the same way — never inline.
+
+- `GET /competitors/stripe/config` — Returns Stripe publishable key to frontend
+- `POST /competitors/stripe/direct/payment-intent` — Direct API: create+confirm PaymentIntent with an attached PaymentMethod
+- `GET /competitors/stripe/payment-intent/:id` — Fetch PaymentIntent status
+- `POST /competitors/stripe/capture-payment-intent`, `POST /competitors/stripe/cancel-payment-intent`, `POST /competitors/stripe/refund` — Payment management (shared by every Stripe acceptance mode)
+- `POST /competitors/stripe/checkout/session` — Create Checkout Session (hosted redirect or `ui_mode: 'embedded_page'`)
+- `GET /competitors/stripe/checkout/session/:id` — Fetch Checkout Session (expands `payment_intent`)
+- `POST /competitors/stripe/webhook` — Stripe webhook receiver (signature-verified via `req.rawBody`)
+- `GET /competitors/stripe/webhook-event` — Poll for webhook event by PaymentIntent/object id (2-minute window, same pattern as CKO's `/webhook-event`)
+
 ---
 
 ## Session Summary (2026-04-01)
@@ -106,6 +122,7 @@ Four project-specific skill files were created in this session. Invoke them with
 | `add-payment-method.md` | `/add-payment-method` | Guided intake + code generation for adding a new APM to the Payment Setup tab (METHOD_REQUIREMENTS, METHOD_DISPLAY, METHOD_NOTES, SDK branches) |
 | `add-backend-route.md` | `/add-backend-route` | Guided intake + code generation for a new Express route in `api-route-controller.js` with 7 boilerplate patterns |
 | `add-new-feature.md` | `/add-new-feature` | Full end-to-end feature scaffold: MCP API research → tab HTML + JS module + backend route(s). Usage: `/add-new-feature "FeatureName - <UI/UX instructions>"` |
+| `add-partner.md` | `/add-partner` | Scaffolds a new Competitor Testing partner (Adyen, Payrails, Primer, ...) end-to-end — MCP/docs research per mode, credential intake, backend routes + Lambda Layer guidance, frontend panels, shared success/failure page routing. Mirrors the Stripe integration's exact patterns (lazy SDK client, webhook poll-then-delete, `addToApiLog` everywhere). Strict about re-verifying current API method names before writing code — Stripe's build hit 5 breaking renames from stale cached knowledge. |
 
 ### Key Patterns to Know
 
@@ -446,3 +463,69 @@ Changes pushed to main — Amplify build live. No pending manual steps.
 ### Resume Here Next Session
 
 No pending manual steps — all frontend changes are uncommitted. Push to main to trigger Amplify deploy. Then fix the webhook `pid` bug: in `frontend/success.html` line 152 and `frontend/failure.html` line 128, add `urlParams.get('pid') ||` as the first item in the payment ID param lookup chain.
+
+---
+
+## Session Summary (2026-08-21) — Competitor Testing Section + Stripe (Direct API + Checkout)
+
+### What Was Built / Changed
+
+- New **Competitor Testing** top-level tab for testing non-CKO PSPs — partner selector (Stripe active; Adyen disabled placeholder; Payrails/Primer intentionally not shown per request) → per-partner "Payment Acceptance" mode selector.
+- **Stripe Direct API** mode: PaymentMethod (Stripe.js multi-line split card fields: separate number/expiry/cvc) + PaymentIntent, schema-driven form (billing, shipping, capture mode, save-card, "Force 3DS" toggle).
+- **Stripe Checkout** mode: hosted redirect + embedded (`ui_mode: 'embedded_page'`), same "Force 3DS" toggle.
+- Both modes route through the app's **existing** `success.html`/`failure.html` pages (not back into the SPA) — same `#payment-details-response`/`#action-buttons`/`#webhook-status` elements every CKO payment method already uses.
+- `amplify/` backend folder is now tracked in git (previously fully gitignored) — deliberate decision; secrets found inside were excluded (see Bugs/Security below).
+
+### New Files Created
+
+| File | Purpose |
+|---|---|
+| `amplify/backend/function/flowDemoLambdaSyed/src/competitors/stripe-routes.js` | All Stripe backend routes: Direct API, Checkout Sessions, capture/cancel/refund, webhook + webhook-event, config |
+| `frontend/tabs/competitors/index.html` | Competitor Testing partner-selector shell |
+| `frontend/tabs/competitors/stripe.html` | Stripe tab UI: mode selector, Direct API form, Checkout form, Refund/Actions panel, webhook log |
+| `frontend/modules/competitors/stripe.js` | Stripe tab logic (card mount, PaymentIntent flow, Checkout session flow, refund/actions) |
+| `frontend/modules/competitors/stripe-shared.js` | Shared helpers `success.html`/`failure.html` use to render Stripe PaymentIntent/session status, next-action buttons, webhook polling |
+
+### Files Modified
+
+| File | Change |
+|---|---|
+| `config.js` (root) + `amplify/.../src/config.js` | Added `stripeSecretKey`/`stripePublishableKey`/`stripeWebhookSecret` |
+| `amplify/.../src/api-route-controller.js` | Mounted `router.use('/competitors/stripe', require('./competitors/stripe-routes'))` |
+| `amplify/.../src/app.js` | `bodyParser.json({ verify })` added to capture `req.rawBody` for Stripe webhook signature verification |
+| `amplify/.../src/package.json` | Added `stripe` npm dependency (delivered to Lambda via a Layer, not the zip — see pattern below) |
+| `frontend/index.html` | Added Stripe.js SDK `<script>`, `modules/competitors/stripe.js`/`stripe-shared.js` |
+| `frontend/tabs/main.html`, `frontend/tabs/loader.js` | Added Competitor Testing tab button/div + partner panel injection |
+| `frontend/script.js` | Currency/country dropdown population for Stripe forms; stop Stripe webhook polling on tab switch |
+| `frontend/style.css` | `.wallet-option.disabled`, `.stripe-split-field` |
+| `frontend/success.html`, `frontend/failure.html` | Branch to `stripe-shared.js` rendering when Stripe return params are detected; added `#action-buttons` to `failure.html` (didn't exist before) |
+| `.gitignore` | Removed `/amplify` exclusion (deliberate); added explicit excludes for `certificates/` and `team-provider-info.json` and `.DS_Store` |
+| `.env` | Added `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` |
+
+### Key Patterns Established
+
+- **Competitor Testing shape**: tab → `#competitor-partner-selector` → `#partner-panel-<name>` → per-partner `#<partner>-mode-selector` → `#<partner>-mode-panel-<mode>`. New partners/modes follow this exact structure. An `/add-partner` scaffold command was discussed but not yet built — build it once this Stripe pattern is fully proven out.
+- **Backend**: each partner gets its own file under `.../src/competitors/<partner>-routes.js`, mounted via `router.use('/competitors/<partner>', require(...))` — never inline in `api-route-controller.js`.
+- **Lazy SDK client construction is mandatory**: `function stripe() {...}` with a cached singleton, never a top-level `new Stripe(...)`. A bad/missing `STRIPE_SECRET_KEY` throws synchronously at `require()` time otherwise, which crashes the ENTIRE Lambda (every route, not just Stripe's) since `api-route-controller.js` requires this file unconditionally at cold start.
+- **Never pass `payment_method_types`** (per Stripe best practice) — for card-only own-UI flows use `automatic_payment_methods: { enabled: true, allow_redirects: 'never' }` instead, or Stripe demands a `return_url`.
+- **`ui_mode: 'embedded'` was renamed to `'embedded_page'`** on recent Stripe API versions.
+- Embedded Checkout doesn't auto-navigate on completion — wire `onComplete` to manually redirect to `success.html`.
+- **Lambda npm dependencies must be delivered via a Lambda Layer** (console can't run `npm install`) — build the layer zip via a clean `npm install <pkg>` in an empty temp dir (`nodejs/node_modules/...` structure), never by copying just the package folder out of an existing project's `node_modules` (misses transitive dependencies).
+- This project uses **explicit per-route API Gateway resources**, not a `{proxy+}` catch-all (proposed, declined) — every new backend route needs its own manually-created nested resource + method + Lambda proxy integration + redeploy.
+
+### Bugs Fixed
+
+- 502 on **every** route (even unrelated `/forward-config`) after first Stripe deploy → whole Lambda crashed at cold start on `require('qs')` → Layer zip only contained the bare `stripe` folder, missing its transitive dep `qs` → fixed by rebuilding the layer via clean `npm install stripe` in an empty dir (also fixed by moving Stripe client construction to be lazy, so a bad key alone can never repeat this failure mode).
+- Stripe error *"must provide a return_url"* on Direct API → fixed by adding `automatic_payment_methods: { enabled: true, allow_redirects: 'never' }`.
+- Stripe error *"ui_mode value `embedded` is no longer supported"* → fixed by using `'embedded_page'`.
+- **Security**: found `amplify/team-provider-info.json` contained the live CKO sandbox secret key in plaintext, and `amplify/.../src/certificates/certificate_sandbox-syed.key` was a real Apple Pay private key — both excluded from git going forward (were never previously committed since `/amplify` was gitignored until this session).
+
+### Pending Manual Steps
+
+- [ ] Paste latest `stripe-routes.js` (force_3ds handling on both `/direct/payment-intent` and `/checkout/session`, new success/failure URLs) into the Lambda console and redeploy
+- [ ] Add 2 new API Gateway routes: `POST /competitors/stripe/checkout/session`, `GET /competitors/stripe/checkout/session/{id}` — deploy to `staging`
+- [ ] Full end-to-end test: Direct API with "Force 3DS" checked, Checkout hosted mode, Checkout embedded mode — confirm all three land correctly on `success.html`/`failure.html` with details/actions/webhook status
+
+### Resume Here Next Session
+
+Open `amplify/backend/function/flowDemoLambdaSyed/src/competitors/stripe-routes.js` (now tracked in git — diff it against what's actually live on Lambda before assuming they match) and finish the pending manual steps above. Next planned features per the original scope: **Payment Element (Custom UI)** and **Payment Links** modes — both currently disabled placeholders in `#stripe-mode-selector` in `frontend/tabs/competitors/stripe.html`. Remember: `amplify/` is now git-tracked, so every future backend edit needs both a commit AND a manual Lambda console paste — they do not sync automatically.
