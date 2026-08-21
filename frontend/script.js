@@ -100,17 +100,18 @@ window.activeWallet = null;
         });
     }
 
-    // --- Competitor Testing → Stripe Tab: Currency ---
-    const _stripeCurrency = document.getElementById('stripe-currency');
-    if (_stripeCurrency) {
+    // --- Competitor Testing → Stripe Tab: Currency (Direct API + Checkout) ---
+    ['stripe-currency', 'stripe-checkout-currency'].forEach(selectId => {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
         _currencies.forEach(code => {
             const option = document.createElement('option');
             if (code === 'USD') option.selected = true;
             option.value = code.toLowerCase();
             option.text = code;
-            _stripeCurrency.appendChild(option);
+            sel.appendChild(option);
         });
-    }
+    });
 
     // --- Competitor Testing → Stripe Tab: Countries (billing + shipping) ---
     ['stripe-billing-country', 'stripe-shipping-country'].forEach(selectId => {

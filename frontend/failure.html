@@ -61,6 +61,8 @@
                 <button id="fetch-details-button" class="main-button">Debug Payment Details</button>
             </div>
 
+            <div id="action-buttons" class="button-group" style="display: none; margin-top: 20px;"></div>
+
             <div id="details-container" class="details-container" style="display: none; margin-top: 30px;">
                 <div id="payment-details-container" class="detail-box full-width">
                     <div class="detail-header">
@@ -121,8 +123,9 @@
     <script src="utils.js"></script>
     <script src="modules/api-log.js"></script>
     <script src="modules/payment-actions.js"></script>
+    <script src="modules/competitors/stripe-shared.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", async () => {
             // Log the onAuthorized result captured on the payment page before the
             // wallet approval redirected here (Apple Pay / Google Pay via Flow).
             const onAuthorizedResult = sessionStorage.getItem('onAuthorized_result');
@@ -133,6 +136,22 @@
                     console.log("onAuthorized() Result (raw): ", onAuthorizedResult);
                 }
                 sessionStorage.removeItem('onAuthorized_result');
+            }
+
+            // ─── Stripe (Competitor Testing) return handling ──────────────
+            // Reached either directly (Checkout Sessions cancel_url) or via a
+            // handoff from success.html (redirect-based 3DS that came back
+            // as redirect_status=failed).
+            if (window.StripeShared && window.StripeShared.isStripeReturn()) {
+                document.getElementById('fetch-details-button').style.display = 'none';
+                await window.StripeShared.renderReturnPage({
+                    detailsEl: document.getElementById('payment-details-response'),
+                    detailsContainer: document.getElementById('details-container'),
+                    actionsEl: document.getElementById('action-buttons'),
+                    webhookStatusEl: document.getElementById('webhook-status'),
+                    paymentIdEl: document.getElementById('error-message'),
+                });
+                return;
             }
 
             const urlParams = new URLSearchParams(window.location.search);
