@@ -26,5 +26,15 @@ amplify-gradle-config.json
 amplifytools.xcconfig
 .secret-*
 **.sample
-/amplify
+
+# Apple Pay merchant private key/cert — never commit, sandbox or not.
+amplify/backend/function/flowDemoLambdaSyed/src/certificates/
+
+# Contains the CKO secret key in plaintext (categories.function.*.secretKey) —
+# unlike function-parameters.json (which only references the env var NAME),
+# this file holds the actual value. Never commit.
+amplify/team-provider-info.json
+
+.DS_Store
+
 #amplify-do-not-edit-end
