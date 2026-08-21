@@ -3,6 +3,22 @@
 version: 1
 applications:
   - appRoot: frontend
+    # This app has a backend environment associated in the Amplify Console
+    # (left over from earlier Amplify CLI backend usage), which normally
+    # makes Amplify Hosting run its own CLI-driven backend build phase before
+    # the frontend phases below — independent of anything in this file. That
+    # phase now fails with "Creating a nested amplify project is not
+    # supported" because amplify/ became git-tracked (previously it was
+    # gitignored, so the CLI always saw an empty folder on a fresh clone).
+    # This override replaces that phase with a no-op: Amplify is only used
+    # for frontend hosting here — the amplify/ backend folder is tracked in
+    # git purely for reference/version history, and is deployed manually via
+    # the Lambda console, never through Amplify's own backend build.
+    backend:
+      phases:
+        build:
+          commands:
+            - echo "Skipping Amplify backend build — backend is deployed manually via Lambda console."
     frontend:
       phases:
         preBuild:
