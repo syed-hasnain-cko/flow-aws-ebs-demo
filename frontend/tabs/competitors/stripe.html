@@ -6,7 +6,7 @@
         <div class="wallet-option active" id="stripe-mode-direct" data-mode="direct">
             <span>Direct API</span>
         </div>
-        <div class="wallet-option disabled" id="stripe-mode-checkout" data-mode="checkout" title="Coming soon">
+        <div class="wallet-option" id="stripe-mode-checkout" data-mode="checkout">
             <span>Checkout</span>
         </div>
         <div class="wallet-option disabled" id="stripe-mode-element" data-mode="element" title="Coming soon">
@@ -119,6 +119,14 @@
                 </label>
             </div>
         </div>
+        <div class="form-group">
+            <label class="text-label" style="color:var(--text-secondary)">3D Secure</label>
+            <div style="margin-top:4px;">
+                <label style="font-size:13px; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="stripe-force-3ds"> Force 3DS challenge
+                </label>
+            </div>
+        </div>
     </div>
 
     <h3 style="font-size:13px; color:var(--text-secondary); margin:16px 0 6px;">Card</h3>
@@ -152,6 +160,63 @@
             <h3>PaymentIntent</h3>
         </div>
         <pre id="stripe-direct-result" class="json-code-block"></pre>
+    </div>
+</div>
+
+<!-- ─── Checkout panel (hosted / embedded) ─────────────────────────────── -->
+<div id="stripe-mode-panel-checkout" style="display:none;">
+    <h2 class="section-header">Checkout — Hosted / Embedded</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        Stripe renders the entire payment UI via the Checkout Sessions API — hosted redirects to a Stripe-hosted page, embedded mounts in-page. Both omit <code>payment_method_types</code> so Stripe's dynamic method list applies.
+    </p>
+
+    <div class="wallet-selector-section" style="margin-top:12px;">
+        <div class="wallet-selector" id="stripe-checkout-ui-selector">
+            <div class="wallet-option active" id="stripe-checkout-ui-hosted" data-checkout-ui="hosted">
+                <span>Hosted (redirect)</span>
+            </div>
+            <div class="wallet-option" id="stripe-checkout-ui-embedded" data-checkout-ui="embedded">
+                <span>Embedded</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="stripe-checkout-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="stripe-checkout-amount" class="text-input" value="1000" placeholder="1000 = 10.00">
+        </div>
+        <div class="form-group">
+            <label for="stripe-checkout-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="stripe-checkout-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="stripe-checkout-product" class="text-label" style="color:var(--text-secondary)">Product Name</label>
+            <input type="text" id="stripe-checkout-product" class="text-input" placeholder="Test product" value="Competitor Testing Item">
+        </div>
+    </div>
+
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="stripe-checkout-force-3ds"> Force 3DS challenge
+        </label>
+    </div>
+
+    <div class="button-group" style="margin-top:16px;">
+        <button id="stripe-checkout-create-btn" class="main-button">Create Checkout Session</button>
+    </div>
+
+    <div id="stripe-checkout-status" style="display:none; margin-top:12px;"></div>
+    <div id="stripe-checkout-embedded-container" style="margin-top:16px;"></div>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:8px;">
+        Result, next actions, and webhook status for this payment appear on the <strong>success/failure page</strong> after checkout completes — the same pages every other payment method in this app uses.
+    </p>
+
+    <div id="stripe-checkout-result-container" style="display:none; margin-top:16px;">
+        <div class="detail-header">
+            <h3>Checkout Session</h3>
+        </div>
+        <pre id="stripe-checkout-result" class="json-code-block"></pre>
     </div>
 </div>
 

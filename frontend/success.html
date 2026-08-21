@@ -123,6 +123,7 @@
     <script src="utils.js"></script>
     <script src="modules/api-log.js"></script>
     <script src="modules/payment-actions.js"></script>
+    <script src="modules/competitors/stripe-shared.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
             // Log the onAuthorized result captured on the payment page before the
@@ -157,6 +158,30 @@
                     }
                     sessionStorage.removeItem('wallet_debug_log');
                 } catch (e) { console.error("Log error:", e); }
+            }
+
+            // ─── Stripe (Competitor Testing) return handling ──────────────
+            // A redirect-based 3DS challenge appends redirect_status=failed —
+            // hand off to failure.html (same query string) rather than showing
+            // a declined payment on the success page.
+            if (window.StripeShared && window.StripeShared.isStripeReturn()) {
+                const { redirectStatus } = window.StripeShared.detectReturnParams();
+                if (redirectStatus === 'failed') {
+                    window.location.replace('failure.html' + window.location.search);
+                    return;
+                }
+
+                document.getElementById('fetch-details-button').style.display = 'none';
+                document.getElementById('further-actions-button').style.display = 'none';
+
+                await window.StripeShared.renderReturnPage({
+                    detailsEl: document.getElementById('payment-details-response'),
+                    detailsContainer: document.getElementById('details-container'),
+                    actionsEl: document.getElementById('action-buttons'),
+                    webhookStatusEl: document.getElementById('webhook-status'),
+                    paymentIdEl: document.getElementById('payment-id'),
+                });
+                return;
             }
 
             // Handle API Data

@@ -113,6 +113,7 @@
             capture_method: captureMode,
             save_card: document.getElementById('stripe-save-card').checked,
             shipping: buildShipping(),
+            force_3ds: document.getElementById('stripe-force-3ds').checked,
         };
 
         const res = await fetch(`${STRIPE_BASE()}/direct/payment-intent`, {
@@ -137,7 +138,14 @@
 
         if (intent.status === 'requires_action' || intent.status === 'requires_source_action') {
             setStatus(statusEl, 'action', 'Additional authentication required (3DS)...');
-            const { paymentIntent, error } = await stripeClient.confirmCardPayment(intent.client_secret);
+            // return_url is a safety net for the rare card/issuer combination that
+            // forces a full-page redirect instead of an in-page iframe challenge —
+            // if that happens, the browser navigates to success.html with
+            // payment_intent/redirect_status query params, which stripe-shared.js
+            // picks up. Most test cards resolve the challenge in-page and never redirect.
+            const { paymentIntent, error } = await stripeClient.confirmCardPayment(intent.client_secret, {
+                return_url: `${window.location.origin}/success.html?partner=stripe`,
+            });
             await addToApiLog('POST', 'stripe.js confirmCardPayment (3DS, client-side)', error ? 402 : 200, {}, error || paymentIntent);
             if (error) {
                 setStatus(statusEl, 'error', error.message);
@@ -273,6 +281,66 @@
         }
     }
 
+    // ─── Checkout mode (hosted / embedded) ────────────────────────────────
+    let checkoutUiMode = 'hosted';
+    let embeddedCheckoutInstance = null;
+
+    async function onCreateCheckoutSession() {
+        const statusEl = document.getElementById('stripe-checkout-status');
+        const amount = parseInt(document.getElementById('stripe-checkout-amount').value, 10);
+        const currency = document.getElementById('stripe-checkout-currency').value;
+        const productName = document.getElementById('stripe-checkout-product').value;
+        if (!amount || !currency) {
+            setStatus(statusEl, 'error', 'Amount and currency are required.');
+            return;
+        }
+
+        setStatus(statusEl, 'action', 'Creating Checkout Session...');
+        const body = {
+            amount,
+            currency,
+            product_name: productName,
+            mode: checkoutUiMode,
+            // Just the origin — the backend appends /success.html or /failure.html
+            // itself, so every Stripe flow lands on the same result pages every
+            // other payment method in this app uses.
+            return_base: window.location.origin,
+            force_3ds: document.getElementById('stripe-checkout-force-3ds').checked,
+        };
+        const res = await fetch(`${STRIPE_BASE()}/checkout/session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const session = await res.json();
+        await addToApiLog('POST', 'create Checkout Session - /competitors/stripe/checkout/session', res.ok ? 200 : res.status, body, session);
+
+        if (!res.ok) {
+            setStatus(statusEl, 'error', session.error || 'Checkout Session creation failed.');
+            return;
+        }
+
+        renderResult('stripe-checkout-result-container', 'stripe-checkout-result', session);
+
+        if (checkoutUiMode === 'embedded') {
+            setStatus(statusEl, 'ready', 'Embedded Checkout mounted below.');
+            if (embeddedCheckoutInstance) embeddedCheckoutInstance.destroy();
+            embeddedCheckoutInstance = await stripeClient.initEmbeddedCheckout({
+                clientSecret: session.client_secret,
+                // Embedded Checkout doesn't navigate on its own when payment
+                // completes — it fires this callback instead. We navigate manually
+                // so the result lands on the same success.html every other flow uses.
+                onComplete: () => {
+                    window.location.href = `success.html?stripe_cos_id=${session.id}&partner=stripe`;
+                },
+            });
+            embeddedCheckoutInstance.mount('#stripe-checkout-embedded-container');
+        } else {
+            setStatus(statusEl, 'action', 'Redirecting to Stripe-hosted Checkout...');
+            window.location.href = session.url;
+        }
+    }
+
     // ─── Wiring ───────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         const payBtn = document.getElementById('stripe-pay-btn');
@@ -295,8 +363,21 @@
             opt.addEventListener('click', () => {
                 document.querySelectorAll('#stripe-mode-selector .wallet-option').forEach(o => o.classList.remove('active'));
                 opt.classList.add('active');
+                document.querySelectorAll('[id^="stripe-mode-panel-"]').forEach(p => p.style.display = 'none');
+                const panel = document.getElementById(`stripe-mode-panel-${opt.dataset.mode}`);
+                if (panel) panel.style.display = 'block';
             });
         });
+
+        document.querySelectorAll('#stripe-checkout-ui-selector .wallet-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('#stripe-checkout-ui-selector .wallet-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                checkoutUiMode = opt.dataset.checkoutUi;
+                document.getElementById('stripe-checkout-embedded-container').innerHTML = '';
+            });
+        });
+        document.getElementById('stripe-checkout-create-btn')?.addEventListener('click', onCreateCheckoutSession);
 
         document.querySelectorAll('#competitor-partner-selector .wallet-option:not(.disabled)').forEach(opt => {
             opt.addEventListener('click', () => {
