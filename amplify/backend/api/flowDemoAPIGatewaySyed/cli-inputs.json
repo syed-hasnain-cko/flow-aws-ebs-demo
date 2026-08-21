@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "paths": {
+    "/payment-sessions": {
+      "name": "/payment-sessions",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/get-payment-details": {
+      "name": "/get-payment-details",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/get-payment-actions": {
+      "name": "/get-payment-actions",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/capture-payment": {
+      "name": "/capture-payment",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/void-payment": {
+      "name": "/void-payment",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/refund-payment": {
+      "name": "/refund-payment",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/google-pay": {
+      "name": "/google-pay",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/validate-apple-session": {
+      "name": "/validate-apple-session",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/apple-pay": {
+      "name": "/apple-pay",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/config": {
+      "name": "/config",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/submit-payment-session": {
+      "name": "/submit-payment-session",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+        "/payment-setups": {
+      "name": "/payment-setups",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+            "/update-payment-setups": {
+      "name": "/update-payment-setups",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+            "/confirm-payment-setup": {
+      "name": "/confirm-payment-setups",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/webhook": {
+      "name": "/webhook",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    },
+    "/webhook-event": {
+      "name": "/webhook-event",
+      "lambdaFunction": "flowDemoLambdaSyed",
+      "permissions": {
+        "setting": "open"
+      },
+      "cors": true
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "api": {
+    "flowDemoAPIGatewaySyed": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    }
+  },
+  "function": {
+    "flowDemoLambdaSyed": {
+      "build": true,
+      "dependsOn": [],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_flowDemoLambdaSyed_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed"
+        }
+      ]
+    },
+    "AMPLIFY_function_flowDemoLambdaSyed_gwUrl": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed"
+        }
+      ]
+    },
+    "AMPLIFY_function_flowDemoLambdaSyed_processingChannelId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed"
+        }
+      ]
+    },
+    "AMPLIFY_function_flowDemoLambdaSyed_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed"
+        }
+      ]
+    },
+    "AMPLIFY_function_flowDemoLambdaSyed_secretKey": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed"
+        }
+      ]
+    }
+  }
+}

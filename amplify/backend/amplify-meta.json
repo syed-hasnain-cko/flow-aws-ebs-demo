@@ -1,0 +1,71 @@
+{
+  "providers": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-flowsyeddemo-staging-9e056-authRole",
+      "UnauthRoleArn": "arn:aws:iam::559740764489:role/amplify-flowsyeddemo-staging-9e056-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::559740764489:role/amplify-flowsyeddemo-staging-9e056-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-flowsyeddemo-staging-9e056-deployment",
+      "UnauthRoleName": "amplify-flowsyeddemo-staging-9e056-unauthRole",
+      "StackName": "amplify-flowsyeddemo-staging-9e056",
+      "StackId": "arn:aws:cloudformation:us-east-1:559740764489:stack/amplify-flowsyeddemo-staging-9e056/926b0500-9543-11f0-8f90-124a89fbdfe1",
+      "AmplifyAppId": "d11m29074qik0k"
+    }
+  },
+  "function": {
+    "flowDemoLambdaSyed": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda",
+      "dependsOn": [],
+      "lastBuildTimeStamp": "2025-11-07T13:39:04.302Z",
+      "lastBuildType": "PROD",
+      "lastPackageTimeStamp": "2025-11-07T13:39:06.389Z",
+      "distZipFilename": "flowDemoLambdaSyed-595a6c59715934724a37-build.zip",
+      "s3Bucket": {
+        "deploymentBucketName": "amplify-flowsyeddemo-staging-9e056-deployment",
+        "s3Key": "amplify-builds/flowDemoLambdaSyed-595a6c59715934724a37-build.zip"
+      },
+      "providerMetadata": {
+        "s3TemplateURL": "https://s3.amazonaws.com/amplify-flowsyeddemo-staging-9e056-deployment/amplify-cfn-templates/function/flowDemoLambdaSyed-cloudformation-template.json",
+        "logicalId": "functionflowDemoLambdaSyed"
+      },
+      "lastPushTimeStamp": "2025-11-07T13:40:17.144Z",
+      "output": {
+        "LambdaExecutionRoleArn": "arn:aws:iam::559740764489:role/flowsyeddemoLambdaRolebb0654fe-staging",
+        "Region": "us-east-1",
+        "Arn": "arn:aws:lambda:us-east-1:559740764489:function:flowDemoLambdaSyed-staging",
+        "Name": "flowDemoLambdaSyed-staging",
+        "LambdaExecutionRole": "flowsyeddemoLambdaRolebb0654fe-staging"
+      },
+      "lastPushDirHash": "7AOeY3GEKTU9QTZwxNXQIFKqU6E="
+    }
+  },
+  "api": {
+    "flowDemoAPIGatewaySyed": {
+      "service": "API Gateway",
+      "providerPlugin": "awscloudformation",
+      "dependsOn": [
+        {
+          "category": "function",
+          "resourceName": "flowDemoLambdaSyed",
+          "attributes": [
+            "Name",
+            "Arn"
+          ]
+        }
+      ],
+      "providerMetadata": {
+        "s3TemplateURL": "https://s3.amazonaws.com/amplify-flowsyeddemo-staging-9e056-deployment/amplify-cfn-templates/api/flowDemoAPIGatewaySyed-cloudformation-template.json",
+        "logicalId": "apiflowDemoAPIGatewaySyed"
+      },
+      "lastPushTimeStamp": "2025-11-07T13:40:16.652Z",
+      "output": {
+        "ApiName": "flowDemoAPIGatewaySyed",
+        "RootUrl": "https://zzrte604h4.execute-api.us-east-1.amazonaws.com/staging",
+        "ApiId": "zzrte604h4"
+      },
+      "lastPushDirHash": "vCV7QoZEJjpSCbI8tda7SzsI+fs="
+    }
+  }
+}

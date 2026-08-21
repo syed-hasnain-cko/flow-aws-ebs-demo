@@ -1,0 +1,17 @@
+{
+  "lambdaLayers": [],
+  "environmentVariableList": [
+    {
+      "cloudFormationParameterName": "processingChannelId",
+      "environmentVariableName": "PROCESSING_CHANNEL_ID"
+    },
+    {
+      "cloudFormationParameterName": "secretKey",
+      "environmentVariableName": "SECRET_KEY"
+    },
+    {
+      "cloudFormationParameterName": "gwUrl",
+      "environmentVariableName": "GW_URL"
+    }
+  ]
+}
