@@ -300,11 +300,11 @@
 
     <div id="stripe-link-status" style="display:none; margin-top:12px;"></div>
 
-    <div id="stripe-link-result" style="display:none; margin-top:16px; max-width:560px;">
+    <div id="stripe-link-result" style="display:none; margin-top:16px;">
         <div class="form-group">
             <label for="stripe-link-url" class="text-label" style="color:var(--text-secondary)">Payment Link URL</label>
-            <div style="display:flex; gap:6px;">
-                <input type="text" id="stripe-link-url" class="text-input" readonly>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="stripe-link-url" class="text-input" readonly style="flex:1; min-width:0; font-family:monospace; font-size:13px;">
                 <button id="stripe-link-copy-btn" class="copy-btn" style="flex-shrink:0;">Copy</button>
                 <a id="stripe-link-open-btn" href="#" target="_blank" class="main-button" style="flex-shrink:0; padding:10px 16px;">Open</a>
             </div>
