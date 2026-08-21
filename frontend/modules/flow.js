@@ -89,23 +89,28 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
         };
 
         const handleSubmit = async (self, submitData) => {
-            // Alma (BNPL) does not support the manual-capture (capture:false) flow.
-            // Intercept only Alma and submit with capture:true so the payment is accepted.
-            // All other methods return undefined to let Flow perform its default submission.
-            if (self.type === "alma") {
-                const submitResponse = await performPaymentSubmission({
-                    paymentSessionId: paymentSession.id,
-                    sessionData: submitData,
-                    amount: paymentSessionBody.amount,
-                    items: paymentSessionBody.items,
-                    "3ds": paymentSessionBody['3ds'],
-                    payment_type: paymentSessionBody.payment_type,
-                    capture: true
-                });
-                // Must return the unmodified submit response body to Flow.
-                return submitResponse;
-            }
-            return undefined;
+            // Providing this callback at all opts OUT of Flow's default automatic
+            // submission for EVERY payment method, not just the one branch we
+            // customize — per CKO's docs: "If you do not provide this callback,
+            // [Flow] sends the request [automatically]." Previously only Alma
+            // called performPaymentSubmission and every other method returned
+            // undefined, so Flow got no result back and silently did nothing:
+            // no onPaymentCompleted, no onError, no 3DS redirect. Every method
+            // must go through performPaymentSubmission now.
+            const submitResponse = await performPaymentSubmission({
+                paymentSessionId: paymentSession.id,
+                sessionData: submitData,
+                amount: paymentSessionBody.amount,
+                items: paymentSessionBody.items,
+                "3ds": paymentSessionBody['3ds'],
+                payment_type: paymentSessionBody.payment_type,
+                // Alma (BNPL) does not support the manual-capture (capture:false)
+                // flow — force capture:true only for it; every other method uses
+                // whatever the Capture toggle is currently set to.
+                capture: self.type === "alma" ? true : paymentSessionBody.capture
+            });
+            // Must return the unmodified submit response body to Flow.
+            return submitResponse;
         };
 
         const handleTnCValidation = (checkboxId) => {
@@ -147,7 +152,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                         cardholderName: 'Syed Hasnain'
                     },
                     displayCardholderName: "bottom",
-                    captureBillingAddress:true
+                    captureBillingAddress:false
                     
                 },
                 stored_card: {
@@ -167,10 +172,13 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                 if (isTnCChecked) {
                     return { continue: true };
                 }
+                // Previously the only feedback here was the T&C label turning red — easy to
+                // miss, so clicking Pay looked like it silently did nothing.
+                showToast('Please accept the terms and conditions to continue.', 'error');
                 return { continue: false };
             },
-            onSubmit: (_self) => {
-            },
+            // onSubmit: (_self) => {
+            // },
             // Fires after the customer approves an Apple Pay / Google Pay payment
             // (i.e. after biometrics). Inspect the wallet-provided details here and
             // return { continue: true } to proceed with the payment.
