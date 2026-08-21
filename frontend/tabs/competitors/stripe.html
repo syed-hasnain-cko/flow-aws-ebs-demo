@@ -9,10 +9,10 @@
         <div class="wallet-option" id="stripe-mode-checkout" data-mode="checkout">
             <span>Checkout</span>
         </div>
-        <div class="wallet-option disabled" id="stripe-mode-element" data-mode="element" title="Coming soon">
+        <div class="wallet-option" id="stripe-mode-element" data-mode="element">
             <span>Payment Element</span>
         </div>
-        <div class="wallet-option disabled" id="stripe-mode-links" data-mode="links" title="Coming soon">
+        <div class="wallet-option" id="stripe-mode-links" data-mode="links">
             <span>Payment Links</span>
         </div>
     </div>
@@ -220,6 +220,105 @@
     </div>
 </div>
 
+<!-- ─── Payment Element (Custom UI) panel ──────────────────────────────── -->
+<div id="stripe-mode-panel-element" style="display:none;">
+    <h2 class="section-header">Payment Element — Custom UI</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        You own the surrounding layout; Stripe renders only the Payment Element itself (a Checkout Session under the hood, <code>ui_mode: 'elements'</code>). Card payments redirect to the result page on completion, same as Checkout.
+    </p>
+
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="stripe-pe-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="stripe-pe-amount" class="text-input" value="1000" placeholder="1000 = 10.00">
+        </div>
+        <div class="form-group">
+            <label for="stripe-pe-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="stripe-pe-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="stripe-pe-product" class="text-label" style="color:var(--text-secondary)">Product Name</label>
+            <input type="text" id="stripe-pe-product" class="text-input" placeholder="Test product" value="Competitor Testing Item">
+        </div>
+    </div>
+
+    <div class="form-group" style="margin-top:10px; max-width:280px;">
+        <label for="stripe-pe-email" class="text-label" style="color:var(--text-secondary)">Email <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(required to confirm — the Payment Element's own email field is Link-only, not this)</em></label>
+        <input type="email" id="stripe-pe-email" class="text-input" placeholder="ada@example.com">
+    </div>
+
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="stripe-pe-force-3ds"> Force 3DS challenge
+        </label>
+    </div>
+
+    <div class="button-group" style="margin-top:16px;">
+        <button id="stripe-pe-init-btn" class="main-button">Load Payment Element</button>
+    </div>
+
+    <div id="stripe-pe-status" style="display:none; margin-top:12px;"></div>
+
+    <div id="stripe-pe-form-container" style="display:none; margin-top:16px; max-width:480px;">
+        <div id="stripe-pe-payment-element"></div>
+        <div class="button-group" style="margin-top:16px;">
+            <button id="stripe-pe-pay-btn" class="main-button">Pay</button>
+        </div>
+        <div id="stripe-pe-errors" style="color:var(--status-error-text); font-size:12px; margin-top:6px;"></div>
+    </div>
+
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:8px;">
+        Result, next actions, and webhook status for this payment appear on the <strong>success/failure page</strong> after confirmation — the same pages every other payment method in this app uses.
+    </p>
+</div>
+
+<!-- ─── Payment Links panel (no-code, hosted URL) ──────────────────────── -->
+<div id="stripe-mode-panel-links" style="display:none;">
+    <h2 class="section-header">Payment Links</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        No-code hosted payment URL. Share it directly, or open it here to test the buyer flow — completion redirects to the same success/failure pages every other payment method in this app uses.
+    </p>
+
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="stripe-link-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="stripe-link-amount" class="text-input" value="1000" placeholder="1000 = 10.00">
+        </div>
+        <div class="form-group">
+            <label for="stripe-link-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="stripe-link-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="stripe-link-product" class="text-label" style="color:var(--text-secondary)">Product Name</label>
+            <input type="text" id="stripe-link-product" class="text-input" placeholder="Test product" value="Competitor Testing Item">
+        </div>
+    </div>
+
+    <div class="button-group" style="margin-top:16px;">
+        <button id="stripe-link-create-btn" class="main-button">Create Payment Link</button>
+    </div>
+
+    <div id="stripe-link-status" style="display:none; margin-top:12px;"></div>
+
+    <div id="stripe-link-result" style="display:none; margin-top:16px; max-width:560px;">
+        <div class="form-group">
+            <label for="stripe-link-url" class="text-label" style="color:var(--text-secondary)">Payment Link URL</label>
+            <div style="display:flex; gap:6px;">
+                <input type="text" id="stripe-link-url" class="text-input" readonly>
+                <button id="stripe-link-copy-btn" class="copy-btn" style="flex-shrink:0;">Copy</button>
+                <a id="stripe-link-open-btn" href="#" target="_blank" class="main-button" style="flex-shrink:0; padding:10px 16px;">Open</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="stripe-link-result-container" style="display:none; margin-top:16px;">
+        <div class="detail-header">
+            <h3>Payment Link</h3>
+        </div>
+        <pre id="stripe-link-result-json" class="json-code-block"></pre>
+    </div>
+</div>
+
 <hr style="margin: 28px 0; border: 0; border-top: 1px solid var(--border);">
 
 <!-- ─── Refund / Actions (shared across every Stripe acceptance mode) ── -->
@@ -247,8 +346,4 @@
 
 <!-- ─── Webhook event log ──────────────────────────────────────────── -->
 <h2 class="section-header">Webhooks</h2>
-<p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
-    Register <code id="stripe-webhook-url-display">&lt;your app base URL&gt;/competitors/stripe/webhook</code> as an endpoint in the Stripe Dashboard (Developers → Webhooks), listening for at least
-    <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>, <code>payment_intent.requires_action</code>, and <code>charge.refunded</code>. Copy the signing secret into <code>STRIPE_WEBHOOK_SECRET</code>.
-</p>
 <div id="stripe-webhook-log" class="log-entries-container" style="position:static; max-height:260px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:8px;"></div>

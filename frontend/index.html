@@ -46,8 +46,13 @@
     <!-- <script src="https://checkout-web-components.cko-qa.ckotech.co/index.js"></script> -->
     <script src="https://checkout-web-components.sandbox.checkout.com/index.js"></script>
 
-    <!-- Stripe.js SDK — Competitor Testing → Stripe tab (Direct API / Elements) -->
-    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Stripe.js SDK — Competitor Testing → Stripe tab (Direct API / Checkout / Elements).
+         Pinned to the "dahlia" versioned build (matching our backend apiVersion) rather
+         than the generic /v3/ bundle — /v3/ does NOT include stripe.initCheckoutElementsSdk()
+         (Payment Element Custom UI mode) and throws "You must upgrade to the Basil release
+         or higher to use initCheckout." Dahlia is a superset of v3/basil/clover, so Direct
+         API and Checkout (hosted/embedded) keep working unchanged. -->
+    <script src="https://js.stripe.com/dahlia/stripe.js"></script>
 
 
     <!-- 5. Shared utilities and data (must load before feature modules) -->

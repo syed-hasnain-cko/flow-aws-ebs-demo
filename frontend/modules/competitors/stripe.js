@@ -325,7 +325,9 @@
         if (checkoutUiMode === 'embedded') {
             setStatus(statusEl, 'ready', 'Embedded Checkout mounted below.');
             if (embeddedCheckoutInstance) embeddedCheckoutInstance.destroy();
-            embeddedCheckoutInstance = await stripeClient.initEmbeddedCheckout({
+            // Renamed in the dahlia release: initEmbeddedCheckout() → createEmbeddedCheckoutPage().
+            // Never switch this back — the old name throws IntegrationError on this Stripe.js build.
+            embeddedCheckoutInstance = await stripeClient.createEmbeddedCheckoutPage({
                 clientSecret: session.client_secret,
                 // Embedded Checkout doesn't navigate on its own when payment
                 // completes — it fires this callback instead. We navigate manually
@@ -339,6 +341,130 @@
             setStatus(statusEl, 'action', 'Redirecting to Stripe-hosted Checkout...');
             window.location.href = session.url;
         }
+    }
+
+    // ─── Payment Element (Custom UI) mode ─────────────────────────────────
+    // A Checkout Session under the hood (ui_mode: 'elements' — current name
+    // for what used to be 'custom'). Uses stripe.initCheckoutElementsSdk(),
+    // NOT stripe.elements({clientSecret}) — that's the older PaymentIntent-
+    // only Elements API and doesn't understand Checkout Sessions.
+    let peCheckoutInstance = null;
+
+    async function onLoadPaymentElement() {
+        const statusEl = document.getElementById('stripe-pe-status');
+        const amount = parseInt(document.getElementById('stripe-pe-amount').value, 10);
+        const currency = document.getElementById('stripe-pe-currency').value;
+        const productName = document.getElementById('stripe-pe-product').value;
+        if (!amount || !currency) {
+            setStatus(statusEl, 'error', 'Amount and currency are required.');
+            return;
+        }
+
+        setStatus(statusEl, 'action', 'Creating Checkout Session...');
+        const body = {
+            amount,
+            currency,
+            product_name: productName,
+            return_base: window.location.origin,
+            force_3ds: document.getElementById('stripe-pe-force-3ds').checked,
+        };
+        const res = await fetch(`${STRIPE_BASE()}/payment-element/session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        await addToApiLog('POST', 'create Payment Element session - /competitors/stripe/payment-element/session', res.ok ? 200 : res.status, body, data);
+
+        if (!res.ok) {
+            setStatus(statusEl, 'error', data.error || 'Session creation failed.');
+            return;
+        }
+
+        setStatus(statusEl, 'ready', 'Payment Element mounted below.');
+        document.getElementById('stripe-pe-form-container').style.display = 'block';
+
+        peCheckoutInstance = stripeClient.initCheckoutElementsSdk({ clientSecret: data.clientSecret });
+        // Not gating the Pay button on session.canConfirm — with only the Payment
+        // Element mounted (no Address/Contact Element), canConfirm can stay false
+        // even with valid card details entered, permanently disabling the button
+        // with no visible error. Let actions.confirm() itself be the validator —
+        // it returns a proper error result we already surface below.
+        peCheckoutInstance.on('change', (session) => {
+            document.getElementById('stripe-pe-pay-btn').textContent = `Pay ${session.total?.total?.amount ?? ''}`.trim();
+        });
+        const paymentElement = peCheckoutInstance.createPaymentElement();
+        paymentElement.mount('#stripe-pe-payment-element');
+    }
+
+    async function onPaymentElementSubmit() {
+        const statusEl = document.getElementById('stripe-pe-status');
+        const errorsEl = document.getElementById('stripe-pe-errors');
+        errorsEl.textContent = '';
+        setStatus(statusEl, 'action', 'Confirming payment...');
+
+        try {
+            const email = document.getElementById('stripe-pe-email').value;
+            if (!email) {
+                errorsEl.textContent = 'Email is required to confirm this Checkout Session.';
+                setStatus(statusEl, 'error', 'Email is required to confirm this Checkout Session.');
+                return;
+            }
+            const { actions } = await peCheckoutInstance.loadActions();
+            const confirmResult = await actions.confirm({ email });
+
+            // A successful confirm navigates the browser to return_url (success.html)
+            // before this line would even run — reaching here means an immediate error.
+            await addToApiLog('POST', 'checkout.loadActions().confirm() (client-side)', confirmResult.type === 'error' ? 402 : 200, {}, confirmResult);
+            if (confirmResult.type === 'error') {
+                errorsEl.textContent = confirmResult.error.message;
+                setStatus(statusEl, 'error', confirmResult.error.message);
+            }
+        } catch (err) {
+            // loadActions()/confirm() throwing (vs. resolving with type:'error') was
+            // previously silent — surface it instead of leaving the button inert.
+            await addToApiLog('POST', 'checkout.loadActions().confirm() (client-side)', 500, {}, { message: err.message });
+            errorsEl.textContent = err.message;
+            setStatus(statusEl, 'error', err.message);
+        }
+    }
+
+    // ─── Payment Links (no-code, hosted URL) ──────────────────────────────
+    async function onCreatePaymentLink() {
+        const statusEl = document.getElementById('stripe-link-status');
+        const amount = parseInt(document.getElementById('stripe-link-amount').value, 10);
+        const currency = document.getElementById('stripe-link-currency').value;
+        const productName = document.getElementById('stripe-link-product').value;
+        if (!amount || !currency) {
+            setStatus(statusEl, 'error', 'Amount and currency are required.');
+            return;
+        }
+
+        setStatus(statusEl, 'action', 'Creating Payment Link...');
+        const body = {
+            amount,
+            currency,
+            product_name: productName,
+            return_base: window.location.origin,
+        };
+        const res = await fetch(`${STRIPE_BASE()}/payment-links`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const link = await res.json();
+        await addToApiLog('POST', 'create Payment Link - /competitors/stripe/payment-links', res.ok ? 200 : res.status, body, link);
+
+        if (!res.ok) {
+            setStatus(statusEl, 'error', link.error || 'Payment Link creation failed.');
+            return;
+        }
+
+        setStatus(statusEl, 'ready', 'Payment Link created.');
+        document.getElementById('stripe-link-result').style.display = 'block';
+        document.getElementById('stripe-link-url').value = link.url;
+        document.getElementById('stripe-link-open-btn').href = link.url;
+        renderResult('stripe-link-result-container', 'stripe-link-result-json', link);
     }
 
     // ─── Wiring ───────────────────────────────────────────────────────────
@@ -378,6 +504,13 @@
             });
         });
         document.getElementById('stripe-checkout-create-btn')?.addEventListener('click', onCreateCheckoutSession);
+        document.getElementById('stripe-pe-init-btn')?.addEventListener('click', onLoadPaymentElement);
+        document.getElementById('stripe-pe-pay-btn')?.addEventListener('click', onPaymentElementSubmit);
+        document.getElementById('stripe-link-create-btn')?.addEventListener('click', onCreatePaymentLink);
+        document.getElementById('stripe-link-copy-btn')?.addEventListener('click', async () => {
+            await navigator.clipboard.writeText(document.getElementById('stripe-link-url').value);
+            showToast('Payment Link copied.');
+        });
 
         document.querySelectorAll('#competitor-partner-selector .wallet-option:not(.disabled)').forEach(opt => {
             opt.addEventListener('click', () => {

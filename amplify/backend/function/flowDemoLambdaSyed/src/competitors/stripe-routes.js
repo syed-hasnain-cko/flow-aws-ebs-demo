@@ -142,6 +142,77 @@ router.get('/checkout/session/:id', async (req, res) => {
     }
 });
 
+// ─── Payment Element (Custom UI) ─────────────────────────────────────
+// Also a Checkout Session under the hood (ui_mode: 'elements' — the
+// current name for what used to be called 'custom'), but the frontend
+// owns the surrounding layout and only mounts Stripe's Payment Element
+// for the actual card/APM fields via stripe.initCheckoutElementsSdk().
+// Session retrieval reuses GET /checkout/session/:id above — same object type.
+router.post('/payment-element/session', async (req, res) => {
+    const { amount, currency, product_name, return_base, force_3ds } = req.body || {};
+    if (!amount || !currency || !return_base) {
+        return res.status(400).json({ error: 'amount, currency, and return_base are required' });
+    }
+    try {
+        const session = await stripe().checkout.sessions.create({
+            mode: 'payment',
+            ui_mode: 'elements',
+            line_items: [{
+                price_data: {
+                    currency,
+                    unit_amount: amount,
+                    product_data: { name: product_name || 'Competitor Testing — Payment Element' },
+                },
+                quantity: 1,
+            }],
+            payment_method_options: force_3ds ? { card: { request_three_d_secure: 'any' } } : undefined,
+            // Required for ui_mode: 'elements' — unlike Direct API's confirmCardPayment,
+            // actions.confirm() always navigates to return_url on completion (success or
+            // failure), even for card payments with no redirect-based method involved.
+            return_url: `${return_base}/success.html?stripe_cos_id={CHECKOUT_SESSION_ID}&partner=stripe`,
+            integration_identifier: `competitorTest${randomSuffix()}`,
+        });
+        log('info', '/payment-element/session', 'session_created', { id: session.id });
+        res.json({ clientSecret: session.client_secret, sessionId: session.id });
+    } catch (error) {
+        log('error', '/payment-element/session', 'session_error', { message: error.message });
+        res.status(error.statusCode || 500).json({ error: error.message });
+    }
+});
+
+// ─── Payment Links (no-code, hosted URL) ────────────────────────────
+router.post('/payment-links', async (req, res) => {
+    const { amount, currency, product_name, return_base } = req.body || {};
+    if (!amount || !currency) {
+        return res.status(400).json({ error: 'amount and currency are required' });
+    }
+    try {
+        const link = await stripe().paymentLinks.create({
+            line_items: [{
+                price_data: {
+                    currency,
+                    unit_amount: amount,
+                    product_data: { name: product_name || 'Competitor Testing — Stripe Payment Link' },
+                },
+                quantity: 1,
+            }],
+            // Optional — if not provided, the buyer sees Stripe's default
+            // confirmation page instead of landing on our success.html.
+            ...(return_base ? {
+                after_completion: {
+                    type: 'redirect',
+                    redirect: { url: `${return_base}/success.html?stripe_cos_id={CHECKOUT_SESSION_ID}&partner=stripe` },
+                },
+            } : {}),
+        });
+        log('info', '/payment-links', 'link_created', { id: link.id });
+        res.json(link);
+    } catch (error) {
+        log('error', '/payment-links', 'link_error', { message: error.message });
+        res.status(error.statusCode || 500).json({ error: error.message });
+    }
+});
+
 // Used after a requires_action (3DS) round-trip on the client resolves,
 // or to re-fetch state for the Refund/Actions panel.
 router.get('/payment-intent/:id', async (req, res) => {
