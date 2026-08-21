@@ -991,6 +991,19 @@ pre {
     box-shadow: 0 0 0 3px var(--primary-glow), var(--shadow-sm);
 }
 
+.stripe-split-field {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-subtle);
+}
+
+.wallet-option.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* Apple Pay gets its own brand colour when active */
 .wallet-option.active#select-apple-pay {
     border-color: var(--text-primary);

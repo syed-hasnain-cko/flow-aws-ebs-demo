@@ -1,0 +1,25 @@
+<div class="context-area">
+
+    <!-- ─── Partner selector ───────────────────────────────────────────
+         Add a new partner button here (kept disabled with a "Coming soon"
+         tooltip until its /add-partner scaffold lands) and a matching
+         <div id="partner-panel-<name>"> below. -->
+    <h2 class="section-header">Partner</h2>
+    <div class="wallet-selector-section">
+        <div class="wallet-selector" id="competitor-partner-selector">
+            <div class="wallet-option active" id="partner-stripe" data-partner="stripe">
+                <span>Stripe</span>
+            </div>
+            <div class="wallet-option disabled" id="partner-adyen" data-partner="adyen" title="Coming soon">
+                <span>Adyen</span>
+            </div>
+        </div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+    <!-- ─── Partner panels ──────────────────────────────────────────── -->
+    <div id="partner-panel-stripe" class="partner-panel"></div>
+    <div id="partner-panel-adyen" class="partner-panel" style="display:none;"></div>
+
+</div>

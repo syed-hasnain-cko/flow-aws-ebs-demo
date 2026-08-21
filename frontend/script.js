@@ -99,6 +99,31 @@ window.activeWallet = null;
             _setupCountry.appendChild(option);
         });
     }
+
+    // --- Competitor Testing → Stripe Tab: Currency ---
+    const _stripeCurrency = document.getElementById('stripe-currency');
+    if (_stripeCurrency) {
+        _currencies.forEach(code => {
+            const option = document.createElement('option');
+            if (code === 'USD') option.selected = true;
+            option.value = code.toLowerCase();
+            option.text = code;
+            _stripeCurrency.appendChild(option);
+        });
+    }
+
+    // --- Competitor Testing → Stripe Tab: Countries (billing + shipping) ---
+    ['stripe-billing-country', 'stripe-shipping-country'].forEach(selectId => {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        COUNTRIES.forEach(country => {
+            const option = document.createElement('option');
+            if (country.alpha2Code === 'US') option.selected = true;
+            option.value = country.alpha2Code;
+            option.text = country.name;
+            sel.appendChild(option);
+        });
+    });
 }
 
 // -----------------------------------------------
@@ -111,6 +136,10 @@ window.openTab = function (evt, tabName) {
 
     if (tabName !== 'setup-tab') {
         clearSetupTabState(); // defined in modules/payment-setup.js
+    }
+
+    if (tabName !== 'competitors-tab' && window.stopStripeWebhookPolling) {
+        window.stopStripeWebhookPolling(); // defined in modules/competitors/stripe.js
     }
 
     if (tabName !== 'google-tab') {
