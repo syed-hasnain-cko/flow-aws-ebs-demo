@@ -21,4 +21,8 @@
     document.getElementById('setup-tab').innerHTML = loadSync('tabs/payment-setup.html');
     document.getElementById('payouts-tab').innerHTML = loadSync('tabs/payouts.html');
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html');
+    document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
+
+    // 3. Inject each partner's content into its panel div (index.html above must load first)
+    document.getElementById('partner-panel-stripe').innerHTML = loadSync('tabs/competitors/stripe.html');
 })();

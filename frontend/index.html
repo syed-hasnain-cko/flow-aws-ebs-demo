@@ -45,7 +45,10 @@
     <!-- 4. Checkout.com Web Components SDK -->
     <!-- <script src="https://checkout-web-components.cko-qa.ckotech.co/index.js"></script> -->
     <script src="https://checkout-web-components.sandbox.checkout.com/index.js"></script>
-    
+
+    <!-- Stripe.js SDK — Competitor Testing → Stripe tab (Direct API / Elements) -->
+    <script src="https://js.stripe.com/v3/"></script>
+
 
     <!-- 5. Shared utilities and data (must load before feature modules) -->
     <script src="utils.js"></script>
@@ -86,6 +89,7 @@
         };
     </script>
     <script src="modules/forward.js"></script>
+    <script src="modules/competitors/stripe.js"></script>
 
     <!-- 7. Main entry: dropdown population + tab switching -->
     <script src="script.js"></script>

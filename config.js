@@ -17,7 +17,12 @@ var config = {
       forwardPublicKey: process.env.FORWARD_PUBLIC_KEY || "pk_sbox_7za2ppcb4pw7zzdkfzutahfjl4t",
       forwardProcessingChannelId: process.env.FORWARD_PROCESSING_CHANNEL_ID || process.env.PROCESSING_CHANNEL_ID,
       forwardStripeApiKey: process.env.FORWARD_STRIPE_API_KEY || "",
-      forwardAdyenApiKey: process.env.FORWARD_ADYEN_API_KEY || ""
+      forwardAdyenApiKey: process.env.FORWARD_ADYEN_API_KEY || "",
+      // Competitor Testing → Stripe tab — native Stripe integration, fully
+      // separate from the Forward API tab's forward* credentials above.
+      stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
+      stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || ""
   };
   
 module.exports = config;
