@@ -27,6 +27,7 @@ const METHOD_REQUIREMENTS = {
         blik: [
         { id: 'blik-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'blik-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        { id: 'blik-partner-code', label: 'Partner Code', path: 'payment_methods.blik.partner_code', value: '999111', maxLength: 6 },
     ],
     ideal: [
         { id: 'ideal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
@@ -112,6 +113,7 @@ const METHOD_NOTES = {
     twint: 'ℹ️ Twint requires CHF — currency will be set to CHF automatically when you patch.',
     kakaopay: 'ℹ️ KakaoPay requires KRW — currency will be set to KRW automatically when you patch.',
     sepa: 'ℹ️ SEPA requires EUR currency and a European bank account (IBAN). Mandate details are mandatory.',
+    blik: 'ℹ️ BLIK requires PLN currency and a 6-digit Partner Code (the BLIK PSP ID assigned to your merchant account during onboarding) — default "999111" is this account\'s registered sandbox code. BLIK confirms directly via the customer\'s banking app; there is no redirect page.',
     card: 'ℹ️ Card uses Checkout.com Flow for tokenization. Click "Update Payment Setup" to load the card form.',
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
 };
@@ -121,6 +123,7 @@ const METHOD_NOTES = {
 const FORCED_CURRENCY = {
     kakaopay: 'KRW',
     twint:    'CHF',
+    blik:     'PLN',
 };
 
 // Brand colours, abbreviations, Simple Icons CDN logos, and confirm flow for each payment method.
@@ -147,5 +150,5 @@ const METHOD_DISPLAY = {
     instrument: { bg: '#64748b', color: '#fff',    abbr: '🔧',   logo: null,                                            confirmFlow: 'redirect' },
     p24:        { bg: '#D40E2B', color: '#fff',    abbr: 'P24',  logo: null,                                            confirmFlow: 'redirect' },
     alma:       { bg: '#FA5022', color: '#fff',    abbr: 'AL',   logo: null,                                            confirmFlow: 'redirect' },
-    blik:       { bg: '#FA5022', color: '#fff',    abbr: 'BL',   logo: null,                                           confirmFlow: 'redirect' },
+    blik:       { bg: '#E32084', color: '#fff',    abbr: 'BL',   logo: null,                                            confirmFlow: 'redirect' },
 };

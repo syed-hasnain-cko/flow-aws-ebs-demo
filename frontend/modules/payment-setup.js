@@ -9,6 +9,13 @@ let setupWebhookPoller = null;
 
 const FAILED_STATUSES = ['Declined', 'Canceled', 'Expired', 'Failed'];
 
+// Confirm a Payment Setup returns the PaymentSetup resource (id: set_...) with the
+// actual Payment nested under `latest_payment` (id: pay_..., _links.redirect) rather
+// than returning the Payment directly. Always read the payment through this helper.
+function getConfirmedPayment(data) {
+    return data?.latest_payment ?? data ?? {};
+}
+
 function setStatus(el, type, text) {
     el.className = `status-${type}`;
     el.innerHTML = `<span class="status-icon"></span><span>${text}</span>`;
@@ -651,12 +658,13 @@ async function handlePayPalApprove(setupId) {
 
         if (loader) loader.style.display = 'none';
 
-        if (FAILED_STATUSES.includes(data?.status)) {
+        const payment = getConfirmedPayment(data);
+        if (FAILED_STATUSES.includes(payment?.status)) {
             if (loader) loader.style.display = 'flex';
-            setTimeout(() => { window.location.href = `failure.html?paymentId=${data.id}`; }, 800);
-        } else if (data?.id) {
+            setTimeout(() => { window.location.href = `failure.html?paymentId=${payment.id}`; }, 800);
+        } else if (payment?.id) {
             if (loader) loader.style.display = 'flex';
-            setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
+            setTimeout(() => { window.location.href = `success.html?paymentId=${payment.id}`; }, 800);
         } else {
             // Payment approved on PayPal side but setup not yet ready — async path.
             // Show amber pending area and a manual retry button.
@@ -726,10 +734,11 @@ function renderPayPalPendingState(setupId, statusArea) {
         const loader = document.getElementById('payment-loader');
         if (loader) loader.style.display = 'flex';
 
-        if (FAILED_STATUSES.includes(data?.status)) {
-            setTimeout(() => { window.location.href = `failure.html?paymentId=${data.id}`; }, 800);
-        } else if (data?.id) {
-            setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
+        const payment = getConfirmedPayment(data);
+        if (FAILED_STATUSES.includes(payment?.status)) {
+            setTimeout(() => { window.location.href = `failure.html?paymentId=${payment.id}`; }, 800);
+        } else if (payment?.id) {
+            setTimeout(() => { window.location.href = `success.html?paymentId=${payment.id}`; }, 800);
         } else {
             if (loader) loader.style.display = 'none';
             btn.disabled = false;
@@ -770,22 +779,23 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                 const data = await confirmPaymentSetup(setupId, methodName);
                 console.log("Confirmation Response:", data);
 
-                if (data._links?.redirect) {
-                    window.location.href = data._links.redirect.href;
+                const payment = getConfirmedPayment(data);
+                if (payment._links?.redirect) {
+                    window.location.href = payment._links.redirect.href;
                 } else {
                     document.getElementById('setup-json-output').innerText = JSON.stringify(data, null, 2);
                     btn.style.display = 'none';
                     const loader = document.getElementById('payment-loader');
                     if (loader) loader.style.display = 'flex';
 
-                    if (FAILED_STATUSES.includes(data.status)) {
+                    if (FAILED_STATUSES.includes(payment.status)) {
                         setTimeout(() => {
-                            window.location.href = `failure.html?paymentId=${data.id}`;
+                            window.location.href = `failure.html?paymentId=${payment.id}`;
                         }, 800);
                     } else {
-                        showSuccessWithReset(data);
+                        showSuccessWithReset(payment);
                         setTimeout(() => {
-                            window.location.href = `success.html?paymentId=${data.id}`;
+                            window.location.href = `success.html?paymentId=${payment.id}`;
                         }, 800);
                     }
                 }
@@ -820,13 +830,14 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                                 const loader = document.getElementById('payment-loader');
                                 if (loader) loader.style.display = 'flex';
 
-                                if (FAILED_STATUSES.includes(data.status)) {
+                                const payment = getConfirmedPayment(data);
+                                if (FAILED_STATUSES.includes(payment.status)) {
                                     setTimeout(() => {
-                                        window.location.href = `failure.html?paymentId=${data.id}`;
+                                        window.location.href = `failure.html?paymentId=${payment.id}`;
                                     }, 800);
-                                } else if (data.id) {
+                                } else if (payment.id) {
                                     setTimeout(() => {
-                                        window.location.href = `success.html?paymentId=${data.id}`;
+                                        window.location.href = `success.html?paymentId=${payment.id}`;
                                     }, 800);
                                 } else {
                                     console.log('Unexpected confirm response:', data);
@@ -859,13 +870,14 @@ function renderConfirmButton(setupId, methodName, label, clientToken = 'Klarna T
                                     const loader = document.getElementById('payment-loader');
                                     if (loader) loader.style.display = 'flex';
 
-                                    if (FAILED_STATUSES.includes(data.status)) {
+                                    const payment = getConfirmedPayment(data);
+                                    if (FAILED_STATUSES.includes(payment.status)) {
                                         setTimeout(() => {
-                                            window.location.href = `failure.html?paymentId=${data.id}`;
+                                            window.location.href = `failure.html?paymentId=${payment.id}`;
                                         }, 800);
-                                    } else if (data.id) {
+                                    } else if (payment.id) {
                                         setTimeout(() => {
-                                            window.location.href = `success.html?paymentId=${data.id}`;
+                                            window.location.href = `success.html?paymentId=${payment.id}`;
                                         }, 800);
                                     } else {
                                         if (loader) loader.style.display = 'none';
@@ -1315,12 +1327,13 @@ function startSetupWebhookPolling(setupId) {
                     const loader = document.getElementById('payment-loader');
                     if (loader) loader.style.display = 'flex';
 
-                    if (data._links?.redirect) {
-                        setTimeout(() => { window.location.href = data._links.redirect.href; }, 800);
-                    } else if (FAILED_STATUSES.includes(data.status)) {
-                        setTimeout(() => { window.location.href = `failure.html?paymentId=${data.id}`; }, 800);
-                    } else if (data.id) {
-                        setTimeout(() => { window.location.href = `success.html?paymentId=${data.id}`; }, 800);
+                    const payment = getConfirmedPayment(data);
+                    if (payment._links?.redirect) {
+                        setTimeout(() => { window.location.href = payment._links.redirect.href; }, 800);
+                    } else if (FAILED_STATUSES.includes(payment.status)) {
+                        setTimeout(() => { window.location.href = `failure.html?paymentId=${payment.id}`; }, 800);
+                    } else if (payment.id) {
+                        setTimeout(() => { window.location.href = `success.html?paymentId=${payment.id}`; }, 800);
                     }
                     return;
                 }
