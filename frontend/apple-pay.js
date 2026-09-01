@@ -182,7 +182,15 @@ function validateApplePaySession(appleUrl, callback) {
           // ApplePaySession never gets completeMerchantValidation(), so the
           // sheet just cancels without ever prompting for biometrics.
           console.error("Apple Pay merchant validation failed:", data);
-          showToast(data?.error || 'Apple Pay merchant validation failed.', 'error');
+          if (data?.certDiagnostic) {
+              console.error("Apple Pay certificate diagnostic:", data.certDiagnostic);
+          }
+          showToast(
+              data?.certDiagnostic?.isExpired
+                  ? 'Apple Pay certificate has expired — see console for details.'
+                  : (data?.error || 'Apple Pay merchant validation failed.'),
+              'error'
+          );
           return;
       }
       addToApiLog('POST', 'validate apple pay session - /validate-apple-session', 200, { appleUrl }, data);
