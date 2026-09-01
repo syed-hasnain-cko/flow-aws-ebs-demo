@@ -17,6 +17,9 @@ const nameInputApple = document.getElementById('name-input-google');
 const emailInputApple = document.getElementById('email-input-google');
 const amountInputApple = document.getElementById('amount-input-google');
 const currencySelectApple = document.querySelector("#currency-select-google-pay")
+// Shared locale select (same '-google' sharing convention as the other fields above) —
+// google-pay.js's `gLocale` is private to its own IIFE, so Apple Pay must read this by ID directly.
+const localeSelectApple = document.getElementById('google-locale');
 
 applePaymentRequest = {
 
@@ -65,7 +68,7 @@ window.addApplePayButton = function() {
                 button.onclick = startApplePaySession;
 
                 button.className = 'apple-pay-button';
-                button.setAttribute('lang', gLocale.value);
+                button.setAttribute('lang', localeSelectApple.value);
                 button.setAttribute('data-type', appleButtonType.value);
                 button.setAttribute('data-style', appleButtonStyle.value);
 

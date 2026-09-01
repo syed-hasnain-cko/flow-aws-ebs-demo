@@ -395,10 +395,16 @@ router.post("/submit-payment-session", async (req, res) => {
       );
       res.send(response.data);
   } catch (error) {
-      res.status(500).send({
-          error: error.response?.data || { message: "An unknown error occurred during payment submission." },
-      });
-  } 
+      // Flow's handleSubmit contract requires the unmodified CKO response body
+      // back (per SubmitPaymentSession docs) so it can recognize a submit error
+      // and call onError / stop the "Verifying Transaction" state. Wrapping this
+      // in { error: ... } with a hardcoded 500 broke that contract — Flow just
+      // hung indefinitely instead of surfacing the real payment_flow_invalid /
+      // declined reason.
+      res.status(error.response?.status || 500).send(
+          error.response?.data || { message: "An unknown error occurred during payment submission." }
+      );
+  }
 });
   
   router.get("/config", (req, res) => {
