@@ -2,6 +2,7 @@ const axios = require('axios');
 const router = require('express').Router();
 const path = require('path');
 const https = require('https');
+const { X509Certificate } = require('crypto');
 require('dotenv').config()
 const {Checkout} = require('checkout-sdk-node');
 const config = require('./config');
@@ -252,6 +253,27 @@ router.post("/validate-apple-session", async (req, res) => {
     const cert = certSecret.SecretString;
     const key = keySecret.SecretString;
 
+    // Apple's "SSL certificate error" 400 means the client cert was rejected —
+    // most often expired, or issued for a different merchantIdentifier than the
+    // one below. Decode it up front so the real cause is visible without needing
+    // CloudWatch access — attached to the error response below if Apple rejects it.
+    let certDiagnostic;
+    try {
+      const parsedCert = new X509Certificate(cert);
+      certDiagnostic = {
+        subject: parsedCert.subject,
+        issuer: parsedCert.issuer,
+        validFrom: parsedCert.validFrom,
+        validTo: parsedCert.validTo,
+        isExpired: new Date(parsedCert.validTo) < new Date(),
+        merchantIdentifierUsed: config.appleMerchantId
+      };
+      console.log("Apple Pay cert diagnostic:", certDiagnostic);
+    } catch (certParseError) {
+      certDiagnostic = { certParseError: certParseError.message };
+      console.error("Apple Pay cert could not be parsed as X509 — check Secrets Manager value formatting (real newlines, not literal \\n):", certParseError.message);
+    }
+
   const postData = JSON.stringify({
       merchantIdentifier: config.appleMerchantId,
       domainName: process.env.DOMAIN_NAME,
@@ -290,12 +312,17 @@ router.post("/validate-apple-session", async (req, res) => {
         // actual reason is visible instead of a generic "failed to parse" 500.
         console.log("Apple merchant validation response:", appleRes.statusCode, data);
         try {
-          res.status(appleRes.statusCode).send(JSON.parse(data));
+          const parsed = JSON.parse(data);
+          if (appleRes.statusCode >= 400) {
+            return res.status(appleRes.statusCode).send({ ...parsed, certDiagnostic });
+          }
+          res.status(appleRes.statusCode).send(parsed);
         } catch (parseError) {
           res.status(appleRes.statusCode || 500).send({
             error: "Apple's merchant validation response was not valid JSON",
             appleStatusCode: appleRes.statusCode,
-            appleResponseBody: data
+            appleResponseBody: data,
+            certDiagnostic
           });
         }
       });
