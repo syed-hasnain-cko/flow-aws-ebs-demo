@@ -28,6 +28,13 @@ const performPaymentSubmission = async (submitData) => {
             submitData,
             jsonResponse
         );
+        // A submit error (no id, e.g. payment_flow_invalid) has no further
+        // onPaymentCompleted/redirect coming — hide the loader here so the UI
+        // doesn't stay stuck on "Verifying Transaction". Flow's own onError
+        // still fires from the returned response body for in-SDK handling.
+        if (!response.ok || !jsonResponse.id) {
+            document.getElementById('payment-loader').style.display = 'none';
+        }
         return jsonResponse;
     } catch (error) {
         document.getElementById('payment-loader').style.display = 'none';
@@ -88,15 +95,21 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             element.appendChild(label);
         };
 
+        // Payment methods that only support immediate/auto capture — submitting
+        // capture:false (the Capture toggle's default, unchecked, state) for any
+        // of these gets rejected by CKO with a 422 payment_flow_invalid on
+        // /payment-sessions/{id}/submit. Add any future method here if it hits
+        // the same error.
+        const NO_MANUAL_CAPTURE_METHODS = new Set(["alma", "wechatpay"]);
+
         const handleSubmit = async (self, submitData) => {
             // Providing this callback at all opts OUT of Flow's default automatic
             // submission for EVERY payment method, not just the one branch we
             // customize — per CKO's docs: "If you do not provide this callback,
-            // [Flow] sends the request [automatically]." Previously only Alma
-            // called performPaymentSubmission and every other method returned
-            // undefined, so Flow got no result back and silently did nothing:
-            // no onPaymentCompleted, no onError, no 3DS redirect. Every method
-            // must go through performPaymentSubmission now.
+            // [Flow] sends the request [automatically]." There is no way to fall
+            // through to that default once the callback exists (mobile-only
+            // behavior), so every method must forward the full session data
+            // (amount/items/3ds/payment_type) here.
             const submitResponse = await performPaymentSubmission({
                 paymentSessionId: paymentSession.id,
                 sessionData: submitData,
@@ -104,10 +117,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                 items: paymentSessionBody.items,
                 "3ds": paymentSessionBody['3ds'],
                 payment_type: paymentSessionBody.payment_type,
-                // Alma (BNPL) does not support the manual-capture (capture:false)
-                // flow — force capture:true only for it; every other method uses
-                // whatever the Capture toggle is currently set to.
-                capture: self.type === "alma" ? true : paymentSessionBody.capture
+                capture: NO_MANUAL_CAPTURE_METHODS.has(self.type) ? true : paymentSessionBody.capture
             });
             // Must return the unmodified submit response body to Flow.
             return submitResponse;
@@ -224,6 +234,11 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             },
             onError: (component, error) => {
                 console.log(error.details);
+                const loader = document.getElementById('payment-loader');
+                if (loader) {
+                    loader.style.display = 'none';
+                }
+                showToast(error.message || 'Payment failed. Please try again.', 'error');
                 if (!showPayButtonLogic) {
                     payButton.classList.add('main-button');
                     payButton.textContent = 'Pay Now';
@@ -328,12 +343,15 @@ document.addEventListener('DOMContentLoaded', () => {
         processing: {
             pan_preference: 'fpan'
         },
+        // WeChat Pay rejects the submit request with 422 item_reference_required
+        // unless every item carries a `reference` field.
         items: [
             {
                 name: "Digital Goods",
                 quantity: 1,
                 unit_price: parseInt(amountInput.value * currency.base),
-                total_amount: parseInt(amountInput.value * currency.base)
+                total_amount: parseInt(amountInput.value * currency.base),
+                reference: "digital-goods"
             }
         ]
     };
