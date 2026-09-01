@@ -42,7 +42,6 @@ applePaymentRequest = {
 
 const appleButtonType = document.getElementById('apple-button-type');
 const appleButtonStyle = document.getElementById('apple-button-style');
-const appleActiveCardToggle = document.getElementById('apple-active-card-toggle');
 const appleMerchantCapsSelect = document.getElementById('apple-merchant-capabilities');
 
 
@@ -58,11 +57,10 @@ window.addApplePayButton = function() {
     container.innerHTML = ''; // Force clear
 
     if (window.ApplePaySession) {
-        const checkPromise = appleActiveCardToggle.checked
-            ? ApplePaySession.canMakePaymentsWithActiveCard(window.APP_CONFIG.appleMerchantId)
-            : Promise.resolve(ApplePaySession.canMakePayments());
-
-        checkPromise.then((canMakePayments) => {
+        // canMakePaymentsWithActiveCard() requires full production-grade merchant
+        // validation and unreliably reports false in dev/sandbox even with real
+        // cards in Wallet — canMakePayments() is the reliable device-level check.
+        Promise.resolve(ApplePaySession.canMakePayments()).then((canMakePayments) => {
             if (canMakePayments) {
                 const button = document.createElement('button');
                 button.onclick = startApplePaySession;
@@ -176,21 +174,24 @@ function validateApplePaySession(appleUrl, callback) {
             {appleUrl},
         ),
     })
-    .then((response) => {
-      // Check for non-200 status codes explicitly
+    .then(async (response) => {
+      const data = await response.json();
       if (!response.ok) {
-          // You might want to throw an error here to catch it below
-          throw new Error(`HTTP error! status: ${response.status}`);
+          addToApiLog('POST', 'validate apple pay session - /validate-apple-session', response.status, { appleUrl }, data);
+          // Merchant validation failed silently before this — Apple's
+          // ApplePaySession never gets completeMerchantValidation(), so the
+          // sheet just cancels without ever prompting for biometrics.
+          console.error("Apple Pay merchant validation failed:", data);
+          showToast(data?.error || 'Apple Pay merchant validation failed.', 'error');
+          return;
       }
-      return response.json();
-    })
-    .then((data) => {
       addToApiLog('POST', 'validate apple pay session - /validate-apple-session', 200, { appleUrl }, data);
-      console.log(data)
-      callback(data)})
+      console.log(data);
+      callback(data);
+    })
     .catch((error) => {
-
         console.error("Error:", error);
+        showToast('Apple Pay merchant validation request failed.', 'error');
     });
 }
 

@@ -285,10 +285,18 @@ router.post("/validate-apple-session", async (req, res) => {
         data += chunk;
       });
       appleRes.on('end', () => {
+        // Apple's merchant validation endpoint returns plain text/HTML (not JSON)
+        // on cert/domain/merchantId mismatches — log the raw body + status so the
+        // actual reason is visible instead of a generic "failed to parse" 500.
+        console.log("Apple merchant validation response:", appleRes.statusCode, data);
         try {
-          res.send(JSON.parse(data));
+          res.status(appleRes.statusCode).send(JSON.parse(data));
         } catch (parseError) {
-          res.status(500).send({ error: "Failed to parse Apple's response" });
+          res.status(appleRes.statusCode || 500).send({
+            error: "Apple's merchant validation response was not valid JSON",
+            appleStatusCode: appleRes.statusCode,
+            appleResponseBody: data
+          });
         }
       });
     });
