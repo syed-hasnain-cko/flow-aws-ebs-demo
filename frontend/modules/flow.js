@@ -204,7 +204,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                 return { continue: true };
             },
             onCardBinChanged: (_self, cardMetadata) => {
-                //console.log("OnCardBinChanged() Result: ", cardMetadata)
+                console.log("OnCardBinChanged() Result: ", cardMetadata)
             },
             onTokenized: (_self, tokenizeResult) => {
                 console.log("OnTokenized() Result: ", tokenizeResult.data);
@@ -229,6 +229,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                         payButton.classList.add('disabled-button');
                 } else {
                     if (!showPayButtonLogic)
+                    console.log(component)
                         payButton.classList.remove('disabled-button');
                 }
             },
@@ -326,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 store_payment_details: 'collect_consent'
             },
             stored_card: {
-                customer_id: "cus_korriakiszvubcuzaqpv5ujusm"
+                customer_id: "cus_pyprfr7v2wzurg7a7jsmmved6y"
             }
         },
         //enabled_payment_methods: ["googlepay"],
@@ -335,7 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         success_url: `${window.location.protocol}//${window.location.host}/success.html`,
         failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
         customer: {
-            id: "cus_korriakiszvubcuzaqpv5ujusm"
+            email: emailInput.value,
+            id: "cus_pyprfr7v2wzurg7a7jsmmved6y"
         },
         '3ds': {
             enabled: threeDSToggle.value == 'on' ? false : true
