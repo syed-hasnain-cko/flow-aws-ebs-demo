@@ -15,7 +15,6 @@
     async function stripeConfigFetch() {
         const res = await fetch(`${STRIPE_BASE()}/config`);
         const data = await res.json();
-        await addToApiLog('GET', 'stripe config - /competitors/stripe/config', res.ok ? 200 : res.status, {}, data);
         return data;
     }
 
