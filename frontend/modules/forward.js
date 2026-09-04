@@ -48,12 +48,6 @@
         try {
             const res = await fetch(`${API_BASE}/forward-config`);
             envDefaults = await res.json();
-            addToApiLog('GET', '/forward-config', res.status, {}, {
-                ...envDefaults,
-                secretKey: envDefaults.secretKey ? '••• (masked in log)' : '',
-                stripeApiKey: envDefaults.stripeApiKey ? '••• (masked in log)' : '',
-                adyenApiKey: envDefaults.adyenApiKey ? '••• (masked in log)' : '',
-            });
         } catch (err) {
             showToast('Could not load Forward API defaults from backend — enter credentials manually', 'error');
         }
