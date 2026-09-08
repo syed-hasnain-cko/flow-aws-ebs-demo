@@ -140,14 +140,17 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
         const checkout = await CheckoutWebComponents({
             publicKey: window.APP_CONFIG.publicKey,
             environment: "sandbox",
-            locale: "en-GB",
+            locale: paymentSessionBody.locale || "en-GB",
             paymentSession,
             appearance: appearance,
             showPayButton: showPayButtonLogic,
-            translations: {  // Injects your custom text overrides
+            translations: {  
     "pl-PL": {
       "blikCode.label": "Kod BLIK",
       "blikCode.placeholder": "6-cyfrowy kod"
+    },
+    "sv-SE": {
+      "form.first_name": "Förnamn"
     }
   },
             componentOptions: {
@@ -305,10 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const amountInput = document.getElementById('amount-input');
     const currencySelect = document.getElementById('currency-select');
     const countrySelect = document.getElementById('country-select');
+    const localeSelect = document.getElementById('flow-locale-select');
 
     let currency = CURRENCIES.find(c => c.iso4217 == currencySelect.value);
 
     paymentSessionBody = {
+        // Flow derives its display language from this field by default.
+        locale: localeSelect.value,
         currency: currencySelect.value,
         amount: parseInt(amountInput.value * currency.base),
         payment_type: paymentTypeSelect.value,
@@ -358,34 +364,90 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
     };
 
-    currencySelect.addEventListener('change', function () {
+    // Flow button listeners
+    const renderFlowButton = document.getElementById("flow-button");
+    const renderTokenizeOnlyButton = document.getElementById("tokenize-only-button");
+    const flowContainer = document.getElementById("flow-container");
+
+    // Shared by the two render buttons and every "reinit if mounted" listener
+    // below, so any config change recreates the session the same way the
+    // original button click did.
+    const createAndInitializeFlowSession = async function (tokenizeOnly) {
+        try {
+            isTokenizeOnly = tokenizeOnly;
+            const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(paymentSessionBody),
+            });
+            let getData = await getResponse.json();
+            await addToApiLog(
+                'POST',
+                `create ${tokenizeOnly ? 'tokenization-only ' : ''}flow payment session: ${getData.id} - /payment-sessions`,
+                getData.id ? 201 : 422,
+                paymentSessionBody,
+                getData
+            );
+            flowContainer.style.display = 'block';
+            await initializeFlow(getData, tokenizeOnly);
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to create payment session. Please try again.', 'error');
+        }
+    };
+
+    // Most session fields (currency, country, locale, 3DS, capture, payment
+    // type, remember-me) are fixed at session-creation time — Flow can't pick
+    // up a change to them via a re-mount, so if a session is already mounted,
+    // changing any of these must recreate it from scratch. Name/email/amount
+    // are deliberately excluded — those are read live by handleSubmit/tokenize
+    // and don't require a new session.
+    const reinitFlowIfMounted = async function () {
+        if (flowContainer && flowContainer.style.display !== 'none' && _flowActiveSession) {
+            await createAndInitializeFlowSession(_flowIsTokenizeOnly);
+        }
+    };
+
+    currencySelect.addEventListener('change', async function () {
         paymentSessionBody.currency = this.value;
+        await reinitFlowIfMounted();
     });
 
-    countrySelect.addEventListener('change', function () {
+    countrySelect.addEventListener('change', async function () {
         paymentSessionBody.billing.address.country = this.value;
+        await reinitFlowIfMounted();
     });
 
-    threeDSToggle.addEventListener('change', function () {
+    localeSelect.addEventListener('change', async function () {
+        // Flow derives its display language from this field at session-creation
+        // time, so changing it always requires a fresh session (handled by
+        // reinitFlowIfMounted below like every other non-excluded field).
+        paymentSessionBody.locale = this.value;
+        await reinitFlowIfMounted();
+    });
+
+    threeDSToggle.addEventListener('change', async function () {
         paymentSessionBody['3ds'].enabled = this.checked;
+        await reinitFlowIfMounted();
     });
 
-    captureToggle.addEventListener('change', function () {
+    captureToggle.addEventListener('change', async function () {
         paymentSessionBody.capture = this.checked;
+        await reinitFlowIfMounted();
     });
 
     rememberMeToggle.addEventListener('change', async function () {
-        console.log('rememberMeEnabled', this.checked);
-        console.log('rememberMeEnabled', this.value);
-        if (await !this.checked) {
+        if (!this.checked) {
             paymentSessionBody['disabled_payment_methods'] = ['remember_me'];
         } else {
             delete paymentSessionBody['disabled_payment_methods'];
         }
+        await reinitFlowIfMounted();
     });
 
-    paymentTypeSelect.addEventListener('change', (e) => {
+    paymentTypeSelect.addEventListener('change', async (e) => {
         paymentSessionBody.payment_type = e.target.value;
+        await reinitFlowIfMounted();
     });
 
     nameInput.addEventListener('input', (e) => {
@@ -401,46 +463,9 @@ document.addEventListener('DOMContentLoaded', () => {
         paymentSessionBody.items[0].unit_price = parseInt(amountInput.value * currency.base);
     });
 
-    // Flow button listeners
-    const renderFlowButton = document.getElementById("flow-button");
-    const renderTokenizeOnlyButton = document.getElementById("tokenize-only-button");
-    const flowContainer = document.getElementById("flow-container");
+    renderFlowButton.addEventListener('click', () => createAndInitializeFlowSession(false));
 
-    renderFlowButton.addEventListener('click', async () => {
-        try {
-            isTokenizeOnly = false;
-            const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(paymentSessionBody),
-            });
-            let getData = await getResponse.json();
-            await addToApiLog('POST', `create flow payment session: ${getData.id} - /payment-sessions`, getData.id ? 201 : 422, paymentSessionBody, getData);
-            flowContainer.style.display = 'block';
-            await initializeFlow(getData);
-        } catch (error) {
-            console.error(error);
-            showToast('Failed to create payment session. Please try again.', 'error');
-        }
-    });
-
-    renderTokenizeOnlyButton.addEventListener('click', async () => {
-        try {
-            isTokenizeOnly = true;
-            const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(paymentSessionBody),
-            });
-            let getData = await getResponse.json();
-            await addToApiLog('POST', `create tokenization-only flow session: ${getData.id} - /payment-sessions`, getData.id ? 201 : 422, paymentSessionBody, getData);
-            flowContainer.style.display = 'block';
-            await initializeFlow(getData, isTokenizeOnly);
-        } catch (error) {
-            console.error(error);
-            showToast('Failed to create tokenization session. Please try again.', 'error');
-        }
-    });
+    renderTokenizeOnlyButton.addEventListener('click', () => createAndInitializeFlowSession(true));
 
 });
 
