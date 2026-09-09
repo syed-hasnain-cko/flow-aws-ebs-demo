@@ -151,6 +151,14 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
     },
     "sv-SE": {
       "form.first_name": "Förnamn"
+    },
+    // Flow's default de-DE strings mismatch: the pay button says "Zahlen" but
+    // pay_button.redirect_cta (the "click Bezahlen to continue" info text
+    // shown on redirect methods like EPS) says „Bezahlen" — align the button
+    // to match instead of the other way round, since redirect_cta isn't
+    // overridable per-button.
+    "de-DE": {
+      "pay_button.pay": "Bezahlen"
     }
   },
             componentOptions: {
