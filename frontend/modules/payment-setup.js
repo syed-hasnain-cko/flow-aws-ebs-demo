@@ -342,6 +342,10 @@ async function handleFinalState(response, selectedMethod) {
     widgetContainer.style.display = 'none';
     document.getElementById('klarna_container').innerHTML = '';
 
+    // Clear any leftover stc pay OTP input/button from a previous render
+    document.getElementById('stcpay-otp-input')?.remove();
+    document.getElementById('make-stcpay-otp-btn')?.remove();
+
     // Only evaluate the method the user selected — ignore others in the response
     const methodName = selectedMethod;
     const methodData = methods?.[methodName];
@@ -372,6 +376,9 @@ async function handleFinalState(response, selectedMethod) {
                 const captureEnabled = document.getElementById('setup-capture-toggle').checked;
                 initializePayPalSDK(orderId, setupId, paymentType, captureEnabled);
             }
+        } else if (methodData.status === "action_required" && methodData.action?.type === "otp") {
+            // ── ACTION REQUIRED: stc pay sent an OTP to the customer's phone ──
+            renderStcPayOtpState(setupId, statusArea);
         } else {
             // ── STILL AVAILABLE: initialization was sent but status didn't advance ──
             renderMethodUnavailable(statusArea, methodName, methodData.flags || []);
@@ -379,6 +386,92 @@ async function handleFinalState(response, selectedMethod) {
     } else {
         // ── AVAILABLE (no initialization sent or method not supported): show flags ──
         renderMethodUnavailable(statusArea, methodName, methodData.flags || []);
+    }
+}
+
+function renderStcPayOtpState(setupId, statusArea) {
+    const actionArea = document.getElementById('setup-methods-container');
+
+    const oldBtn = document.getElementById('make-stcpay-otp-btn');
+    if (oldBtn) oldBtn.remove();
+    const oldInput = document.getElementById('stcpay-otp-input');
+    if (oldInput) oldInput.remove();
+
+    if (statusArea) {
+        statusArea.className = '';
+        statusArea.style.cssText = `
+            display: block; margin-top: 15px; padding: 16px 20px;
+            border-radius: 12px; text-align: left;
+            background: var(--status-action-bg);
+            border: 1.5px solid var(--status-action-border);
+        `;
+        statusArea.innerHTML = `
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:22px;">🔐</span>
+                <div>
+                    <div style="font-size:14px; font-weight:700; color:var(--status-action-text);">stc pay — Enter OTP</div>
+                    <div style="font-size:12px; color:var(--status-action-text); margin-top:4px; line-height:1.6; opacity:0.85;">
+                        stc pay sent a one-time password to the customer's registered phone number. Enter it below to move to "ready".
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    const otpInput = document.createElement('input');
+    otpInput.id = 'stcpay-otp-input';
+    otpInput.className = 'text-input';
+    otpInput.placeholder = 'Enter OTP (e.g. 123456)';
+    otpInput.style.cssText = 'margin-top:12px; width:100%; max-width:300px;';
+
+    const btn = document.createElement('button');
+    btn.id = 'make-stcpay-otp-btn';
+    btn.className = 'main-button';
+    btn.style.cssText = 'background:var(--success); margin-top:12px; width:100%;';
+    btn.innerText = 'Submit OTP';
+
+    btn.onclick = async () => {
+        if (btn.disabled) return;
+        const otp = otpInput.value.trim();
+        if (!otp) {
+            showKlarnaToast('Enter the OTP sent to the customer\'s phone.', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.innerText = 'Submitting...';
+
+        try {
+            const patchBody = {
+                payment_methods: {
+                    stcpay: { initialization: 'enabled', otp }
+                }
+            };
+            const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/update-payment-setups?setupId=${setupId}`, {
+                method: 'PUT',
+                body: JSON.stringify(patchBody),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await res.json();
+            addToApiLog('PUT', `Submit stc pay OTP - /payments/setups/${setupId}`, result.id ? 200 : 422, patchBody, result);
+
+            const output = document.getElementById('setup-json-output');
+            if (output) output.innerText = JSON.stringify(result, null, 2);
+
+            await handleFinalState(result, 'stcpay');
+        } catch (err) {
+            console.error('stc pay OTP submit error:', err);
+            showKlarnaToast('Failed to submit OTP — check the console.', 'error');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerText = 'Submit OTP';
+        }
+    };
+
+    if (actionArea) {
+        actionArea.appendChild(otpInput);
+        actionArea.appendChild(btn);
     }
 }
 
