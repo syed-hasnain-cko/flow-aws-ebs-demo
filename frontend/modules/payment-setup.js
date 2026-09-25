@@ -275,10 +275,13 @@ function handleToggleChange() {
 
                 group.innerHTML = `<label class="text-label" title="${field.path}" style="${labelStyle}">${field.path}</label>${inputHtml}`;
 
-                // Hide conditional fields whose condition isn't met by the default value
+                // Hide conditional fields whose condition isn't met by the default value.
+                // Controller may be another field in this method's own group, or a global
+                // setup-level control (e.g. the Payment Type selector) outside the method scope.
                 if (field.showIf) {
-                    const controller = METHOD_REQUIREMENTS[method].find(f => f.id === field.showIf.id);
-                    if (controller && controller.value !== field.showIf.value) {
+                    const localController = METHOD_REQUIREMENTS[method].find(f => f.id === field.showIf.id);
+                    const controllerValue = localController ? localController.value : document.getElementById(field.showIf.id)?.value;
+                    if (controllerValue !== undefined && controllerValue !== field.showIf.value) {
                         group.style.display = 'none';
                     }
                 }
@@ -1024,6 +1027,21 @@ function validateInitializeForm() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+
+    // Toggle any rendered field whose showIf points at this global setup-level
+    // control (e.g. paypal's Billing Type, shown only when Payment Type = Recurring)
+    const setupPaymentTypeEl = document.getElementById('setup-payment-type');
+    if (setupPaymentTypeEl) {
+        setupPaymentTypeEl.addEventListener('change', () => {
+            document.querySelectorAll('.method-toggle:checked').forEach(t => {
+                (METHOD_REQUIREMENTS[t.dataset.method] || []).forEach(f => {
+                    if (f.showIf?.id !== 'setup-payment-type') return;
+                    const groupEl = document.getElementById(`group-${f.id}`);
+                    if (groupEl) groupEl.style.display = f.showIf.value === setupPaymentTypeEl.value ? '' : 'none';
+                });
+            });
+        });
+    }
 
     // Create Setup button
     document.getElementById('create-setup-btn').addEventListener('click', async () => {
