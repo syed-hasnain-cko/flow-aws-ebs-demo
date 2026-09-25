@@ -94,6 +94,12 @@ const METHOD_REQUIREMENTS = {
     paypal: [
         { id: 'paypal-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'paypal-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+        {
+            id: 'paypal-billing-type', label: 'Billing Type', path: 'payment_methods.paypal.billing_type', type: 'select',
+            options: ['merchant_initiated_billing_single_agreement', 'merchant_initiated_billing', 'channel_initiated_billing', 'channel_initiated_billing_single_agreement'],
+            value: 'merchant_initiated_billing_single_agreement',
+            showIf: { id: 'setup-payment-type', value: 'Recurring' },
+        },
     ],
     googlepay: [
         { id: 'googlepay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
@@ -116,6 +122,7 @@ const METHOD_NOTES = {
     blik: 'ℹ️ BLIK requires PLN currency and a 6-digit Partner Code (the BLIK PSP ID assigned to your merchant account during onboarding) — default "999111" is this account\'s registered sandbox code. BLIK confirms directly via the customer\'s banking app; there is no redirect page.',
     card: 'ℹ️ Card uses Checkout.com Flow for tokenization. Click "Update Payment Setup" to load the card form.',
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
+    paypal: 'ℹ️ Billing Type only appears when the top Payment Type selector is set to "Recurring" — it establishes the PayPal billing agreement type for merchant-initiated recurring charges.',
 };
 
 // Methods that require a specific currency — set automatically on toggle + patch.
