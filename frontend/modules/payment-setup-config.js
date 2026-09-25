@@ -209,7 +209,7 @@ const METHOD_NOTES = {
     tabby: 'ℹ️ Tabby requires AED — currency will be set to AED automatically when you patch. Supported currencies: AED, SAR, KWD, BHD, QAR. Like Tamara, patching triggers a live eligibility check — sandbox test customers may come back "unavailable" with no flags.',
     stcpay: 'ℹ️ stc pay requires SAR — currency will be set to SAR automatically when you patch. Sandbox test phone: country code 111, number 222222222 — use a real-looking non-test number and the gateway hangs for ~20s before returning "unavailable". After patching, enter OTP 123 below for a successful flow (321/456/789/420 simulate declines).',
     vipps: 'ℹ️ Vipps requires NOK — currency will be set to NOK automatically when you patch.',
-    wechatpay: 'ℹ️ WeChat Pay requires CNY — currency will be set to CNY automatically when you patch. In this sandbox channel it may still return "payment_methods.wechatpay.property_required" beyond the documented fields — likely needs additional account-side activation from Checkout.com.',
+    wechatpay: '⚠️ WeChat Pay requires CNY, but per Checkout.com\'s own docs it "does not provide a dedicated sandbox environment" — testing only works with low-value transactions in production. `payment_methods.wechatpay` is also marked read-only in the API schema (it has no client-settable fields at all), which is why it always reports "property_required" here regardless of what you send. This is an environment limitation, not a missing field — nothing in this sandbox channel can resolve it.',
     octopus: 'ℹ️ Octopus requires HKD (Hong Kong Dollar) — currency will be set to HKD automatically when you patch.',
     swish: 'ℹ️ Swish requires SEK (Swedish Krona) — currency will be set to SEK automatically when you patch.',
 };
@@ -235,6 +235,11 @@ const FORCED_CURRENCY = {
 // Methods whose gateway rejects a reference containing anything but letters/numbers
 // (e.g. "#Order_123" fails with reference_invalid) — sanitized to alphanumeric-only at patch time.
 const METHODS_ALPHANUMERIC_REFERENCE = new Set(['benefit']);
+
+// Methods whose payment_methods.<method> is marked read-only in the API schema (no
+// client-settable properties at all) — sending an "initialization" key it doesn't
+// recognize gets rejected, so send an empty object instead.
+const METHODS_NO_INITIALIZATION = new Set(['wechatpay']);
 
 // Brand colours, abbreviations, Simple Icons CDN logos, and confirm flow for each payment method.
 // confirmFlow values:
