@@ -6,6 +6,7 @@ let activeSetupResponse = null;
 let _cardActiveSession = null; // stored for theme re-mount
 let currentSetupId = null;
 let setupWebhookPoller = null;
+let _lastPatchBody = null; // full body of the last successful PUT — reused by stc pay's OTP follow-up
 
 const FAILED_STATUSES = ['Declined', 'Canceled', 'Expired', 'Failed'];
 
@@ -443,11 +444,11 @@ function renderStcPayOtpState(setupId, statusArea) {
         btn.innerText = 'Submitting...';
 
         try {
-            const patchBody = {
-                payment_methods: {
-                    stcpay: { initialization: 'enabled', otp }
-                }
-            };
+            // The Payment Setup API replaces the whole setup on every PUT — it doesn't merge —
+            // so resend the full body from the last successful patch, just adding the otp field.
+            const patchBody = JSON.parse(JSON.stringify(_lastPatchBody || { payment_methods: {} }));
+            patchBody.payment_methods.stcpay = { initialization: 'enabled', otp };
+
             const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/update-payment-setups?setupId=${setupId}`, {
                 method: 'PUT',
                 body: JSON.stringify(patchBody),
@@ -1210,10 +1211,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currencyEl) currencyEl.value = FORCED_CURRENCY[activeMethodForCurrency];
         }
 
+        // Some gateways (e.g. Benefit) reject a reference containing anything but letters/numbers
+        let reference = '#Order_' + Math.floor(Math.random() * 1000) + 1;
+        if (activeMethodForCurrency && METHODS_ALPHANUMERIC_REFERENCE.has(activeMethodForCurrency)) {
+            reference = reference.replace(/[^a-zA-Z0-9]/g, '');
+        }
+
         const patchBody = {
             payment_methods: {},
             amount: parseInt(document.getElementById('setup-amount').value),
-            reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
+            reference,
             currency: document.getElementById('setup-currency').value,
             payment_type: document.getElementById('setup-payment-type').value,
             processing_channel_id: document.getElementById('setup-pc-id').value,
@@ -1290,6 +1297,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.style.opacity = "0.5";
         btn.style.cursor = "not-allowed";
         btn.innerText = 'Patching...';
+
+        // stc pay's OTP follow-up PUT must resend the full body (the API replaces the
+        // whole setup on every PUT, it doesn't merge) — keep a copy for renderStcPayOtpState.
+        _lastPatchBody = patchBody;
 
         try {
             const queryParams = new URLSearchParams({ setupId: activeSetupResponse.id });

@@ -109,6 +109,10 @@ const METHOD_REQUIREMENTS = {
         { id: 'applepay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'applepay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
     ],
+    mobilepay: [
+        { id: 'mobilepay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
+        { id: 'mobilepay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
+    ],
     alipay_cn: [
         { id: 'alipaycn-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'alipaycn-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
@@ -157,8 +161,8 @@ const METHOD_REQUIREMENTS = {
         { id: 'stcpay-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
         { id: 'stcpay-failure', label: 'Failure URL', path: 'settings.failure_url', value: window.location.origin + '/failure.html' },
         { id: 'stcpay-email', label: 'Customer Email', path: 'customer.email.address', value: 'hannah.bret@example.com' },
-        { id: 'stcpay-ccode', label: 'Phone Country Code', path: 'customer.phone.country_code', value: '966' },
-        { id: 'stcpay-phone', label: 'Phone Number', path: 'customer.phone.number', value: '555123456' },
+        { id: 'stcpay-ccode', label: 'Phone Country Code', path: 'customer.phone.country_code', value: '111' },
+        { id: 'stcpay-phone', label: 'Phone Number', path: 'customer.phone.number', value: '222222222' },
     ],
     vipps: [
         { id: 'vipps-success', label: 'Success URL', path: 'settings.success_url', value: window.location.origin + '/success.html' },
@@ -186,7 +190,7 @@ const METHOD_REQUIREMENTS = {
 };
 
 // Methods that require order line items in the PATCH body
-const METHODS_WITH_ORDER_ITEMS = new Set(['klarna', 'paypal', 'kakaopay']);
+const METHODS_WITH_ORDER_ITEMS = new Set(['klarna', 'paypal', 'kakaopay', 'alipay_cn']);
 
 // Informational notes shown above the fields for certain methods
 const METHOD_NOTES = {
@@ -198,12 +202,12 @@ const METHOD_NOTES = {
     instrument: 'ℹ️ No additional fields required. Patching will enable this instrument for the setup.',
     paypal: 'ℹ️ Billing Type only appears when the top Payment Type selector is set to "Recurring" — it establishes the PayPal billing agreement type for merchant-initiated recurring charges.',
     alipay_cn: 'ℹ️ Alipay CN requires CNY — currency will be set to CNY automatically when you patch. OS Type only appears when Terminal Type is "app".',
-    benefit: 'ℹ️ Benefit Pay requires BHD (Bahraini Dinar) — currency will be set to BHD automatically when you patch.',
+    benefit: 'ℹ️ Benefit Pay requires BHD (Bahraini Dinar) — currency will be set to BHD automatically when you patch. Its gateway rejects the confirm step if the reference contains anything but letters/numbers — the "#Order_" reference is auto-sanitized to alphanumeric-only for this method.',
     mbway: 'ℹ️ MB WAY uses EUR and requires a Portuguese phone number (default country code 351).',
     knet: 'ℹ️ KNET requires KWD (Kuwaiti Dinar) — currency will be set to KWD automatically when you patch.',
     tamara: 'ℹ️ Tamara requires SAR — currency will be set to SAR automatically when you patch. Initialization triggers a live eligibility check against the customer + shipping address; an ineligible customer moves the method to "unavailable".',
     tabby: 'ℹ️ Tabby requires AED — currency will be set to AED automatically when you patch. Supported currencies: AED, SAR, KWD, BHD, QAR. Like Tamara, patching triggers a live eligibility check — sandbox test customers may come back "unavailable" with no flags.',
-    stcpay: 'ℹ️ stc pay requires SAR — currency will be set to SAR automatically when you patch. After patching, stc pay sends an OTP to the phone number — enter it below to move to "ready".',
+    stcpay: 'ℹ️ stc pay requires SAR — currency will be set to SAR automatically when you patch. Sandbox test phone: country code 111, number 222222222 — use a real-looking non-test number and the gateway hangs for ~20s before returning "unavailable". After patching, enter OTP 123 below for a successful flow (321/456/789/420 simulate declines).',
     vipps: 'ℹ️ Vipps requires NOK — currency will be set to NOK automatically when you patch.',
     wechatpay: 'ℹ️ WeChat Pay requires CNY — currency will be set to CNY automatically when you patch. In this sandbox channel it may still return "payment_methods.wechatpay.property_required" beyond the documented fields — likely needs additional account-side activation from Checkout.com.',
     octopus: 'ℹ️ Octopus requires HKD (Hong Kong Dollar) — currency will be set to HKD automatically when you patch.',
@@ -227,6 +231,10 @@ const FORCED_CURRENCY = {
     octopus:   'HKD',
     swish:     'SEK',
 };
+
+// Methods whose gateway rejects a reference containing anything but letters/numbers
+// (e.g. "#Order_123" fails with reference_invalid) — sanitized to alphanumeric-only at patch time.
+const METHODS_ALPHANUMERIC_REFERENCE = new Set(['benefit']);
 
 // Brand colours, abbreviations, Simple Icons CDN logos, and confirm flow for each payment method.
 // confirmFlow values:
@@ -267,4 +275,5 @@ const METHOD_DISPLAY = {
     wechatpay:  { bg: '#09B83E', color: '#fff',    abbr: 'WC',   logo: 'https://cdn.simpleicons.org/wechat/ffffff',     confirmFlow: 'redirect' },
     octopus:    { bg: '#E4002B', color: '#fff',    abbr: 'OCT',  logo: null,                                            confirmFlow: 'redirect' },
     swish:      { bg: '#EF7E00', color: '#fff',    abbr: 'SW',   logo: 'https://cdn.simpleicons.org/swish/ffffff',      confirmFlow: 'redirect' },
+    mobilepay:  { bg: '#5A78FF', color: '#fff',    abbr: 'MP',   logo: null,                                            confirmFlow: 'redirect' },
 };
