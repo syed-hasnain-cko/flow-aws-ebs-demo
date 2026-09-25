@@ -1239,7 +1239,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeToggles = document.querySelectorAll('.method-toggle:checked');
         activeToggles.forEach(t => {
             const method = t.dataset.method;
-            patchBody.payment_methods[method] = { initialization: "enabled" };
+            // Methods whose payment_methods.<method> is read-only / has no client-settable
+            // fields (e.g. WeChat Pay) reject an "initialization" property that doesn't exist
+            // on their schema — send an empty object for those instead.
+            patchBody.payment_methods[method] = METHODS_NO_INITIALIZATION.has(method) ? {} : { initialization: "enabled" };
         });
 
         document.querySelectorAll('.patch-field').forEach(input => {
