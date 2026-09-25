@@ -52,8 +52,8 @@ router.post('/payment-setups', async (req, res) => {
         res.send(response.data);
     } catch (error) {
         console.error("Payment Setup Error:", error.response ? error.response.data : error.message);
-        res.status(500).send(error.response ? error.response.data : { error: "Internal Server Error" });
-    } 
+        res.status(error.response?.status || 500).send(error.response ? error.response.data : { error: "Internal Server Error" });
+    }
 });
 
 router.put('/update-payment-setups', async (req, res) => {
@@ -66,7 +66,7 @@ router.put('/update-payment-setups', async (req, res) => {
         });
         res.send(response.data);
     } catch (error) {
-        res.status(500).send(error.response ? error.response.data : error.message);
+        res.status(error.response?.status || 500).send(error.response ? error.response.data : error.message);
     }
 });
 
@@ -78,7 +78,10 @@ router.post('/confirm-payment-setups', async (req, res) => {
         );
         res.send(response.data);
     } catch (error) {
-        res.status(500).send(error.response?.data || error.message);
+        // Forward CKO's actual status (e.g. 422 validation errors) instead of masking
+        // every failure as a 500 — the frontend and API log need the real code to show
+        // a useful error instead of "Internal Server Error" for what's really a 4xx.
+        res.status(error.response?.status || 500).send(error.response?.data || error.message);
     }
 });
 
