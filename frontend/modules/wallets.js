@@ -73,7 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dropdown / toggle change listeners — re-render button when a setting changes
     const walletInputs = [
         'google-button-type', 'google-button-color', 'google-locale',
-        'apple-button-type', 'apple-button-style', 'apple-active-card-toggle'
+        'apple-button-type', 'apple-button-style', 'apple-active-card-toggle',
+        // Data-collection toggles (Google Pay PaymentDataRequest fields) —
+        // read live at loadPaymentData() time, but rerendering keeps behavior
+        // consistent with every other wallet setting on this tab.
+        'google-billing-toggle', 'google-billing-format-select', 'google-billing-phone-toggle',
+        'google-shipping-toggle', 'google-shipping-phone-toggle', 'google-email-toggle'
     ];
 
     walletInputs.forEach(id => {
@@ -84,7 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Chip (multi-select checkbox) change listeners
-    const chipContainers = ['schemes-chips', 'apple-caps-chips', 'auth-methods-chips', 'card-type-chips'];
+    const chipContainers = [
+        'schemes-chips', 'apple-caps-chips', 'auth-methods-chips', 'card-type-chips',
+        // Apple Pay requiredBillingContactFields / requiredShippingContactFields
+        'apple-billing-fields-chips', 'apple-shipping-fields-chips'
+    ];
     chipContainers.forEach(containerId => {
         const container = document.getElementById(containerId);
         if (container) {
