@@ -135,6 +135,14 @@ function onGooglePaymentButtonClicked() {
   const allowedCardNetworks = window.getChipSelectedValues("schemes-chips");
   const allowedTypes = window.getChipSelectedValues("card-type-chips");
 
+  // PaymentDataRequest data-collection toggles (Google Pay API for Web).
+  const billingToggle = document.getElementById('google-billing-toggle');
+  const billingFormatSelect = document.getElementById('google-billing-format-select');
+  const billingPhoneToggle = document.getElementById('google-billing-phone-toggle');
+  const shippingToggle = document.getElementById('google-shipping-toggle');
+  const shippingPhoneToggle = document.getElementById('google-shipping-phone-toggle');
+  const emailToggle = document.getElementById('google-email-toggle');
+
   // VALIDATION: Force defaults if chips are empty to prevent OR_BIBED_06
   const finalAuth = allowedAuthMethods.length > 0 ? allowedAuthMethods : ["PAN_ONLY", "CRYPTOGRAM_3DS"];
   const finalNetworks = allowedCardNetworks.length > 0 ? allowedCardNetworks : ["VISA", "MASTERCARD"];
@@ -149,6 +157,30 @@ function onGooglePaymentButtonClicked() {
   
   // Apply Card Type Toggles
   params.allowCreditCards = allowedTypes.includes('credit');
+
+  // billingAddressRequired/Parameters live under allowedPaymentMethods[0].parameters —
+  // returned in paymentData.paymentMethodData.info.billingAddress.
+  params.billingAddressRequired = billingToggle.checked;
+  if (billingToggle.checked) {
+      params.billingAddressParameters = {
+          format: billingFormatSelect.value,
+          phoneNumberRequired: billingPhoneToggle.checked
+      };
+  } else {
+      delete params.billingAddressParameters;
+  }
+
+  // shippingAddressRequired/Parameters and emailRequired are top-level
+  // PaymentDataRequest fields — returned in paymentData.shippingAddress / paymentData.email.
+  googleConfig.shippingAddressRequired = shippingToggle.checked;
+  if (shippingToggle.checked) {
+      googleConfig.shippingAddressParameters = {
+          phoneNumberRequired: shippingPhoneToggle.checked
+      };
+  } else {
+      delete googleConfig.shippingAddressParameters;
+  }
+  googleConfig.emailRequired = emailToggle.checked;
 
   googleConfig.transactionInfo.currencyCode = currencySelect.value.toUpperCase();
   googleConfig.transactionInfo.totalPrice = totalPrice;
@@ -170,29 +202,25 @@ if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890
     .loadPaymentData(googleConfig)
     .then(function (paymentData) {
 
+      // Parse the Google Pay SDK response
+      const tokenObj = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
+
       const sdkLogData = {
           source: "Google Pay",
+          // What we asked Google to collect vs. what actually came back — lets you
+          // see the effect of the billing/shipping/email toggles above.
+          requestedConfig: {
+              billingAddressRequired: params.billingAddressRequired,
+              billingAddressParameters: params.billingAddressParameters || null,
+              shippingAddressRequired: googleConfig.shippingAddressRequired,
+              shippingAddressParameters: googleConfig.shippingAddressParameters || null,
+              emailRequired: googleConfig.emailRequired
+          },
           type: paymentData.paymentMethodData.type,
           description: paymentData.paymentMethodData.description,
-          info: paymentData.paymentMethodData.info,
-          tokenMetadata: JSON.parse(paymentData.paymentMethodData.tokenizationData.token)
-      };
-      sessionStorage.setItem('wallet_debug_log', JSON.stringify(sdkLogData));
-
-      const debugContainer = document.getElementById('apple-pay-debugger');
-      const logElement = document.getElementById('apple-sdk-log');
-      
-      // Update header to be generic if it's currently "Apple SDK Log"
-      debugContainer.querySelector('h3').innerText = "Wallet SDK Authorization Log";
-      debugContainer.style.display = 'block';
-
-      // Parse and display the Google Pay SDK response
-      const tokenObj = JSON.parse(paymentData.paymentMethodData.tokenizationData.token);
-      
-      logElement.innerHTML = formatJSON({
-          type: paymentData.paymentMethodData.type,
-          description: paymentData.paymentMethodData.description,
-          info: paymentData.paymentMethodData.info, // Contains card network and last 4
+          info: paymentData.paymentMethodData.info, // Contains card network, last 4, and billingAddress if requested
+          email: paymentData.email || "Not requested",
+          shippingAddress: paymentData.shippingAddress || "Not requested",
           tokenizationData: {
               gateway: "checkoutltd",
               token: {
@@ -201,7 +229,17 @@ if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890
                   signedMessage: "{Encrypted JSON Message}" // Truncated for readability
               }
           }
-      });
+      };
+      sessionStorage.setItem('wallet_debug_log', JSON.stringify(sdkLogData));
+
+      const debugContainer = document.getElementById('apple-pay-debugger');
+      const logElement = document.getElementById('apple-sdk-log');
+
+      // Update header to be generic if it's currently "Apple SDK Log"
+      debugContainer.querySelector('h3').innerText = "Wallet SDK Authorization Log";
+      debugContainer.style.display = 'block';
+
+      logElement.innerHTML = formatJSON(sdkLogData);
       processGooglePayPayment(paymentData);
     })
     .catch(function (err) {
