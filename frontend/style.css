@@ -932,6 +932,41 @@ pre {
 .apple-pay-button[data-style="white-outline"] { -apple-pay-button-style: white-outline; }
 .apple-pay-button:hover { transform: scale(1.02); }
 
+/* Fallback for non-WebKit browsers (Chrome, Firefox, Edge). The Apple Pay JS
+   SDK (index.html) polyfills the ApplePaySession API there for the QR-code
+   cross-device flow, but `-webkit-appearance: -apple-pay-button` is a
+   WebKit-only rendering value it does NOT polyfill — without this block the
+   <button> above renders with no appearance at all (a blank native button). */
+@supports not (-webkit-appearance: -apple-pay-button) {
+    .apple-pay-button {
+        background: #000;
+        color: #fff;
+        border-radius: 6px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    .apple-pay-button[data-style="white"] {
+        background: #fff;
+        color: #000;
+        border: 1px solid #d2d2d7;
+    }
+    .apple-pay-button[data-style="white-outline"] {
+        background: #fff;
+        color: #000;
+        border: 1px solid #000;
+    }
+    .apple-pay-button::after            { content: "Buy with Apple Pay"; }
+    .apple-pay-button[data-type="plain"]::after      { content: "Apple Pay"; }
+    .apple-pay-button[data-type="check-out"]::after  { content: "Check out with Apple Pay"; }
+    .apple-pay-button[data-type="book"]::after       { content: "Book with Apple Pay"; }
+    .apple-pay-button[data-type="subscribe"]::after  { content: "Subscribe with Apple Pay"; }
+}
+
 /* ================================================================
    WALLET SELECTOR
    ================================================================ */
