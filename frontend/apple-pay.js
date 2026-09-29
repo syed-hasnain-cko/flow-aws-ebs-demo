@@ -89,6 +89,11 @@ function startApplePaySession() {
     // Update to read from chips
 let allowedCardNetworksApple = window.getChipSelectedValues("schemes-chips");
 let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
+    // ApplePayPaymentRequest.requiredBillingContactFields / requiredShippingContactFields —
+    // whichever fields are checked here are required in the Apple Pay sheet and returned
+    // on event.payment.billingContact / event.payment.shippingContact below.
+    let requiredBillingContactFields = window.getChipSelectedValues("apple-billing-fields-chips");
+    let requiredShippingContactFields = window.getChipSelectedValues("apple-shipping-fields-chips");
 
     appleCurrency = document.querySelector("#currency-select-google-pay").value.toUpperCase();
     appleTotalPrice = document.querySelector("#amount-input-google").value;
@@ -108,6 +113,16 @@ let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
         total: { label: "Syed Demo Shop", amount: appleTotalPrice },
     };
 
+    // Only attach these arrays when at least one field is checked — an empty
+    // array is equivalent to omitting the field for Apple, but omitting it
+    // outright keeps the logged "requestedConfig" honest about what was asked for.
+    if (requiredBillingContactFields.length > 0) {
+        request.requiredBillingContactFields = requiredBillingContactFields;
+    }
+    if (requiredShippingContactFields.length > 0) {
+        request.requiredShippingContactFields = requiredShippingContactFields;
+    }
+
     var session = new ApplePaySession(3, request);
 
     session.onvalidatemerchant = function(event) {
@@ -122,7 +137,14 @@ session.onpaymentauthorized = function(event) {
 
     const sdkLogData = {
         source: "Apple Pay",
+        // What we asked Apple to collect vs. what actually came back — lets you
+        // see the effect of the "Required Billing/Shipping Contact Fields" chips.
+        requestedConfig: {
+            requiredBillingContactFields: request.requiredBillingContactFields || [],
+            requiredShippingContactFields: request.requiredShippingContactFields || []
+        },
         token: {
+            paymentData: "{Encrypted Data}", // Don't log full blob to keep UI clean
             paymentMethod: event.payment.token.paymentMethod,
             transactionIdentifier: event.payment.token.transactionIdentifier
         },
@@ -137,15 +159,7 @@ session.onpaymentauthorized = function(event) {
     debugContainer.style.display = 'block';
 
     // We use your existing formatJSON helper for consistency
-    logElement.innerHTML = formatJSON({
-        token: {
-            paymentData: "{Encrypted Data}", // Don't log full blob to keep UI clean
-            paymentMethod: event.payment.token.paymentMethod,
-            transactionIdentifier: event.payment.token.transactionIdentifier
-        },
-        billingContact: event.payment.billingContact || "Not requested",
-        shippingContact: event.payment.shippingContact || "Not requested"
-    });
+    logElement.innerHTML = formatJSON(sdkLogData);
 
     // 2. Proceed with your existing payment logic
     performPayment(event.payment, function(outcome) {
