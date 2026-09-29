@@ -211,3 +211,69 @@
 </div>
 
 <div id="google-container" class="payment-container"></div>
+
+<!-- ================================================================
+     Wallets via Flow — Tokenize Mode (Apple Pay / Google Pay)
+     Uses checkout.create('applepay'|'googlepay', { mode: 'tokenize' }) to
+     exchange the wallet authorization for a CKO token without submitting a
+     payment, then forwards that token to /payments (source.type: token) —
+     the same route the Payment Setup tab's direct-card flow already uses.
+     Reuses the amount/currency/country/email/name/3DS/capture fields above.
+     ================================================================ -->
+<div class="wallet-selector-section" id="flow-wallet-section">
+    <p class="wallet-selector-label">Wallets via Flow (Tokenize Mode)</p>
+    <div class="wallet-selector">
+
+        <div class="wallet-option" id="select-apple-pay-flow" data-wallet="apple-flow">
+            <svg class="wallet-logo" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            <span>Apple Pay via Flow</span>
+        </div>
+
+        <div class="wallet-option" id="select-google-pay-flow" data-wallet="google-flow">
+            <svg class="wallet-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21.8 12.2c0-.7-.1-1.3-.2-2H12v3.8h5.5c-.2 1.2-1 2.2-2 2.8v2.3h3.3c1.9-1.8 3-4.4 3-6.9z" fill="#4285F4"/>
+                <path d="M12 22c2.7 0 5-0.9 6.7-2.4l-3.3-2.5c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3v2.6C4.8 19.9 8.2 22 12 22z" fill="#34A853"/>
+                <path d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3C2.4 8.6 2 10.3 2 12s.4 3.4 1 4.6L6.4 14z" fill="#FBBC05"/>
+                <path d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8C16.9 2.9 14.7 2 12 2 8.2 2 4.8 4.1 3 7.4l3.4 2.6C7.2 7.6 9.4 5.9 12 5.9z" fill="#EA4335"/>
+            </svg>
+            <span>Google Pay via Flow</span>
+        </div>
+
+    </div>
+    <p style="font-size:0.72rem; color:var(--text-muted); margin:10px 0 0;">
+        Renders the wallet button through Flow's <code>applepay</code>/<code>googlepay</code> component in
+        <code>mode: 'tokenize'</code>. On authorization, the wallet-provided contact/billing/shipping data and the
+        resulting Checkout.com token are shown below, then submitted to <code>/payments</code> with
+        <code>source.type: "token"</code>.
+    </p>
+</div>
+
+<div id="flow-wallet-container" class="payment-container" style="display:none; flex-direction:column; align-items:stretch; gap:14px; padding:24px;"></div>
+
+<div id="flow-wallet-result" style="display:none; margin-top:16px;">
+
+    <div class="success-payment-message" id="flow-wallet-log-panel" style="display:block;">
+        <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:8px;">Tokenize Flow — Step Log</div>
+        <div id="flow-wallet-log" style="font-family:'JetBrains Mono','Fira Code',monospace; font-size:11.5px; color:var(--text-secondary); line-height:1.7;"></div>
+    </div>
+
+    <div class="success-payment-message" id="flow-wallet-contact-panel" style="display:none; margin-top:14px;">
+        <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:8px;">Wallet-Provided Customer / Contact / Shipping Data (from onAuthorized)</div>
+        <div id="flow-wallet-contact-response"></div>
+    </div>
+
+    <div class="success-payment-message" id="flow-wallet-token-panel" style="display:none; margin-top:14px;">
+        <div style="font-weight:700; font-size:13px; color:var(--success); margin-bottom:8px;">✅ Checkout.com Token (from onTokenized)</div>
+        <div id="flow-wallet-token-response"></div>
+    </div>
+
+    <div class="success-payment-message" id="flow-wallet-payment-panel" style="display:none; margin-top:14px;">
+        <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:8px;">Payment Submitted via <code>/payments</code> (source.type: token)</div>
+        <div id="flow-wallet-payment-response"></div>
+        <div id="flow-wallet-webhook-status" style="font-size:12px; color:var(--text-muted); margin-top:10px;"></div>
+        <div id="flow-wallet-action-buttons" style="display:flex; gap:8px; margin-top:12px;"></div>
+    </div>
+
+</div>
