@@ -132,6 +132,20 @@
                     <span class="slider round"></span>
                 </label>
             </div>
+            <div class="form-group">
+                <label for="apple-express-toggle" class="toggle-label">Express Checkout (Shipping)</label>
+                <label class="switch">
+                    <input type="checkbox" id="apple-express-toggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <!-- Off by default so the already-tested plain Apple Pay flow above is
+                 unaffected. When on, session.onshippingcontactselected /
+                 onshippingmethodselected recompute the total from the simulated
+                 country-based rate table in modules/data.js (EXPRESS_SHIPPING_CONFIG). -->
+            <p id="apple-express-note" style="display:none; font-size:0.72rem; color:var(--text-muted); margin:0 0 4px; width:100%;">
+                Simulated rates vary by shipping country entered in the Apple Pay sheet (US/GB/DE have specific rates, others fall back to International). Countries IR/KP/CU are simulated as unserviceable to demo the rejection path.
+            </p>
             <div class="form-group full-width">
                 <label class="select-label">Merchant Capabilities</label>
                 <div class="chip-group" id="apple-caps-chips">
@@ -288,6 +302,22 @@
                     <span class="slider round"></span>
                 </label>
             </div>
+        </div>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="google-express-toggle" class="toggle-label">Express Checkout (Shipping)</label>
+                <label class="switch">
+                    <input type="checkbox" id="google-express-toggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <!-- Off by default so the already-tested plain Google Pay flow above is
+                 unaffected. When on, onPaymentDataChanged (registered on the
+                 PaymentsClient) recomputes the total from the same simulated
+                 country-based rate table as Apple Pay Express (modules/data.js). -->
+            <p id="google-express-note" style="display:none; font-size:0.72rem; color:var(--text-muted); margin:0; width:100%;">
+                Simulated rates vary by shipping country entered in the Google Pay sheet (US/GB/DE have specific rates, others fall back to International). Countries IR/KP/CU are simulated as unserviceable to demo the rejection path. Forces "Require Shipping Address" on regardless of the toggle above.
+            </p>
         </div>
     </div>
 

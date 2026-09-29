@@ -180,3 +180,49 @@ const BANK_PAYOUT_TEST_ACCOUNTS = {
         { country: 'Greece',  code: 'GR', ibanExample: 'GR1601101250000000012300695', bicExample: 'ETHNGRAA',   ibanLength: 27 },
     ],
 };
+
+// =============================================
+// Apple/Google Pay Express Checkout — simulated shipping rate table.
+// Not tied to any real product catalog — purely demonstrates the
+// address-dependent recompute behaviour both wallets' Express/shipping
+// callbacks are built for (Apple: onshippingcontactselected /
+// onshippingmethodselected. Google: onPaymentDataChanged with
+// callbackTrigger SHIPPING_ADDRESS / SHIPPING_OPTION).
+// All rate `amount` values are in MAJOR units (e.g. 5.00), matching the
+// string format both wallet SDKs expect for totals/shipping amounts.
+// =============================================
+const EXPRESS_SHIPPING_CONFIG = {
+    // Selecting one of these as the shipping country simulates an
+    // "we don't ship here" rejection from the merchant, inside the wallet
+    // sheet, before the customer can authorize payment.
+    unserviceableCountries: ['IR', 'KP', 'CU'],
+    ratesByCountry: {
+        US: [
+            { id: 'standard', label: 'Standard Shipping', detail: '5-7 business days', amount: 5.00 },
+            { id: 'express',  label: 'Express Shipping',  detail: '1-2 business days', amount: 15.00 },
+            { id: 'free',     label: 'Free Shipping',     detail: '7-10 business days', amount: 0.00 },
+        ],
+        GB: [
+            { id: 'standard', label: 'Standard Shipping', detail: '3-5 business days', amount: 4.00 },
+            { id: 'express',  label: 'Next Day',          detail: 'Next business day', amount: 12.00 },
+        ],
+        DE: [
+            { id: 'standard', label: 'DHL Standard', detail: '3-4 business days', amount: 4.50 },
+            { id: 'express',  label: 'DHL Express',   detail: '1 business day',   amount: 14.00 },
+        ],
+        // Fallback for any serviceable country not listed above.
+        INTL: [
+            { id: 'standard', label: 'International Standard', detail: '10-15 business days', amount: 20.00 },
+            { id: 'express',  label: 'International Express',  detail: '3-5 business days',   amount: 45.00 },
+        ],
+    },
+};
+
+function getExpressShippingRates(countryCode) {
+    const code = (countryCode || '').toUpperCase();
+    return EXPRESS_SHIPPING_CONFIG.ratesByCountry[code] || EXPRESS_SHIPPING_CONFIG.ratesByCountry.INTL;
+}
+
+function isExpressShippingCountryServiceable(countryCode) {
+    return !EXPRESS_SHIPPING_CONFIG.unserviceableCountries.includes((countryCode || '').toUpperCase());
+}

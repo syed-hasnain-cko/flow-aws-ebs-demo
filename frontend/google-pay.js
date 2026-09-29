@@ -7,6 +7,11 @@ let googleTotalPrice = undefined;
 let merchantId = undefined;
 let paymentRequest;
 
+// Express Checkout state — populated by onPaymentDataChanged() below, read by
+// processGooglePayPayment() to add the customer's selected shipping cost
+// onto the final payment amount.
+let expressShippingStateGoogle = { isExpress: false, selectedRate: null, shippingCost: 0, lastCountry: null };
+
 const threeDSToggle = document.getElementById('3ds-toggle-google');
 const captureToggle = document.getElementById('capture-toggle-google');
 const paymentTypeSelect = document.getElementById('payment-type-select-google');
@@ -77,23 +82,105 @@ const googleConfig = {
 
 let paymentsClient = null;
 
-function getGooglePaymentsClient(config) {
-  if (paymentsClient === null) {
+// Fires when the customer changes their shipping address or shipping option
+// inside the Google Pay sheet — only actually triggered when the request's
+// callbackIntents includes SHIPPING_ADDRESS/SHIPPING_OPTION (Express mode
+// below); harmless to always register since it's otherwise never called.
+async function onPaymentDataChanged(intermediatePaymentData) {
+  try {
+    const trigger = intermediatePaymentData.callbackTrigger;
+    const subtotal = parseFloat(amountInput.value);
+    const currencyCode = currencySelect.value.toUpperCase();
+
+    if (trigger === 'INITIALIZE' || trigger === 'SHIPPING_ADDRESS') {
+      const countryCode = (intermediatePaymentData.shippingAddress?.countryCode || '').toUpperCase();
+      expressShippingStateGoogle.lastCountry = countryCode;
+
+      if (!isExpressShippingCountryServiceable(countryCode)) {
+        return {
+          error: {
+            reason: 'SHIPPING_ADDRESS_UNSERVICEABLE',
+            message: 'We do not ship to this country (simulated).',
+            intent: 'SHIPPING_ADDRESS'
+          }
+        };
+      }
+
+      const rates = getExpressShippingRates(countryCode);
+      const defaultRate = rates[0];
+      expressShippingStateGoogle.selectedRate = defaultRate;
+      expressShippingStateGoogle.shippingCost = defaultRate.amount;
+
+      return {
+        newShippingOptionParameters: {
+          defaultSelectedOptionId: defaultRate.id,
+          shippingOptions: rates.map(r => ({ id: r.id, label: r.label, description: r.detail }))
+        },
+        newTransactionInfo: {
+          currencyCode,
+          totalPriceStatus: 'FINAL',
+          totalPrice: (subtotal + defaultRate.amount).toFixed(2)
+        }
+      };
+    }
+
+    if (trigger === 'SHIPPING_OPTION') {
+      const rates = getExpressShippingRates(expressShippingStateGoogle.lastCountry);
+      const selected = rates.find(r => r.id === intermediatePaymentData.shippingOptionData.id) || rates[0];
+      expressShippingStateGoogle.selectedRate = selected;
+      expressShippingStateGoogle.shippingCost = selected.amount;
+
+      return {
+        newTransactionInfo: {
+          currencyCode,
+          totalPriceStatus: 'FINAL',
+          totalPrice: (subtotal + selected.amount).toFixed(2)
+        }
+      };
+    }
+  } catch (e) {
+    console.error('onPaymentDataChanged error:', e);
+  }
+  return {};
+}
+
+// Google requires the inverse too: a client built WITH paymentDataCallbacks
+// must be used with a non-empty callbackIntents request, and a client built
+// WITHOUT it must never be used with SHIPPING_ADDRESS/SHIPPING_OPTION/etc in
+// callbackIntents. Since PaymentsClient can't be reconfigured after
+// construction, Standard and Express each get their own cached singleton —
+// picked at call time via the `useExpress` flag, chosen from the toggle at
+// click time in onGooglePaymentButtonClicked.
+let paymentsClientExpress = null;
+let googlePayConfigInitialized = false;
+
+function getGooglePaymentsClient(config, useExpress) {
+  if (useExpress) {
+    if (paymentsClientExpress === null) {
+      paymentsClientExpress = new google.payments.api.PaymentsClient({
+        environment: "TEST",
+        paymentDataCallbacks: { onPaymentDataChanged },
+      });
+    }
+  } else if (paymentsClient === null) {
     // FORCE environment to TEST for the demo to prevent production validation errors
     paymentsClient = new google.payments.api.PaymentsClient({
-      environment: "TEST", 
+      environment: "TEST",
     });
-  
-    googleConfig.allowedPaymentMethods[0].tokenizationSpecification.parameters.gatewayMerchantId = config.publicKey;
-    
-    merchantId = config.googleMerchantId;
   }
-  return paymentsClient;
+
+  if (!googlePayConfigInitialized && config) {
+    googleConfig.allowedPaymentMethods[0].tokenizationSpecification.parameters.gatewayMerchantId = config.publicKey;
+    merchantId = config.googleMerchantId;
+    googlePayConfigInitialized = true;
+  }
+
+  return useExpress ? paymentsClientExpress : paymentsClient;
 }
 
 window.onGooglePayLoaded = function() {
   window.activeWallet = 'google';
-  const paymentsClient = getGooglePaymentsClient(window.APP_CONFIG);
+  const paymentsClient = getGooglePaymentsClient(window.APP_CONFIG, false);
 
   const isReadyToPayRequest = Object.assign({}, googleConfig);
   delete isReadyToPayRequest.transactionInfo;
@@ -182,6 +269,38 @@ function onGooglePaymentButtonClicked() {
   }
   googleConfig.emailRequired = emailToggle.checked;
 
+  // Express Checkout — off by default (see google-express-toggle in
+  // wallets.html) so the plain flow above is unaffected unless enabled.
+  const isExpressGoogle = document.getElementById('google-express-toggle')?.checked || false;
+  expressShippingStateGoogle = { isExpress: isExpressGoogle, selectedRate: null, shippingCost: 0, lastCountry: null };
+
+  if (isExpressGoogle) {
+    // Express requires SHIPPING_ADDRESS/SHIPPING_OPTION callbacks, which in
+    // turn require shippingAddressRequired — force it on regardless of the
+    // toggle above.
+    googleConfig.callbackIntents = ["SHIPPING_ADDRESS", "SHIPPING_OPTION"];
+    googleConfig.shippingAddressRequired = true;
+    if (!googleConfig.shippingAddressParameters) {
+        googleConfig.shippingAddressParameters = { phoneNumberRequired: shippingPhoneToggle.checked };
+    }
+    // Seed with rates for the country selected in the UI — onPaymentDataChanged
+    // above replaces this once the customer enters their real shipping address.
+    const initialRates = getExpressShippingRates(countrySelect.value);
+    googleConfig.shippingOptionRequired = true;
+    googleConfig.shippingOptionParameters = {
+        defaultSelectedOptionId: initialRates[0].id,
+        shippingOptions: initialRates.map(r => ({ id: r.id, label: r.label, description: r.detail }))
+    };
+  } else {
+    // Standard mode uses the plain client (no paymentDataCallbacks
+    // registered — see getGooglePaymentsClient) so callbackIntents must be
+    // absent here too; Google errors if a client without the callback is
+    // ever sent a non-empty SHIPPING_ADDRESS/SHIPPING_OPTION/etc intent list.
+    delete googleConfig.callbackIntents;
+    delete googleConfig.shippingOptionRequired;
+    delete googleConfig.shippingOptionParameters;
+  }
+
   googleConfig.transactionInfo.currencyCode = currencySelect.value.toUpperCase();
   googleConfig.transactionInfo.totalPrice = totalPrice;
 
@@ -197,7 +316,7 @@ if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890
 
   console.log("Final Google Config:", JSON.stringify(googleConfig, null, 2));
 
-  const paymentsClient = getGooglePaymentsClient();
+  const paymentsClient = getGooglePaymentsClient(undefined, isExpressGoogle);
   paymentsClient
     .loadPaymentData(googleConfig)
     .then(function (paymentData) {
@@ -221,6 +340,18 @@ if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890
           info: paymentData.paymentMethodData.info, // Contains card network, last 4, and billingAddress if requested
           email: paymentData.email || "Not requested",
           shippingAddress: paymentData.shippingAddress || "Not requested",
+          // What actually gets forwarded to /google-pay -> CKO Payments API as
+          // shipping.address, converted from shippingAddress above.
+          shippingSentToPayments: buildCkoShippingFromGoogleAddress(paymentData.shippingAddress) || "Not sent (no shipping address collected)",
+          // Only present when Express Checkout is enabled — shows the simulated
+          // shipping rate selected inside the sheet and the resulting grand total.
+          expressCheckout: expressShippingStateGoogle.isExpress ? {
+              country: expressShippingStateGoogle.lastCountry,
+              selectedRate: expressShippingStateGoogle.selectedRate,
+              subtotal: amountInput.value,
+              shippingCost: expressShippingStateGoogle.shippingCost,
+              grandTotal: (parseFloat(amountInput.value) + expressShippingStateGoogle.shippingCost).toFixed(2)
+          } : "Not enabled",
           tokenizationData: {
               gateway: "checkoutltd",
               token: {
@@ -249,6 +380,25 @@ if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890
     });
 }
 
+// Converts Google's shippingAddress shape into Checkout.com's Payments API
+// `shipping.address` shape. Returns undefined when no shipping address was
+// collected (nothing to send) — JSON.stringify drops undefined properties,
+// so this cleanly omits `shipping` from the request body entirely for that case.
+function buildCkoShippingFromGoogleAddress(addr) {
+    if (!addr) return undefined;
+    return {
+        address: {
+            address_line1: addr.address1,
+            address_line2: addr.address2,
+            city: addr.locality,
+            state: addr.administrativeArea,
+            zip: addr.postalCode,
+            country: addr.countryCode ? addr.countryCode.toUpperCase() : undefined
+        },
+        phone: addr.phoneNumber ? { number: addr.phoneNumber } : undefined
+    };
+}
+
 async function processGooglePayPayment(paymentData) {
 
 document.getElementById('payment-loader').style.display = 'flex';
@@ -259,13 +409,20 @@ document.getElementById('payment-loader').style.display = 'flex';
 
   let paymentToken = paymentData.paymentMethodData.tokenizationData.token;
 
+  // Express Checkout adds the customer-selected shipping cost (picked inside
+  // the sheet via onPaymentDataChanged's SHIPPING_OPTION trigger) on top of
+  // the product subtotal.
+  const googleGrandTotalMajor = expressShippingStateGoogle.isExpress
+      ? parseFloat(amountInput.value) + expressShippingStateGoogle.shippingCost
+      : parseFloat(amountInput.value);
+
   paymentRequest = {
     signature: JSON.parse(paymentToken).signature,
     protocolVersion: JSON.parse(paymentToken).protocolVersion,
     signedMessage: JSON.parse(paymentToken).signedMessage,
     currency: currencySelect.value,
     price: googleTotalPrice,
-    amount: parseInt(amountInput.value*base),
+    amount: parseInt(googleGrandTotalMajor*base),
     payment_type: paymentTypeSelect.value,
     capture: captureToggle.checked ? true : false,
     reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
@@ -276,6 +433,10 @@ document.getElementById('payment-loader').style.display = 'flex';
         email: emailInput.value,
         name: nameInput.value
     },
+    // Present whenever the sheet collected a shipping address (Standard mode
+    // with "Require Shipping Address" checked, or Express Checkout) —
+    // undefined (omitted) otherwise.
+    shipping: buildCkoShippingFromGoogleAddress(paymentData.shippingAddress),
     '3ds': {
         enabled: threeDSToggle.checked ? true : false
     }
