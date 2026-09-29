@@ -669,6 +669,11 @@ router.post("/payments", async (req, res) => {
           success_url:           req.body.success_url,
           failure_url:           req.body.failure_url,
           payment_type:          req.body.payment_type,
+          // Optional — lets callers (e.g. the Wallets tab's Flow tokenize
+          // flow) attach the wallet-provided email/name so CKO upserts a
+          // Customer record tied to this payment, without affecting any
+          // caller that omits it.
+          customer:              req.body.customer,
       });
       res.send({ payment });
   } catch (error) {
