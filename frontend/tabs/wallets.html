@@ -143,8 +143,12 @@
                  unaffected. When on, session.onshippingcontactselected /
                  onshippingmethodselected recompute the total from the simulated
                  country-based rate table in modules/data.js (EXPRESS_SHIPPING_CONFIG). -->
-            <p id="apple-express-note" style="display:none; font-size:0.72rem; color:var(--text-muted); margin:0 0 4px; width:100%;">
-                Simulated rates vary by shipping country entered in the Apple Pay sheet (US/GB/DE have specific rates, others fall back to International). Countries IR/KP/CU are simulated as unserviceable to demo the rejection path.
+            <p id="apple-express-note" class="express-info-note">
+                <span class="note-icon">ℹ️</span>
+                <span>
+                    Simulated shipping rates vary by the country entered in the Apple Pay sheet — US, GB and DE have specific rates; every other country falls back to International.
+                    Countries <span class="note-unserviceable">IR</span>, <span class="note-unserviceable">KP</span>, <span class="note-unserviceable">CU</span> are simulated as unserviceable to demo the rejection path.
+                </span>
             </p>
             <div class="form-group full-width">
                 <label class="select-label">Merchant Capabilities</label>
@@ -315,8 +319,13 @@
                  unaffected. When on, onPaymentDataChanged (registered on the
                  PaymentsClient) recomputes the total from the same simulated
                  country-based rate table as Apple Pay Express (modules/data.js). -->
-            <p id="google-express-note" style="display:none; font-size:0.72rem; color:var(--text-muted); margin:0; width:100%;">
-                Simulated rates vary by shipping country entered in the Google Pay sheet (US/GB/DE have specific rates, others fall back to International). Countries IR/KP/CU are simulated as unserviceable to demo the rejection path. Forces "Require Shipping Address" on regardless of the toggle above.
+            <p id="google-express-note" class="express-info-note">
+                <span class="note-icon">ℹ️</span>
+                <span>
+                    Simulated shipping rates vary by the country entered in the Google Pay sheet — US, GB and DE have specific rates; every other country falls back to International.
+                    Countries <span class="note-unserviceable">IR</span>, <span class="note-unserviceable">KP</span>, <span class="note-unserviceable">CU</span> are simulated as unserviceable to demo the rejection path.
+                    Also forces "Require Shipping Address" on, regardless of the toggle above.
+                </span>
             </p>
         </div>
     </div>
