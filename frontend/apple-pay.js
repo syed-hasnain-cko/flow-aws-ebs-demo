@@ -238,6 +238,9 @@ session.onpaymentauthorized = function(event) {
         // What actually gets forwarded to /apple-pay -> CKO Payments API as
         // shipping.address, converted from shippingContact above.
         shippingSentToPayments: buildCkoShippingFromAppleContact(event.payment.shippingContact) || "Not sent (no shipping contact collected)",
+        // What actually gets forwarded to /apple-pay -> CKO Payments API as
+        // source.billing_address/source.phone, converted from billingContact above.
+        billingSentToPayments: buildCkoBillingFromAppleContact(event.payment.billingContact) || "Not sent (no billing contact collected)",
         // Only present when Express Checkout is enabled — shows the simulated
         // shipping rate selected inside the sheet and the resulting grand total.
         expressCheckout: expressShippingState.isExpress ? {
@@ -334,6 +337,25 @@ function buildCkoShippingFromAppleContact(contact) {
     };
 }
 
+// Converts Apple's billingContact into the { address, phone } shape CKO's
+// Payments API expects on source.billing_address / source.phone for a token
+// source (see PaymentRequestTokenSource) — same field shapes as shipping,
+// just a different destination in the request body.
+function buildCkoBillingFromAppleContact(contact) {
+    if (!contact) return undefined;
+    return {
+        address: {
+            address_line1: contact.addressLines?.[0],
+            address_line2: contact.addressLines?.[1],
+            city: contact.locality,
+            state: contact.administrativeArea,
+            zip: contact.postalCode,
+            country: contact.countryCode ? contact.countryCode.toUpperCase() : undefined
+        },
+        phone: contact.phoneNumber ? { number: contact.phoneNumber } : undefined
+    };
+}
+
 function performPayment(details, callback) {
 
     document.getElementById('payment-loader').style.display = 'flex';
@@ -368,14 +390,22 @@ let currency = CURRENCIES.find(c => c.iso4217 == appleCurrency);
     processing_channel_id: window.APP_CONFIG.processingChannelId,
     success_url: `${window.location.protocol}//${window.location.host}/success.html`,
     failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
+    // Wallet-provided billingContact overrides the plain email/name inputs
+    // when present — falls back to the inputs otherwise.
     customer: {
-        email: emailInputApple.value,
-        name: nameInputApple.value
+        email: details.billingContact?.emailAddress || emailInputApple.value,
+        name: (details.billingContact?.givenName || details.billingContact?.familyName)
+            ? `${details.billingContact?.givenName || ''} ${details.billingContact?.familyName || ''}`.trim()
+            : nameInputApple.value,
+        phone: details.billingContact?.phoneNumber ? { number: details.billingContact.phoneNumber } : undefined
     },
     // Present whenever the sheet collected a shipping contact (Standard mode
     // with "Required Shipping Contact Fields" checked, or Express Checkout) —
     // undefined (omitted) otherwise.
     shipping: buildCkoShippingFromAppleContact(details.shippingContact),
+    // Same idea for billing — forwarded to source.billing_address/source.phone
+    // on the backend (see /apple-pay in api-route-controller.js).
+    billing: buildCkoBillingFromAppleContact(details.billingContact),
     '3ds': {
         enabled: threeDSToggleApple.checked ? true : false
     }
