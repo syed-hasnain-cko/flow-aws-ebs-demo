@@ -189,6 +189,10 @@ router.post("/google-pay", async (req, res) => {
         currency : currency,
         reference: req.body.reference,
         customer:req.body.customer,
+        // Optional — forwarded when the Google Pay sheet collected a shipping
+        // address (Standard "Require Shipping Address" toggle, or Express
+        // Checkout), converted client-side into CKO's shipping.address shape.
+        shipping: req.body.shipping,
         '3ds':req.body['3ds'],
         capture: req.body.capture,
         processing_channel_id:req.body.processing_channel_id,
@@ -374,6 +378,10 @@ router.post("/apple-pay", async (req, res) => {
         currency : req.body.currency,
         reference: req.body.reference,
         customer:req.body.customer,
+        // Optional — forwarded when the Apple Pay sheet collected a shipping
+        // address (Standard "Required Shipping Contact Fields", or Express
+        // Checkout), converted client-side into CKO's shipping.address shape.
+        shipping: req.body.shipping,
         '3ds':req.body['3ds'],
         capture: req.body.capture,
         processing_channel_id:req.body.processing_channel_id,
