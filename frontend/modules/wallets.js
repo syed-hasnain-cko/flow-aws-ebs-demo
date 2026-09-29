@@ -78,7 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // read live at loadPaymentData() time, but rerendering keeps behavior
         // consistent with every other wallet setting on this tab.
         'google-billing-toggle', 'google-billing-format-select', 'google-billing-phone-toggle',
-        'google-shipping-toggle', 'google-shipping-phone-toggle', 'google-email-toggle'
+        'google-shipping-toggle', 'google-shipping-phone-toggle', 'google-email-toggle',
+        // Express Checkout mode switches
+        'apple-express-toggle', 'google-express-toggle'
     ];
 
     walletInputs.forEach(id => {
@@ -87,6 +89,23 @@ document.addEventListener('DOMContentLoaded', () => {
             el.addEventListener('change', () => triggerWalletRerender());
         }
     });
+
+    // Show/hide each Express mode's simulated-rates explainer alongside its toggle.
+    const appleExpressToggle = document.getElementById('apple-express-toggle');
+    const appleExpressNote   = document.getElementById('apple-express-note');
+    if (appleExpressToggle && appleExpressNote) {
+        appleExpressToggle.addEventListener('change', () => {
+            appleExpressNote.style.display = appleExpressToggle.checked ? 'block' : 'none';
+        });
+    }
+
+    const googleExpressToggle = document.getElementById('google-express-toggle');
+    const googleExpressNote   = document.getElementById('google-express-note');
+    if (googleExpressToggle && googleExpressNote) {
+        googleExpressToggle.addEventListener('change', () => {
+            googleExpressNote.style.display = googleExpressToggle.checked ? 'block' : 'none';
+        });
+    }
 
     // Chip (multi-select checkbox) change listeners
     const chipContainers = [

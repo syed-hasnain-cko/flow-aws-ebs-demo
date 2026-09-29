@@ -7,6 +7,11 @@ let appleTotalPrice = undefined;
 let applePaymentRequest;
 let request;
 
+// Express Checkout state — populated by session.onshippingcontactselected /
+// onshippingmethodselected below, read by performPayment() to add the
+// customer's selected shipping cost onto the final payment amount.
+let expressShippingState = { isExpress: false, selectedRate: null, shippingCost: 0, lastCountry: null };
+
 // NOTE: These element IDs use the '-google' suffix intentionally.
 // The Wallets tab shares a single set of form fields for both Apple Pay and Google Pay.
 // Do NOT rename these to '-apple' — it would break the shared form.
@@ -123,6 +128,28 @@ let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
         request.requiredShippingContactFields = requiredShippingContactFields;
     }
 
+    // Express Checkout — off by default (see apple-express-toggle in
+    // wallets.html) so the plain flow above is unaffected unless enabled.
+    const isExpressApple = document.getElementById('apple-express-toggle')?.checked || false;
+    expressShippingState = { isExpress: isExpressApple, selectedRate: null, shippingCost: 0, lastCountry: null };
+
+    if (isExpressApple) {
+        // Express requires a shipping address to compute cost — force postalAddress
+        // even if the chip group above doesn't have it checked.
+        request.requiredShippingContactFields = requiredShippingContactFields.includes('postalAddress')
+            ? requiredShippingContactFields
+            : [...requiredShippingContactFields, 'postalAddress'];
+        request.shippingType = 'shipping';
+        // Seed with rates for the billing country selected in the UI — Apple
+        // requires an initial shippingMethods list before any address is
+        // entered in the sheet; onshippingcontactselected below replaces it
+        // once the customer provides their real shipping address.
+        const initialRates = getExpressShippingRates(countryCodeApple);
+        request.shippingMethods = initialRates.map(r => ({
+            label: r.label, detail: r.detail, amount: r.amount.toFixed(2), identifier: r.id
+        }));
+    }
+
     var session = new ApplePaySession(3, request);
 
     session.onvalidatemerchant = function(event) {
@@ -130,6 +157,64 @@ let merchantCapabilities = window.getChipSelectedValues("apple-caps-chips");
             session.completeMerchantValidation(merchantSession);
         });
     };
+
+    if (isExpressApple) {
+        // Fires when the customer enters/changes their shipping address inside
+        // the Apple Pay sheet — recompute available shipping methods + total,
+        // or reject the address outright if it's in our simulated unserviceable list.
+        session.onshippingcontactselected = function(event) {
+            const contact = event.shippingContact;
+            const countryCode = (contact.countryCode || '').toUpperCase();
+            expressShippingState.lastCountry = countryCode;
+
+            if (!isExpressShippingCountryServiceable(countryCode)) {
+                session.completeShippingContactSelection({
+                    newShippingMethods: [],
+                    newTotal: { label: "Syed Demo Shop", amount: appleTotalPrice },
+                    newLineItems: [],
+                    errors: [new ApplePayError('shippingContactInvalid', 'countryCode', 'We do not ship to this country (simulated).')]
+                });
+                return;
+            }
+
+            const rates = getExpressShippingRates(countryCode);
+            const defaultRate = rates[0];
+            expressShippingState.selectedRate = defaultRate;
+            expressShippingState.shippingCost = defaultRate.amount;
+
+            const newShippingMethods = rates.map(r => ({
+                label: r.label, detail: r.detail, amount: r.amount.toFixed(2), identifier: r.id
+            }));
+            const newTotalAmount = (parseFloat(appleTotalPrice) + defaultRate.amount).toFixed(2);
+
+            session.completeShippingContactSelection({
+                newShippingMethods,
+                newTotal: { label: "Syed Demo Shop", amount: newTotalAmount },
+                newLineItems: [
+                    { label: "Subtotal", amount: appleTotalPrice },
+                    { label: defaultRate.label, amount: defaultRate.amount.toFixed(2) }
+                ]
+            });
+        };
+
+        // Fires when the customer picks a shipping method from the list above —
+        // recompute the grand total for that specific rate.
+        session.onshippingmethodselected = function(event) {
+            const rates = getExpressShippingRates(expressShippingState.lastCountry);
+            const selected = rates.find(r => r.id === event.shippingMethod.identifier) || rates[0];
+            expressShippingState.selectedRate = selected;
+            expressShippingState.shippingCost = selected.amount;
+
+            const newTotalAmount = (parseFloat(appleTotalPrice) + selected.amount).toFixed(2);
+            session.completeShippingMethodSelection({
+                newTotal: { label: "Syed Demo Shop", amount: newTotalAmount },
+                newLineItems: [
+                    { label: "Subtotal", amount: appleTotalPrice },
+                    { label: selected.label, amount: selected.amount.toFixed(2) }
+                ]
+            });
+        };
+    }
 
 // Add to your onpaymentauthorized callback in apple-pay.js
 session.onpaymentauthorized = function(event) {
@@ -149,7 +234,19 @@ session.onpaymentauthorized = function(event) {
             transactionIdentifier: event.payment.token.transactionIdentifier
         },
         billingContact: event.payment.billingContact || "Not requested",
-        shippingContact: event.payment.shippingContact || "Not requested"
+        shippingContact: event.payment.shippingContact || "Not requested",
+        // What actually gets forwarded to /apple-pay -> CKO Payments API as
+        // shipping.address, converted from shippingContact above.
+        shippingSentToPayments: buildCkoShippingFromAppleContact(event.payment.shippingContact) || "Not sent (no shipping contact collected)",
+        // Only present when Express Checkout is enabled — shows the simulated
+        // shipping rate selected inside the sheet and the resulting grand total.
+        expressCheckout: expressShippingState.isExpress ? {
+            country: expressShippingState.lastCountry,
+            selectedRate: expressShippingState.selectedRate,
+            subtotal: appleTotalPrice,
+            shippingCost: expressShippingState.shippingCost,
+            grandTotal: (parseFloat(appleTotalPrice) + expressShippingState.shippingCost).toFixed(2)
+        } : "Not enabled"
     };
     sessionStorage.setItem('wallet_debug_log', JSON.stringify(sdkLogData));
 
@@ -217,6 +314,26 @@ function validateApplePaySession(appleUrl, callback) {
     });
 }
 
+// Converts Apple's ApplePayPaymentContact shape (billingContact/shippingContact)
+// into Checkout.com's Payments API `shipping.address` shape. Returns undefined
+// when no shipping contact was collected (nothing to send) — JSON.stringify
+// drops undefined properties, so this cleanly omits `shipping` from the
+// request body entirely for that case.
+function buildCkoShippingFromAppleContact(contact) {
+    if (!contact) return undefined;
+    return {
+        address: {
+            address_line1: contact.addressLines?.[0],
+            address_line2: contact.addressLines?.[1],
+            city: contact.locality,
+            state: contact.administrativeArea,
+            zip: contact.postalCode,
+            country: contact.countryCode ? contact.countryCode.toUpperCase() : undefined
+        },
+        phone: contact.phoneNumber ? { number: contact.phoneNumber } : undefined
+    };
+}
+
 function performPayment(details, callback) {
 
     document.getElementById('payment-loader').style.display = 'flex';
@@ -234,11 +351,17 @@ function performPayment(details, callback) {
 
 let currency = CURRENCIES.find(c => c.iso4217 == appleCurrency);
 
+  // Express Checkout adds the customer-selected shipping cost (picked inside
+  // the sheet via onshippingmethodselected) on top of the product subtotal.
+  const appleGrandTotalMajor = expressShippingState.isExpress
+      ? parseFloat(amountInputApple.value) + expressShippingState.shippingCost
+      : parseFloat(amountInputApple.value);
+
   applePaymentRequest = {
     details : details,
     currency: appleCurrency,
     price: appleTotalPrice,
-    amount: parseInt(amountInputApple.value*currency?.base),
+    amount: parseInt(appleGrandTotalMajor*currency?.base),
     payment_type: paymentTypeSelectApple.value,
     capture: captureToggleApple.checked ? true : false,
     reference: '#Order_' + Math.floor(Math.random() * 1000) + 1,
@@ -249,6 +372,10 @@ let currency = CURRENCIES.find(c => c.iso4217 == appleCurrency);
         email: emailInputApple.value,
         name: nameInputApple.value
     },
+    // Present whenever the sheet collected a shipping contact (Standard mode
+    // with "Required Shipping Contact Fields" checked, or Express Checkout) —
+    // undefined (omitted) otherwise.
+    shipping: buildCkoShippingFromAppleContact(details.shippingContact),
     '3ds': {
         enabled: threeDSToggleApple.checked ? true : false
     }
