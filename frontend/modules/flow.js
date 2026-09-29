@@ -166,7 +166,8 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
                     handlePaymentAdditionalContentMount,
                     displayPaymentAdditionalContent: "above_pay_button",
                     expandFirstPaymentMethod: true,
-                    captureCardCvv: showCVVField
+                    captureCardCvv: showCVVField,
+                    paymentMethodOrder: [ "card", "googlepay", "paypal", "klarna"]
                 },
                 card: {
                     data: {
@@ -339,10 +340,10 @@ document.addEventListener('DOMContentLoaded', () => {
         payment_method_configuration: {
             card: {
                 store_payment_details: 'collect_consent'
-            },
-            stored_card: {
-                customer_id: "cus_pyprfr7v2wzurg7a7jsmmved6y"
             }
+            // stored_card: {
+            //     customer_id: "cus_pyprfr7v2wzurg7a7jsmmved6y"
+            // }
         },
         //enabled_payment_methods: ["googlepay"],
         disabled_payment_methods: ["remember_me"],
