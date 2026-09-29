@@ -143,6 +143,37 @@
                     <label for="cap-credit" class="chip-label">Credit</label>
                 </div>
             </div>
+
+            <!-- ApplePayPaymentRequest.requiredBillingContactFields / requiredShippingContactFields
+                 (Apple Pay JS API). Each checked value is included in the corresponding array
+                 sent to ApplePaySession — Apple then requires the customer to supply it in the
+                 payment sheet and returns it on event.payment.billingContact / .shippingContact. -->
+            <div class="form-group full-width">
+                <label class="select-label">Required Billing Contact Fields</label>
+                <div class="chip-group" id="apple-billing-fields-chips">
+                    <input type="checkbox" id="apple-billing-postalAddress" class="chip-input apple-contact-chip" value="postalAddress" checked>
+                    <label for="apple-billing-postalAddress" class="chip-label">Postal Address</label>
+                    <input type="checkbox" id="apple-billing-name" class="chip-input apple-contact-chip" value="name" checked>
+                    <label for="apple-billing-name" class="chip-label">Name</label>
+                    <input type="checkbox" id="apple-billing-phone" class="chip-input apple-contact-chip" value="phone" checked>
+                    <label for="apple-billing-phone" class="chip-label">Phone</label>
+                    <input type="checkbox" id="apple-billing-email" class="chip-input apple-contact-chip" value="email" checked>
+                    <label for="apple-billing-email" class="chip-label">Email</label>
+                </div>
+            </div>
+            <div class="form-group full-width">
+                <label class="select-label">Required Shipping Contact Fields</label>
+                <div class="chip-group" id="apple-shipping-fields-chips">
+                    <input type="checkbox" id="apple-shipping-postalAddress" class="chip-input apple-contact-chip" value="postalAddress" checked>
+                    <label for="apple-shipping-postalAddress" class="chip-label">Postal Address</label>
+                    <input type="checkbox" id="apple-shipping-name" class="chip-input apple-contact-chip" value="name" checked>
+                    <label for="apple-shipping-name" class="chip-label">Name</label>
+                    <input type="checkbox" id="apple-shipping-phone" class="chip-input apple-contact-chip" value="phone" checked>
+                    <label for="apple-shipping-phone" class="chip-label">Phone</label>
+                    <input type="checkbox" id="apple-shipping-email" class="chip-input apple-contact-chip" value="email" checked>
+                    <label for="apple-shipping-email" class="chip-label">Email</label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -204,6 +235,58 @@
                     <input type="checkbox" id="type-credit" class="chip-input" value="credit" checked>
                     <label for="type-credit" class="chip-label">Allow Credit Cards</label>
                 </div>
+            </div>
+        </div>
+
+        <!-- Google Pay PaymentDataRequest fields (Google Pay API for Web).
+             billingAddressRequired/Parameters live under allowedPaymentMethods[0].parameters
+             and return data in paymentData.paymentMethodData.info.billingAddress.
+             shippingAddressRequired/Parameters and emailRequired are top-level request fields
+             and return data in paymentData.shippingAddress / paymentData.email. -->
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="google-billing-toggle" class="toggle-label">Require Billing Address</label>
+                <label class="switch">
+                    <input type="checkbox" id="google-billing-toggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="google-billing-format-select" class="select-label">Billing Address Format</label>
+                <select id="google-billing-format-select" class="select-input">
+                    <option value="MIN">MIN (name, country, postal code)</option>
+                    <option value="FULL" selected>FULL (full address)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="google-billing-phone-toggle" class="toggle-label">Require Billing Phone</label>
+                <label class="switch">
+                    <input type="checkbox" id="google-billing-phone-toggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="google-shipping-toggle" class="toggle-label">Require Shipping Address</label>
+                <label class="switch">
+                    <input type="checkbox" id="google-shipping-toggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="google-shipping-phone-toggle" class="toggle-label">Require Shipping Phone</label>
+                <label class="switch">
+                    <input type="checkbox" id="google-shipping-phone-toggle" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="google-email-toggle" class="toggle-label">Require Email</label>
+                <label class="switch">
+                    <input type="checkbox" id="google-email-toggle" checked>
+                    <span class="slider round"></span>
+                </label>
             </div>
         </div>
     </div>
