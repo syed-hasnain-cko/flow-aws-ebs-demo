@@ -184,6 +184,12 @@ router.post("/google-pay", async (req, res) => {
         source: {
           type: "token",
           token: token.token,
+          // Optional — forwarded when the Google Pay sheet collected a billing
+          // address/phone (Standard "Require Billing Address"/"Require Billing
+          // Phone" toggles, or Express Checkout). For a token source, CKO
+          // documents these as overriding whatever was set during tokenization.
+          billing_address: req.body.billing?.address,
+          phone: req.body.billing?.phone,
         },
         amount: req.body.amount,
         currency : currency,
@@ -373,6 +379,12 @@ router.post("/apple-pay", async (req, res) => {
         source: {
           type: "token",
           token: token.token,
+          // Optional — forwarded when the Apple Pay sheet collected a billing
+          // contact (Standard "Required Billing Contact Fields", or Express
+          // Checkout). For a token source, CKO documents these as overriding
+          // whatever was set during tokenization.
+          billing_address: req.body.billing?.address,
+          phone: req.body.billing?.phone,
         },
         amount: req.body.amount,
         currency : req.body.currency,

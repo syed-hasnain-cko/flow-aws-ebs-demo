@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appleExpressNote   = document.getElementById('apple-express-note');
     if (appleExpressToggle && appleExpressNote) {
         appleExpressToggle.addEventListener('change', () => {
-            appleExpressNote.style.display = appleExpressToggle.checked ? 'block' : 'none';
+            appleExpressNote.classList.toggle('visible', appleExpressToggle.checked);
         });
     }
 
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const googleExpressNote   = document.getElementById('google-express-note');
     if (googleExpressToggle && googleExpressNote) {
         googleExpressToggle.addEventListener('change', () => {
-            googleExpressNote.style.display = googleExpressToggle.checked ? 'block' : 'none';
+            googleExpressNote.classList.toggle('visible', googleExpressToggle.checked);
         });
     }
 

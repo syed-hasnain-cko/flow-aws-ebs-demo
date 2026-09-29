@@ -343,6 +343,9 @@ if (merchantId && merchantId.length > 10 && merchantId !== "12345678901234567890
           // What actually gets forwarded to /google-pay -> CKO Payments API as
           // shipping.address, converted from shippingAddress above.
           shippingSentToPayments: buildCkoShippingFromGoogleAddress(paymentData.shippingAddress) || "Not sent (no shipping address collected)",
+          // What actually gets forwarded to /google-pay -> CKO Payments API as
+          // source.billing_address/source.phone, converted from info.billingAddress.
+          billingSentToPayments: buildCkoBillingFromGoogleAddress(paymentData.paymentMethodData.info.billingAddress) || "Not sent (no billing address collected)",
           // Only present when Express Checkout is enabled — shows the simulated
           // shipping rate selected inside the sheet and the resulting grand total.
           expressCheckout: expressShippingStateGoogle.isExpress ? {
@@ -399,6 +402,24 @@ function buildCkoShippingFromGoogleAddress(addr) {
     };
 }
 
+// Converts Google's billingAddress shape (paymentMethodData.info.billingAddress)
+// into the { address, phone } shape CKO's Payments API expects on
+// source.billing_address / source.phone for a token source.
+function buildCkoBillingFromGoogleAddress(addr) {
+    if (!addr) return undefined;
+    return {
+        address: {
+            address_line1: addr.address1,
+            address_line2: addr.address2,
+            city: addr.locality,
+            state: addr.administrativeArea,
+            zip: addr.postalCode,
+            country: addr.countryCode ? addr.countryCode.toUpperCase() : undefined
+        },
+        phone: addr.phoneNumber ? { number: addr.phoneNumber } : undefined
+    };
+}
+
 async function processGooglePayPayment(paymentData) {
 
 document.getElementById('payment-loader').style.display = 'flex';
@@ -429,14 +450,22 @@ document.getElementById('payment-loader').style.display = 'flex';
     processing_channel_id: window.APP_CONFIG.processingChannelId,
     success_url: `${window.location.protocol}//${window.location.host}/success.html`,
     failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
+    // Wallet-provided email/billingAddress.name override the plain email/name
+    // inputs when present — falls back to the inputs otherwise.
     customer: {
-        email: emailInput.value,
-        name: nameInput.value
+        email: paymentData.email || emailInput.value,
+        name: paymentData.paymentMethodData.info.billingAddress?.name || nameInput.value,
+        phone: paymentData.paymentMethodData.info.billingAddress?.phoneNumber
+            ? { number: paymentData.paymentMethodData.info.billingAddress.phoneNumber }
+            : undefined
     },
     // Present whenever the sheet collected a shipping address (Standard mode
     // with "Require Shipping Address" checked, or Express Checkout) —
     // undefined (omitted) otherwise.
     shipping: buildCkoShippingFromGoogleAddress(paymentData.shippingAddress),
+    // Same idea for billing — forwarded to source.billing_address/source.phone
+    // on the backend (see /google-pay in api-route-controller.js).
+    billing: buildCkoBillingFromGoogleAddress(paymentData.paymentMethodData.info.billingAddress),
     '3ds': {
         enabled: threeDSToggle.checked ? true : false
     }
