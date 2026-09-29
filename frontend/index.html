@@ -101,6 +101,16 @@
     <script src="script.js"></script>
 
     <!-- 8. Wallet implementations -->
+
+    <!-- Apple Pay JS SDK — enables Apple Pay on non-Safari desktop browsers
+         (Chrome, Firefox, Edge on macOS/Windows). Loaded synchronously,
+         before apple-pay.js, so window.ApplePaySession is guaranteed to be
+         defined (natively in Safari, or polyfilled by this SDK elsewhere)
+         by the time apple-pay.js's ApplePaySession checks run. It is Apple's
+         own drop-in for existing ApplePaySession integrations — no other
+         apple-pay.js code changes are needed; see CLAUDE.md for details on
+         how the cross-browser QR handoff works. -->
+    <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
     <script src="google-pay.js"></script>
     <script src="apple-pay.js"></script>
 
