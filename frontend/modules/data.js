@@ -226,3 +226,145 @@ function getExpressShippingRates(countryCode) {
 function isExpressShippingCountryServiceable(countryCode) {
     return !EXPRESS_SHIPPING_CONFIG.unserviceableCountries.includes((countryCode || '').toUpperCase());
 }
+
+// =============================================
+// Disputes testing — sandbox "magic amount" scenarios.
+// Checkout.com's sandbox doesn't let you create a dispute directly; instead,
+// paying with one of these amount + expiry combinations makes CKO generate
+// a test dispute within ~5 minutes (see /developer-resources/testing/disputes-testing).
+// All amounts are in GBP minor units (pence). All cards use expiry 01/2099.
+// =============================================
+const DISPUTE_TEST_CARDS = {
+    visa:       { scheme: 'Visa',             number: '4242424242424242', cvv: '100'  },
+    mastercard: { scheme: 'Mastercard',       number: '5436031030606378', cvv: '100'  },
+    amex:       { scheme: 'American Express', number: '345678901234564',  cvv: '1234' },
+};
+
+const DISPUTE_EXPIRY = { month: 1, year: 2099 };
+
+const DISPUTE_TEST_SCENARIOS = {
+    core: [
+        {
+            key: 'evidence_required', label: 'Evidence Required', status: 'evidence_required', chargebackCode: 'ADJM',
+            description: 'You must submit evidence to defend against this dispute.',
+            rows: [
+                { card: 'visa',       amount: 1040, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1310, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4855, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4860, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4516, reasonCode: '4516', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4540, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'won', label: 'Won', status: 'won', chargebackCode: 'RPDW',
+            description: 'The issuer accepted your evidence and you won the dispute.',
+            rows: [
+                { card: 'visa',       amount: 1045, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1315, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4850, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4864, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4511, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4545, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'lost', label: 'Lost', status: 'lost', chargebackCode: 'RPDL',
+            description: 'The issuer was not satisfied with your evidence and you lost the dispute.',
+            rows: [
+                { card: 'visa',       amount: 1046, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1316, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4851, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4865, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4512, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4546, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'canceled', label: 'Canceled', status: 'canceled', chargebackCode: 'CBRV',
+            description: 'The issuer canceled the dispute.',
+            rows: [
+                { card: 'visa',       amount: 1043, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1313, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4858, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4862, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4519, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4543, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+    ],
+    extended: [
+        {
+            key: 'resolved_refund_processed', label: 'Resolved — Refund Already Processed', status: 'resolved', chargebackCode: 'AUTO',
+            description: 'You already refunded the customer — CKO auto-submits evidence on your behalf.',
+            rows: [
+                { card: 'visa',       amount: 1042, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1312, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4857, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4861, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4518, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4542, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'resolved_outside_process', label: 'Resolved — Outside Dispute Process', status: 'resolved', chargebackCode: 'ARWS',
+            description: 'Resolved by the merchant or scheme outside the formal dispute process.',
+            rows: [
+                { card: 'visa',       amount: 1050, reasonCode: '10.5', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1311, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4837, reasonCode: '4835', reasonCategory: 'Fraudulent' },
+                { card: 'mastercard', amount: 4856, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'amex',       amount: 4517, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4541, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'evidence_under_review', label: 'Evidence Under Review', status: 'evidence_under_review', chargebackCode: 'RPDR',
+            description: 'You submitted evidence and the issuer is reviewing it.',
+            rows: [
+                { card: 'visa',       amount: 1044, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1314, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4859, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4863, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4510, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4544, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'arbitration_under_review', label: 'Arbitration Under Review', status: 'arbitration_under_review', chargebackCode: 'ARBR',
+            description: 'You escalated the dispute to arbitration.',
+            rows: [
+                { card: 'visa',       amount: 1047, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1317, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4852, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4866, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4513, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4547, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'arbitration_won', label: 'Arbitration Won', status: 'arbitration_won', chargebackCode: 'ARBW',
+            description: 'You won the arbitration case.',
+            rows: [
+                { card: 'visa',       amount: 1049, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1319, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4854, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4868, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4515, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4549, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+        {
+            key: 'arbitration_lost', label: 'Arbitration Lost', status: 'arbitration_lost', chargebackCode: 'ARBL',
+            description: 'You lost the arbitration case.',
+            rows: [
+                { card: 'visa',       amount: 1048, reasonCode: '10.4', reasonCategory: 'Fraudulent' },
+                { card: 'visa',       amount: 1318, reasonCode: '13.1', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4853, reasonCode: '4855', reasonCategory: 'Product/service not received' },
+                { card: 'mastercard', amount: 4867, reasonCode: '4860', reasonCategory: 'Credit not issued' },
+                { card: 'amex',       amount: 4514, reasonCode: '4517', reasonCategory: 'Unrecognized' },
+                { card: 'amex',       amount: 4548, reasonCode: '4540', reasonCategory: 'Fraudulent' },
+            ],
+        },
+    ],
+};
