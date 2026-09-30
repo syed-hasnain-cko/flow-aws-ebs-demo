@@ -1,0 +1,241 @@
+<div class="context-area">
+
+    <!-- Checkout.com's sandbox doesn't let you create a dispute directly — paying
+         with one of these "magic amount" + expiry combinations makes it generate
+         a test dispute within a few minutes. Clicking a scenario row below fills
+         the card form with the exact amount/card/expiry needed to trigger it. -->
+    <h2 class="section-header">1. Trigger a Test Dispute</h2>
+
+    <style>
+        .dispute-scenario-group {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .dispute-scenario-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border);
+        }
+        .dispute-scenario-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+        .dispute-status-pill {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 9px;
+            border-radius: 20px;
+            color: #fff;
+        }
+        .dispute-status-pill.status-evidence_required,
+        .dispute-status-pill.status-evidence_under_review,
+        .dispute-status-pill.status-arbitration_under_review { background: #f59e0b; }
+        .dispute-status-pill.status-won,
+        .dispute-status-pill.status-arbitration_won,
+        .dispute-status-pill.status-resolved { background: var(--success); }
+        .dispute-status-pill.status-lost,
+        .dispute-status-pill.status-arbitration_lost { background: var(--error); }
+        .dispute-status-pill.status-canceled { background: var(--text-muted); }
+        .dispute-scenario-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .dispute-row-table {
+            display: grid;
+            grid-template-columns: 90px 1fr 100px 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 9px 16px;
+            font-size: 12.5px;
+            border-top: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+        .dispute-row-table:hover { background: var(--bg-input); }
+        .dispute-row-table .drt-scheme { font-weight: 700; color: var(--text-primary); }
+        .dispute-row-table .drt-amount {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            color: var(--accent);
+            background: var(--bg-chip);
+            border: 1px solid var(--border);
+            padding: 2px 7px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .dispute-row-table .drt-reason { color: var(--text-secondary); }
+        .dispute-row-table .drt-fill-hint {
+            font-size: 11px;
+            color: var(--primary);
+            opacity: 0;
+            transition: opacity 0.12s;
+            white-space: nowrap;
+        }
+        .dispute-row-table:hover .drt-fill-hint { opacity: 1; }
+
+        .dispute-base-cards {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0 18px;
+        }
+        .dc-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 11px; border-radius: 8px; font-size: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; cursor: pointer; user-select: none;
+            background: var(--bg-subtle); border: 1px solid var(--border);
+            color: var(--text-primary); transition: background 0.12s, color 0.12s;
+        }
+        .dc-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .dc-chip .dc-scheme-label { font-family: inherit; font-weight: 700; text-transform: none; }
+    </style>
+
+    <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 12px;">
+        Click any scheme row below to auto-fill the card form in step 2 with the exact amount + card needed to trigger that dispute status (GBP only — this is the currency Checkout.com's documented scenario table uses).
+    </p>
+
+    <div id="dispute-scenario-core"></div>
+
+    <button id="dispute-show-more-btn" class="main-button" style="margin: 4px 0 18px; background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Show more scenarios (resolved, evidence under review, arbitration)</button>
+    <div id="dispute-scenario-extended" style="display:none;"></div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+    <h2 class="section-header">2. Card Details &amp; Trigger Payment</h2>
+
+    <p style="font-size:0.78rem; color:var(--text-secondary); margin:0 0 6px;">
+        Or grab any of these base test cards yourself (any future expiry works for a normal payment — only the dispute scenarios above need the exact 01/2099 + magic amount combo):
+    </p>
+    <div class="dispute-base-cards" id="dispute-base-cards"></div>
+
+    <div class="inline-form">
+        <div class="form-group">
+            <label for="dispute-card-number" class="text-label">Card Number</label>
+            <input type="text" id="dispute-card-number" class="text-input" placeholder="4242424242424242">
+        </div>
+        <div class="form-group">
+            <label for="dispute-card-expiry-month" class="text-label">Expiry Month</label>
+            <input type="number" id="dispute-card-expiry-month" class="text-input" min="1" max="12" placeholder="1">
+        </div>
+        <div class="form-group">
+            <label for="dispute-card-expiry-year" class="text-label">Expiry Year</label>
+            <input type="number" id="dispute-card-expiry-year" class="text-input" min="2026" placeholder="2099">
+        </div>
+        <div class="form-group">
+            <label for="dispute-card-cvv" class="text-label">CVV</label>
+            <input type="text" id="dispute-card-cvv" class="text-input" placeholder="100">
+        </div>
+    </div>
+    <div class="inline-form">
+        <div class="form-group">
+            <label for="dispute-card-name" class="text-label">Cardholder Name</label>
+            <input type="text" id="dispute-card-name" class="text-input" value="Syed Hasnain">
+        </div>
+        <div class="form-group">
+            <label for="dispute-amount" class="text-label">Amount (minor units)</label>
+            <input type="number" id="dispute-amount" class="text-input" placeholder="1040">
+        </div>
+        <div class="form-group">
+            <label class="text-label">Currency</label>
+            <input type="text" class="text-input" value="GBP" disabled>
+        </div>
+        <div class="form-group">
+            <label class="text-label">Selected Scenario</label>
+            <input type="text" id="dispute-selected-scenario" class="text-input" value="(none — click a row above, or pay manually)" disabled>
+        </div>
+    </div>
+
+    <button id="dispute-pay-btn" class="main-button" style="margin-top:8px;">Pay &amp; Trigger Dispute</button>
+
+    <div class="success-payment-message" id="dispute-payment-result" style="display:none; margin-top:16px;">
+        <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:8px;">Payment Result</div>
+        <div id="dispute-payment-result-response"></div>
+    </div>
+
+    <div class="success-payment-message" id="dispute-polling-panel" style="display:none; margin-top:14px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <svg style="width:14px;height:14px;flex-shrink:0;animation:dispute-spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5">
+                <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity="0.2"/>
+                <path d="M21 12a9 9 0 00-9-9"/>
+            </svg>
+            <span id="dispute-polling-label">Waiting for Checkout.com to generate the test dispute (can take a few minutes)…</span>
+        </div>
+    </div>
+    <style>@keyframes dispute-spin{to{transform:rotate(360deg)}}</style>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+    <h2 class="section-header">3. Dispute Details &amp; Actions</h2>
+
+    <div id="dispute-detail-panel" style="display:none;">
+        <div class="success-payment-message" style="display:block;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <div style="font-weight:700; font-size:13px; color:var(--text-primary);">Dispute</div>
+                <span id="dispute-detail-status-pill" class="dispute-status-pill"></span>
+            </div>
+            <div id="dispute-detail-response"></div>
+            <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+                <button id="dispute-accept-btn" class="main-button" style="background:var(--error);">Accept Dispute</button>
+                <button id="dispute-refresh-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Evidence form — text-only in this first pass. CKO's *_text fields
+             explicitly support a plain description or an external link in place
+             of an uploaded file, so this is a fully valid (if lighter) evidence path. -->
+        <div class="success-payment-message" style="display:block; margin-top:14px;">
+            <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:4px;">Provide Evidence (text-only)</div>
+            <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 12px;">
+                Save evidence as many times as you like — nothing is sent to the scheme until you click Submit. Submitting is final; you cannot amend evidence afterwards.
+            </p>
+            <div class="inline-form">
+                <div class="form-group full-width">
+                    <label for="ev-proof-delivery" class="text-label">Proof of Delivery / Service</label>
+                    <input type="text" id="ev-proof-delivery" class="text-input" placeholder="Description or link to proof of delivery">
+                </div>
+                <div class="form-group full-width">
+                    <label for="ev-proof-delivery-date" class="text-label">Proof of Delivery Date</label>
+                    <input type="text" id="ev-proof-delivery-date" class="text-input" placeholder="Description or link showing the delivery date">
+                </div>
+                <div class="form-group full-width">
+                    <label for="ev-invoice" class="text-label">Invoice / Receipt</label>
+                    <input type="text" id="ev-invoice" class="text-input" placeholder="Description or link to the invoice/receipt">
+                </div>
+                <div class="form-group full-width">
+                    <label for="ev-customer-comms" class="text-label">Customer Communication</label>
+                    <input type="text" id="ev-customer-comms" class="text-input" placeholder="Description or link to customer email/chat exchange">
+                </div>
+                <div class="form-group full-width">
+                    <label for="ev-refund-policy" class="text-label">Refund / Cancellation Policy</label>
+                    <input type="text" id="ev-refund-policy" class="text-input" placeholder="Description or link to the refund policy">
+                </div>
+                <div class="form-group full-width">
+                    <label for="ev-additional" class="text-label">Additional Evidence</label>
+                    <input type="text" id="ev-additional" class="text-input" placeholder="Anything else supporting your case">
+                </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <button id="dispute-save-evidence-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Save Evidence</button>
+                <button id="dispute-submit-evidence-btn" class="main-button" style="background:var(--error);">Submit Evidence (final)</button>
+            </div>
+            <div id="dispute-evidence-result" style="margin-top:10px; font-size:12px; color:var(--text-secondary);"></div>
+        </div>
+    </div>
+
+    <p id="dispute-detail-empty" style="font-size:0.8rem; color:var(--text-muted);">Trigger a test dispute above, or search for an existing one below, to see details here.</p>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+    <h2 class="section-header">4. Browse Recent Disputes</h2>
+    <button id="dispute-list-refresh-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Fetch Recent Disputes</button>
+    <div id="dispute-list-response" style="margin-top:12px;"></div>
+
+</div>
