@@ -703,6 +703,7 @@ router.post("/payments", async (req, res) => {
 });
 
 router.use('/competitors/stripe', require('./competitors/stripe-routes'));
+router.use('/disputes', require('./disputes/disputes-routes'));
 
 
 module.exports = router;
