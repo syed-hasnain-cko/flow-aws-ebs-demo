@@ -1,0 +1,338 @@
+<div class="context-area">
+
+    <!-- Compact summary shown once a payment has been created, replacing the
+         full setup UI below so the test-card panels/info banners don't
+         clutter the screen while you're working the actions in Section 3. -->
+    <div id="at-summary-bar" style="display:none; align-items:center; justify-content:space-between; gap:12px;
+        background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md);
+        padding:10px 16px; margin-bottom:16px; flex-wrap:wrap;">
+        <span id="at-summary-text" style="font-size:12.5px; color:var(--text-secondary);"></span>
+        <button id="at-new-test-btn" class="main-button" style="background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); padding:6px 14px; font-size:12px;">Start New Test</button>
+    </div>
+
+    <div id="at-setup-sections">
+    <h2 class="section-header">1. Select Authorization Type</h2>
+
+    <style>
+        .at-type-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+        .at-type-card {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            cursor: pointer;
+            background: var(--bg-card);
+            transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+        .at-type-card:hover { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+        .at-type-card.active { border-color: var(--primary); background: var(--primary-glow); }
+        .at-type-card .at-type-title { font-weight: 700; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 4px; }
+        .at-type-card .at-type-sub { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
+
+        .at-info-banner {
+            display: none;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--primary);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin: 14px 0;
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+        .at-info-banner.warning { border-left-color: #f59e0b; }
+        .at-info-banner strong { color: var(--text-primary); }
+        .at-info-banner code {
+            background: var(--bg-chip); border: 1px solid var(--border);
+            padding: 1px 5px; border-radius: 4px; font-size: 11.5px;
+        }
+
+        /* Fields relevant only to the selected auth type get a highlighted
+           left border + badge so it's obvious why they're there. */
+        .at-highlight-field {
+            border-left: 3px solid var(--primary) !important;
+            padding-left: 10px !important;
+            background: var(--primary-glow);
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        }
+        .at-field-badge {
+            display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.4px; color: var(--primary); margin-left: 6px;
+        }
+        .at-field-badge.required { color: var(--error); }
+
+        .at-cards-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 16px; }
+        .at-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 5px 11px; border-radius: 8px; font-size: 12px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; cursor: pointer; user-select: none;
+            background: var(--bg-subtle); border: 1px solid var(--border);
+            color: var(--text-primary); transition: background 0.12s, color 0.12s;
+        }
+        .at-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .at-chip .at-chip-scheme { font-weight: 700; text-transform: none; }
+
+        .at-balances-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+        .at-balances-table td { padding: 6px 10px; border-top: 1px solid var(--border); }
+        .at-balances-table td:first-child { color: var(--text-secondary); }
+        .at-balances-table td:last-child {
+            text-align: right; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            color: var(--accent); font-weight: 600;
+        }
+
+        .at-scheme-support-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        .at-checklist-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 5px 0; font-size: 12px; color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        .at-checklist-row:last-child { border-bottom: none; }
+        .at-checklist-row .at-checklist-field {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11.5px;
+            color: var(--text-primary); min-width: 220px;
+        }
+        .at-checklist-row.sent .at-checklist-icon { color: var(--success); }
+        .at-checklist-row.missing .at-checklist-icon { color: var(--error); }
+        .at-checklist-row .at-checklist-value {
+            color: var(--accent); background: var(--bg-chip); border: 1px solid var(--border);
+            padding: 1px 6px; border-radius: 4px; font-size: 11px;
+        }
+    </style>
+
+    <div class="at-type-grid" id="at-type-grid">
+        <div class="at-type-card" id="at-type-partial" data-type="partial">
+            <div class="at-type-title">Partial Authorization</div>
+            <div class="at-type-sub">Issuer approves less than the requested amount instead of declining outright.</div>
+        </div>
+        <div class="at-type-card" id="at-type-estimated" data-type="estimated">
+            <div class="at-type-title">Estimated Authorization</div>
+            <div class="at-type-sub">Amount may change via Incremental Authorization before capture (car rental / hotel pattern).</div>
+        </div>
+        <div class="at-type-card" id="at-type-amex" data-type="amex">
+            <div class="at-type-title">Amex Enhanced Authorization</div>
+            <div class="at-type-sub">Extra risk-signal fields sent to American Express issuers (US only).</div>
+        </div>
+        <div class="at-type-card" id="at-type-discover" data-type="discover">
+            <div class="at-type-title">Discover Enhanced Decisioning</div>
+            <div class="at-type-sub">Extra risk-signal fields sent to Discover issuers (card-not-present only).</div>
+        </div>
+    </div>
+
+    <!-- Per-type info banners — only one visible at a time -->
+    <div class="at-info-banner warning" id="at-info-partial">
+        <strong>⚠ Prerequisite:</strong> Partial authorization only works in sandbox if Checkout.com's account team has enabled it for your account.<br><br>
+        <strong>How to tell which outcome you got</strong> — check these three fields in the response (shown below the Balances table after you pay):
+        <ul style="margin:6px 0 6px 18px; padding:0;">
+            <li><code>response_code</code>: <code>"10010"</code> = partial approval worked. <code>"10000"</code> = feature is <strong>not</strong> enabled on your account — you got a normal full approval instead.</li>
+            <li><code>response_summary</code>: should read <code>"Partial Value Approved"</code>, not <code>"Approved"</code>.</li>
+            <li><code>amount</code> vs <code>amount_requested</code>: on a real partial approval, <code>amount</code> (e.g. <code>5000</code>) is lower than <code>amount_requested</code> (e.g. <code>10000</code>) — if they're equal, it's a full approval.</li>
+        </ul>
+        If you're seeing <code>response_code: "10000"</code> with <code>amount</code> equal to what you sent, partial authorization isn't enabled for this sandbox account yet — contact your account manager, this isn't something fixable client-side.<br><br>
+        Use one of the test cards below with amount exactly <code>10000</code> or <code>1000</code> (minor units) — any other amount just processes as a normal payment regardless of whether the feature is enabled.
+    </div>
+    <div class="at-info-banner" id="at-info-estimated">
+        Set <code>authorization_type: "Estimated"</code>. Automatic capture is disabled by Checkout.com for estimated authorizations regardless of the Capture toggle. Once approved, you can call <strong>Increment Authorization</strong> (Section 5) any number of times before capturing — to increase the amount, extend the validity period, or both, depending on scheme support shown there.
+    </div>
+    <div class="at-info-banner" id="at-info-amex">
+        Required for US internet gambling merchants (MCC 7801); optional but recommended for everyone else.<br><br>
+        <strong>How to verify:</strong> Checkout.com's docs define no sandbox simulation or response flag for this feature — it's silent risk-data enrichment sent to the issuer. There are only two things you can actually check:
+        <ul style="margin:6px 0 6px 18px; padding:0;">
+            <li>The payment still <strong>Authorized</strong> — proves the extra fields didn't break the request (a typo'd field would 422 instead).</li>
+            <li>Every highlighted field below was actually sent — see the <strong>"Enhanced Data Fields Sent"</strong> checklist that appears after you pay.</li>
+        </ul>
+        Its real effect (fewer false declines, 60-100bps approval uplift) is only visible statistically over production volume in the Dashboard's Authorization Analytics — not from a single sandbox call.
+    </div>
+    <div class="at-info-banner" id="at-info-discover">
+        Applies to card-not-present transactions only. Minimum required: <code>customer.email</code> + <code>payment_ip</code> (marked <span class="at-field-badge required">required</span> below). Everything else is recommended but optional.<br><br>
+        <strong>How to verify:</strong> same as Amex Enhanced Auth — no response flag or sandbox simulation exists for this either. Check the payment still <strong>Authorized</strong>, and use the <strong>"Enhanced Data Fields Sent"</strong> checklist after you pay to confirm the required fields were actually populated. Real-world effect is only measurable in production over time.
+    </div>
+
+    <div class="at-cards-row" id="at-cards-row"></div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+    <h2 class="section-header" id="at-section2-header">2. Card Details & Payment</h2>
+    <p id="at-select-type-hint" style="font-size:0.8rem; color:var(--text-muted);">Select an authorization type above to see the relevant fields and test cards.</p>
+
+    <div id="at-form-section" style="display:none;">
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="at-card-number" class="text-label">Card Number</label>
+                <input type="text" id="at-card-number" class="text-input" placeholder="4242424242424242">
+            </div>
+            <div class="form-group">
+                <label for="at-card-expiry-month" class="text-label">Expiry Month</label>
+                <input type="number" id="at-card-expiry-month" class="text-input" min="1" max="12" value="12">
+            </div>
+            <div class="form-group">
+                <label for="at-card-expiry-year" class="text-label">Expiry Year</label>
+                <input type="number" id="at-card-expiry-year" class="text-input" min="2026" value="2030">
+            </div>
+            <div class="form-group">
+                <label for="at-card-cvv" class="text-label">CVV</label>
+                <input type="text" id="at-card-cvv" class="text-input" placeholder="100">
+            </div>
+        </div>
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="at-card-name" class="text-label">Cardholder Name</label>
+                <input type="text" id="at-card-name" class="text-input" value="Syed Hasnain">
+            </div>
+            <div class="form-group">
+                <label for="at-amount" class="text-label">Amount (minor units)</label>
+                <input type="number" id="at-amount" class="text-input" value="10000">
+            </div>
+            <div class="form-group">
+                <label for="at-currency" class="select-label">Currency</label>
+                <select id="at-currency" class="select-input"></select>
+            </div>
+            <div class="form-group">
+                <label for="at-capture-toggle" class="toggle-label">Capture</label>
+                <label class="switch">
+                    <input type="checkbox" id="at-capture-toggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+        <p id="at-amount-note" style="display:none; font-size:11px; color:var(--text-muted); margin:-6px 0 10px;"></p>
+        <p id="at-capture-note" style="display:none; font-size:11px; color:var(--text-muted); margin:-6px 0 10px;"></p>
+
+        <!-- Enhanced data fields — shown (and highlighted) for Amex / Discover,
+             collapsed for Partial / Estimated since they're irrelevant there. -->
+        <div id="at-enhanced-fields" style="display:none; margin-top:10px;">
+            <div style="font-weight:700; font-size:12.5px; color:var(--text-primary); margin-bottom:8px;">Enhanced Data Fields</div>
+            <div class="inline-form">
+                <div class="form-group" id="at-field-email-group">
+                    <label for="at-customer-email" class="text-label">customer.email</label>
+                    <input type="email" id="at-customer-email" class="text-input" value="syed.hasnain@checkout.com">
+                </div>
+                <div class="form-group" id="at-field-phone-group">
+                    <label for="at-customer-phone" class="text-label">customer.phone.number</label>
+                    <input type="text" id="at-customer-phone" class="text-input" value="4155552671">
+                </div>
+                <div class="form-group" id="at-field-phone-cc-group">
+                    <label for="at-customer-phone-cc" class="text-label">customer.phone.country_code</label>
+                    <input type="text" id="at-customer-phone-cc" class="text-input" value="+1">
+                </div>
+                <div class="form-group" id="at-field-ip-group">
+                    <label for="at-payment-ip" class="text-label">payment_ip</label>
+                    <input type="text" id="at-payment-ip" class="text-input" value="203.0.113.0">
+                </div>
+            </div>
+            <div class="inline-form">
+                <div class="form-group" id="at-field-ship-fname-group">
+                    <label for="at-ship-first-name" class="text-label">shipping.first_name</label>
+                    <input type="text" id="at-ship-first-name" class="text-input" value="Syed">
+                </div>
+                <div class="form-group" id="at-field-ship-lname-group">
+                    <label for="at-ship-last-name" class="text-label">shipping.last_name</label>
+                    <input type="text" id="at-ship-last-name" class="text-input" value="Hasnain">
+                </div>
+                <div class="form-group" id="at-field-ship-addr1-group">
+                    <label for="at-ship-address1" class="text-label">shipping.address.address_line1</label>
+                    <input type="text" id="at-ship-address1" class="text-input" value="111 Example Road">
+                </div>
+                <div class="form-group" id="at-field-ship-city-group">
+                    <label for="at-ship-city" class="text-label">shipping.address.city</label>
+                    <input type="text" id="at-ship-city" class="text-input" value="Anytown">
+                </div>
+            </div>
+            <div class="inline-form">
+                <div class="form-group" id="at-field-ship-country-group">
+                    <label for="at-ship-country" class="text-label">shipping.address.country</label>
+                    <input type="text" id="at-ship-country" class="text-input" value="US" maxlength="2">
+                </div>
+                <div class="form-group" id="at-field-ship-zip-group">
+                    <label for="at-ship-zip" class="text-label">shipping.address.zip</label>
+                    <input type="text" id="at-ship-zip" class="text-input" value="22333">
+                </div>
+                <div class="form-group" id="at-field-ship-method-group">
+                    <label for="at-ship-method" class="select-label">shipping.method <span class="at-field-badge">amex-only value</span></label>
+                    <select id="at-ship-method" class="select-input">
+                        <option value="digital">digital</option>
+                        <option value="ship_to_store">ship_to_store</option>
+                        <option value="PickUp">PickUp</option>
+                        <option value="OtherAddress">OtherAddress</option>
+                    </select>
+                </div>
+                <div class="form-group" id="at-field-ship-timeframe-group">
+                    <label for="at-ship-timeframe" class="select-label">shipping.timeframe <span class="at-field-badge">amex-only values</span></label>
+                    <select id="at-ship-timeframe" class="select-input">
+                        <option value="same_day">same_day</option>
+                        <option value="electronic_delivery">electronic_delivery</option>
+                        <option value="overnight">overnight</option>
+                        <option value="two_day_or_more">two_day_or_more</option>
+                        <option value="four_or_more">four_or_more</option>
+                    </select>
+                </div>
+            </div>
+            <div class="inline-form">
+                <div class="form-group" id="at-field-item-ref-group">
+                    <label for="at-item-reference" class="text-label">items[].reference <span class="at-field-badge">amex-only field</span></label>
+                    <input type="text" id="at-item-reference" class="text-input" value="SKU-0001">
+                </div>
+            </div>
+        </div>
+
+        <button id="at-pay-btn" class="main-button" style="margin-top:10px;">Create Payment</button>
+    </div>
+    </div> <!-- /at-setup-sections -->
+
+    <div class="success-payment-message" id="at-payment-result-panel" style="display:none; margin-top:16px;">
+        <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:8px;">Payment Result</div>
+        <div id="at-payment-result-response"></div>
+        <div style="font-weight:700; font-size:12.5px; color:var(--text-primary); margin-top:14px;">Balances</div>
+        <table class="at-balances-table" id="at-balances-table"><tbody></tbody></table>
+
+        <!-- Only populated for Amex Enhanced Auth / Discover Enhanced Decisioning —
+             there's no response flag for either, so this checklist (built from
+             the request body you actually sent) is the closest thing to a
+             pass/fail signal available in sandbox. -->
+        <div id="at-enhanced-checklist-panel" style="display:none; margin-top:14px;">
+            <div style="font-weight:700; font-size:12.5px; color:var(--text-primary); margin-bottom:6px;">Enhanced Data Fields Sent</div>
+            <div id="at-enhanced-checklist"></div>
+        </div>
+    </div>
+
+    <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+    <h2 class="section-header">3. Actions</h2>
+    <p id="at-actions-empty" style="font-size:0.8rem; color:var(--text-muted);">Create a payment above to see available actions here.</p>
+
+    <div id="at-actions-panel" style="display:none;">
+        <div class="inline-form">
+            <div class="form-group">
+                <label for="at-capture-amount" class="text-label">Capture Amount (minor units — defaults to full available)</label>
+                <input type="number" id="at-capture-amount" class="text-input">
+            </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+            <button id="at-capture-btn" class="main-button">Capture</button>
+            <button id="at-void-btn" class="main-button" style="background:var(--error);">Void</button>
+            <button id="at-refresh-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Refresh</button>
+        </div>
+
+        <!-- Only shown for Estimated authorizations that haven't been captured yet. -->
+        <div id="at-increment-section" style="display:none; border:1px solid var(--border); border-radius:var(--radius-md); padding:14px 16px; background:var(--bg-subtle);">
+            <div style="font-weight:700; font-size:12.5px; color:var(--text-primary); margin-bottom:4px;">Incremental Authorization</div>
+            <p id="at-increment-scheme-note" class="at-scheme-support-note"></p>
+            <div class="inline-form" style="margin-top:8px;">
+                <div class="form-group">
+                    <label for="at-increment-amount" class="text-label">Increment Amount (minor units)</label>
+                    <input type="number" id="at-increment-amount" class="text-input" value="500">
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button id="at-increment-btn" class="main-button">Increment Amount</button>
+                <button id="at-extend-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Extend Validity Only</button>
+            </div>
+        </div>
+
+        <div id="at-action-webhook-status" style="display:none; font-size:12px; color:var(--text-muted); margin-top:10px;"></div>
+    </div>
+
+</div>
