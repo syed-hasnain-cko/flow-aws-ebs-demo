@@ -311,6 +311,54 @@ function addKlarnaItemRow(container) {
 
 
 
+/**
+ * Shows a styled confirmation dialog (reusing the app's existing dark
+ * .modal-overlay/.modal-content look from the API log's request/response
+ * modal) instead of the browser's native confirm(). Returns a Promise that
+ * resolves true/false depending on which button the user clicks.
+ *
+ * @param {string} message      - The question/warning to show the user.
+ * @param {Object} [opts]
+ * @param {string} [opts.title]         - Dialog title. Default "Please Confirm".
+ * @param {string} [opts.confirmLabel]  - Confirm button text. Default "Confirm".
+ * @param {string} [opts.cancelLabel]   - Cancel button text. Default "Cancel".
+ * @param {boolean} [opts.danger]       - Red confirm button for destructive/irreversible actions. Default true.
+ * @returns {Promise<boolean>}
+ */
+function showConfirmDialog(message, opts = {}) {
+    const { title = 'Please Confirm', confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = true } = opts;
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+            <div class="modal-content" style="width:90%; max-width:440px;">
+                <div class="modal-header">
+                    <h3>${title}</h3>
+                    <button class="close-modal" aria-label="Cancel">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:20px;">
+                    <p style="margin:0; color:#cbd5e1; font-size:14px; line-height:1.55;">${message}</p>
+                    <div style="display:flex; justify-content:flex-end; gap:10px;">
+                        <button class="main-button confirm-cancel-btn" style="background:#334155; color:#f1f5f9; border:1px solid #475569;">${cancelLabel}</button>
+                        <button class="main-button confirm-ok-btn" style="background:${danger ? 'var(--error)' : 'var(--primary)'}; color:#fff;">${confirmLabel}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const cleanup = (result) => {
+            overlay.remove();
+            resolve(result);
+        };
+        overlay.querySelector('.close-modal').addEventListener('click', () => cleanup(false));
+        overlay.querySelector('.confirm-cancel-btn').addEventListener('click', () => cleanup(false));
+        overlay.querySelector('.confirm-ok-btn').addEventListener('click', () => cleanup(true));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+    });
+}
+
 // ── Theme change broadcaster ──────────────────────────────────────
 // Watches the data-theme attribute on <html> and fires a custom
 // 'themechange' event so any module can react (e.g. re-mount SDK widgets).
