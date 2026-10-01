@@ -35,16 +35,27 @@
         groups.forEach(group => {
             const el = document.createElement('div');
             el.className = 'dispute-scenario-group';
-            el.innerHTML = `
-                <div class="dispute-scenario-header">
-                    <div class="dispute-scenario-title">
-                        ${group.label}
-                        <span class="dispute-status-pill status-${group.status}">${group.status}</span>
-                    </div>
-                    <span style="font-size:10px; color:var(--text-muted); font-family:monospace;">chargeback: ${group.chargebackCode}</span>
+
+            const header = document.createElement('div');
+            header.className = 'dispute-scenario-header';
+            header.style.cursor = 'pointer';
+            header.innerHTML = `
+                <div class="dispute-scenario-title">
+                    <span class="dispute-scenario-chevron" style="display:inline-block; transition:transform 0.15s;">▸</span>
+                    ${group.label}
+                    <span class="dispute-status-pill status-${group.status}">${group.status}</span>
                 </div>
-                <div style="padding:8px 16px 4px;"><span class="dispute-scenario-desc">${group.description}</span></div>
+                <span style="font-size:10px; color:var(--text-muted); font-family:monospace;">chargeback: ${group.chargebackCode}</span>
             `;
+            el.appendChild(header);
+
+            // Collapsed by default — this is what keeps 4+ scenario groups
+            // (each with up to 6 scheme rows) from dominating the screen.
+            // Clicking the header expands/collapses just that one group.
+            const body = document.createElement('div');
+            body.style.display = 'none';
+            body.innerHTML = `<div style="padding:8px 16px 4px;"><span class="dispute-scenario-desc">${group.description}</span></div>`;
+
             group.rows.forEach(row => {
                 const card = DISPUTE_TEST_CARDS[row.card];
                 const rowEl = document.createElement('div');
@@ -60,8 +71,16 @@
                     fillForm(row.card, row, group.label);
                     showToast(`Filled form for "${group.label}" (${card.scheme}) — scroll down and click Pay.`);
                 });
-                el.appendChild(rowEl);
+                body.appendChild(rowEl);
             });
+            el.appendChild(body);
+
+            header.addEventListener('click', () => {
+                const expanded = body.style.display !== 'none';
+                body.style.display = expanded ? 'none' : 'block';
+                header.querySelector('.dispute-scenario-chevron').style.transform = expanded ? '' : 'rotate(90deg)';
+            });
+
             container.appendChild(el);
         });
     }

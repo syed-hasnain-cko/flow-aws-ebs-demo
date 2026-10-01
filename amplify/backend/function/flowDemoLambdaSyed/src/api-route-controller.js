@@ -125,7 +125,10 @@ router.get('/get-payment-actions', async(req, res) => {
 
 router.post('/capture-payment', async(req,res) => {
     try{
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/captures`, {}, {
+        // Optional partial-capture amount (minor units) — forwarded only when
+        // present, so every existing caller (full capture, no body) is unaffected.
+        const captureBody = req.body?.amount ? { amount: req.body.amount } : {};
+        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/captures`, captureBody, {
             headers: {
                 Authorization: `Bearer ${API_SECRET_KEY}`,
             },
@@ -133,7 +136,25 @@ router.post('/capture-payment', async(req,res) => {
         res.send(response.data);
     }
     catch(error){
-        res.status(500).send({ error: error.response?.data || error.message });
+        res.status(error.response?.status || 500).send(error.response?.data || { error: error.message });
+    }
+})
+
+// Increments a previously-requested Estimated authorization's amount, or
+// (amount: 0) extends its validity period — see
+// /payments/manage-payments/authorize-a-payment/adjust-an-estimated-authorization.
+// No existing route covers this CKO endpoint (POST /payments/{id}/authorizations).
+router.post('/increment-authorization', async (req, res) => {
+    try {
+        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/authorizations`, {
+            amount: req.body.amount,
+            reference: req.body.reference,
+        }, {
+            headers: { Authorization: `Bearer ${API_SECRET_KEY}` },
+        });
+        res.send(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).send(error.response?.data || { error: error.message });
     }
 })
 
@@ -676,11 +697,24 @@ router.get('/forward-jwks', async (_req, res) => {
 
 router.post("/payments", async (req, res) => {
   try {
+      // Supports either a token source (every existing caller — wallets,
+      // payment-setup) or a raw card source (Authorization Types tab, which
+      // needs exact card numbers/amounts to trigger partial-auth/enhanced-auth
+      // scenarios — same reasoning as the Disputes tab's raw-card route).
+      const src = req.body.source || {};
+      const source = src.token
+          ? { type: "token", token: src.token }
+          : {
+              type: "card",
+              number: src.number,
+              expiry_month: src.expiry_month,
+              expiry_year: src.expiry_year,
+              cvv: src.cvv,
+              name: src.name,
+            };
+
       const payment = await cko.payments.request({
-          source: {
-              type: "token",
-              token: req.body.source.token,
-          },
+          source,
           amount:                req.body.amount,
           capture: req.body.capture,
           currency:              req.body.currency,
@@ -694,11 +728,26 @@ router.post("/payments", async (req, res) => {
           // Customer record tied to this payment, without affecting any
           // caller that omits it.
           customer:              req.body.customer,
+          // Optional — Authorization Types tab fields. Final/Estimated/Partial
+          // auth (authorization_type, partial_authorization), and American
+          // Express Enhanced Auth / Discover Enhanced Decisioning (shipping,
+          // payment_ip, items — see api-route-controller.js git history for the
+          // docs links). All omitted (undefined) for every other caller.
+          authorization_type:      req.body.authorization_type,
+          partial_authorization:   req.body.partial_authorization,
+          shipping:                req.body.shipping,
+          payment_ip:              req.body.payment_ip,
+          items:                   req.body.items,
+          description:             req.body.description,
       });
       res.send({ payment });
   } catch (error) {
       console.log(error);
-      res.status(500).send({ error: error.message || 'Payment processing failed' });
+      // checkout-sdk-node throws errors shaped as { http_code, body }, not
+      // axios's { response: { status, data } } — using the wrong shape here
+      // would always fall back to a generic 500 and hide the real CKO
+      // response_code/response_summary (e.g. a declined partial-auth test).
+      res.status(error.http_code || 500).send(error.body || { error: error.message || 'Payment processing failed' });
   }
 });
 
