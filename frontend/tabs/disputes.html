@@ -99,6 +99,17 @@
         }
         .dc-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
         .dc-chip .dc-scheme-label { font-family: inherit; font-weight: 700; text-transform: none; }
+
+        #dispute-list-table td {
+            padding: 7px 10px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 11.5px;
+        }
+        #dispute-list-table tbody tr { cursor: pointer; transition: background 0.12s; }
+        #dispute-list-table tbody tr:hover { background: var(--bg-input); }
+        #dispute-list-table .dispute-status-pill { font-size: 9px; padding: 2px 7px; }
     </style>
 
     <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 12px;">
@@ -183,6 +194,8 @@
                 <span id="dispute-detail-status-pill" class="dispute-status-pill"></span>
             </div>
             <div id="dispute-detail-response"></div>
+            <p id="dispute-closed-note" style="display:none; font-size:12px; color:var(--text-secondary); background:var(--bg-subtle); border:1px solid var(--border); border-radius:var(--radius-md); padding:8px 12px; margin-top:10px;"></p>
+            <div id="dispute-action-webhook-status" style="display:none; font-size:12px; color:var(--text-muted); margin-top:8px;"></div>
             <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
                 <button id="dispute-accept-btn" class="main-button" style="background:var(--error);">Accept Dispute</button>
                 <button id="dispute-refresh-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Refresh</button>
@@ -192,7 +205,7 @@
         <!-- Evidence form — text-only in this first pass. CKO's *_text fields
              explicitly support a plain description or an external link in place
              of an uploaded file, so this is a fully valid (if lighter) evidence path. -->
-        <div class="success-payment-message" style="display:block; margin-top:14px;">
+        <div class="success-payment-message" id="dispute-evidence-section" style="display:block; margin-top:14px;">
             <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:4px;">Provide Evidence (text-only)</div>
             <p style="font-size:11.5px; color:var(--text-muted); margin:0 0 12px;">
                 Save evidence as many times as you like — nothing is sent to the scheme until you click Submit. Submitting is final; you cannot amend evidence afterwards.
@@ -235,7 +248,30 @@
 
     <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
     <h2 class="section-header">4. Browse Recent Disputes</h2>
-    <button id="dispute-list-refresh-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Fetch Recent Disputes</button>
-    <div id="dispute-list-response" style="margin-top:12px;"></div>
+    <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">
+        <button id="dispute-list-refresh-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Fetch Recent Disputes</button>
+        <div class="form-group" style="max-width:280px; margin:0;">
+            <label for="dispute-list-search" class="text-label">Search (id, payment id, status, reason)</label>
+            <input type="text" id="dispute-list-search" class="text-input" placeholder="Type to filter…">
+        </div>
+    </div>
+
+    <div id="dispute-list-table-wrapper" style="display:none; max-height:420px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-md);">
+        <table id="dispute-list-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+                <tr style="background:var(--bg-subtle); position:sticky; top:0;">
+                    <th style="text-align:left; padding:8px 10px;">Status</th>
+                    <th style="text-align:left; padding:8px 10px;">Dispute ID</th>
+                    <th style="text-align:left; padding:8px 10px;">Payment ID</th>
+                    <th style="text-align:left; padding:8px 10px;">Category</th>
+                    <th style="text-align:left; padding:8px 10px;">Reason</th>
+                    <th style="text-align:right; padding:8px 10px;">Amount</th>
+                    <th style="text-align:left; padding:8px 10px;">Received</th>
+                </tr>
+            </thead>
+            <tbody id="dispute-list-tbody"></tbody>
+        </table>
+    </div>
+    <p id="dispute-list-empty" style="display:none; font-size:0.8rem; color:var(--text-muted);">No disputes found.</p>
 
 </div>
