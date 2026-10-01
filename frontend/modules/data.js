@@ -368,3 +368,39 @@ const DISPUTE_TEST_SCENARIOS = {
         },
     ],
 };
+
+// =============================================
+// Authorization Types testing — test cards + reference data.
+// See /payments/manage-payments/authorize-a-payment and its Partial /
+// American Express Enhanced Authorization / Discover Enhanced Decisioning
+// sub-pages. All card numbers and amounts are copied verbatim from those docs.
+// =============================================
+
+// Generic cards usable for Estimated/Final auth and as the base source for
+// Amex Enhanced Auth / Discover Enhanced Decisioning (any card works — those
+// two are about which *extra fields* you send, not the card itself).
+const AUTH_TYPE_STANDARD_CARDS = [
+    { scheme: 'Visa',             number: '4242424242424242', cvv: '100'  },
+    { scheme: 'Mastercard',       number: '5436031030606378', cvv: '100'  },
+    { scheme: 'American Express', number: '345678901234564',  cvv: '1234' },
+    { scheme: 'Discover',         number: '6011111111111117', cvv: '100'  },
+];
+
+// Partial authorization requires BOTH partial_authorization.enabled: true AND
+// the account being enabled for it by Checkout.com's account team — these
+// specific card+amount combinations are what the sandbox matches against.
+const AUTH_TYPE_PARTIAL_CARDS = [
+    { scheme: 'Visa',                      number: '4757337282365488', cvv: '100'  },
+    { scheme: 'Mastercard',                number: '5518207720770101', cvv: '100'  },
+    { scheme: 'American Express (US only)', number: '345678901234456', cvv: '1234' },
+];
+const AUTH_TYPE_PARTIAL_AMOUNTS = [10000, 1000];
+
+// Which schemes support incrementing an Estimated authorization's amount vs.
+// extending its validity period, per the authorization-validity-period table.
+const AUTH_TYPE_INCREMENTAL_SUPPORT = {
+    Visa:             { increaseAmount: true,  extendValidity: false },
+    Mastercard:       { increaseAmount: true,  extendValidity: true  },
+    'American Express': { increaseAmount: true, extendValidity: false }, // US only
+    Mada:             { increaseAmount: false, extendValidity: true  },
+};
