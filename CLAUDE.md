@@ -606,3 +606,48 @@ New **Disputes** tab — the whole point is that Checkout.com's sandbox doesn't 
 ### Resume Here Next Session
 
 Not yet merged to `main` — on branch `feature/disputes-testing-tab`, awaiting user testing per this session's established "test before commit" workflow. If file-upload evidence support is wanted later, it needs `POST /files` (multipart binary proxy — check Lambda/API Gateway payload size limits first) before `PUT /disputes/{id}/evidence` can reference a `file_id`.
+
+---
+
+## Session Summary (2026-10-01) — Authorization Types Tab
+
+### What Was Built
+
+New **Authorization Types** tab testing Partial Authorization, Estimated Authorization (+ Incremental Authorization / Extend Validity), American Express Enhanced Authorization, and Discover Enhanced Decisioning — all verified against CKO docs directly (not memory) for exact field names, test cards, and verification signals before building.
+
+### New Files
+
+| File | Purpose |
+|---|---|
+| `frontend/tabs/auth-types.html` | 4-way type selector, per-type info/warning banners, raw-card form with dynamically highlighted enhanced-data fields, balances table, actions panel (Capture/Void/Increment/Extend) |
+| `frontend/modules/auth-types.js` | All wiring — type selection reconfigures the form, builds the right request body per type, webhook polling after every action, collapses the setup UI into a compact summary bar once a payment exists |
+
+### Backend Reuse (per explicit user request to avoid new API Gateway routes wherever possible)
+
+| Action | Route | Status |
+|---|---|---|
+| Create payment (raw card, any auth type) | `POST /payments` | **Existing route, extended** — now accepts a raw card source (previously token-only) plus optional `authorization_type`, `partial_authorization`, `shipping`, `payment_ip`, `items`, `description`. Zero Gateway change. |
+| Capture (full or partial) | `POST /capture-payment` | **Existing route, extended** — now forwards an optional `amount` in the body for partial capture; empty body still means full capture (unchanged for every existing caller). Zero Gateway change. |
+| Void | `POST /void-payment` | Existing route, unchanged. |
+| Get updated balances | `GET /get-payment-details` | Existing route, unchanged. |
+| Webhook polling | `GET /webhook-event` | Existing generic store (keyed by the event's own `data.id`), unchanged. |
+| **Increment authorization / extend validity** | `POST /increment-authorization` | **One new route** (mirrors the exact `/capture-payment`/`/void-payment` pattern) — `POST /payments/{id}/authorizations` has no existing equivalent. User explicitly approved this single exception. |
+
+### Key Facts Verified From Docs (not from memory — worth trusting these over guessing later)
+
+- **Partial authorization** requires `partial_authorization.enabled: true` AND the sandbox account being enabled for it by Checkout.com's account team — the UI surfaces this as a visible warning, since without it you'll see a normal `20051` decline instead of `10010`/"Partial Value Approved".
+- Partial auth test cards/amounts: Visa `4757337282365488`, Mastercard `5518207720770101`, Amex (US only) `345678901234456` — amount must be exactly `10000` or `1000` (minor units).
+- **Estimated authorization** (`authorization_type: "Estimated"`) auto-disables capture-on-authorization regardless of the `capture` field sent.
+- **Incremental Authorization** only works on an open Estimated authorization with nothing captured yet. Scheme support varies: Visa/Amex(US) can increase amount only; Mastercard can increase amount AND extend validity (resets 30-day window); Mada can only extend validity, never increase amount.
+- **Amex Enhanced Auth** and **Discover Enhanced Decisioning** are NOT separate API flags — they're just extra fields (`customer.email/phone`, `payment_ip`, `shipping.*`, plus `items[].reference` and Amex-specific `shipping.method`/`shipping.timeframe` values for Amex) added to a normal payment request. There is no response flag confirming they "worked" — success means the fields were sent, which the UI state (highlighted required fields) makes explicit rather than implying a pass/fail check exists.
+- Webhook events confirmed from docs: `payment_approved`, `payment_declined`, `payment_authorization_incremented`, `payment_authorization_increment_declined`, `payment_captured`, `payment_capture_declined`, `payment_voided`, `payment_void_declined`.
+
+### Key Patterns Established
+
+- **`cko.payments.request` (checkout-sdk-node) throws errors shaped as `{ http_code, body }`, NOT axios's `{ response: { status, data } }`** — the generic `/payments` route's catch block was fixed to use `error.http_code`/`error.body`. Any future route using the SDK client (not raw `axios`) must use this same shape or a 422 decline error becomes a useless generic 500.
+- **UX pattern for "setup vs. result" clutter** (same lesson as the Disputes tab): once a payment is created, the entire setup UI (`#at-setup-sections` — type grid, info banners, test cards, form) collapses behind a compact summary bar with a "Start New Test" button, rather than leaving the full selection UI visible alongside results/actions.
+- **Highlighted-field pattern**: `.at-highlight-field` + `.at-field-badge` in `auth-types.html`/`.js` — reusable visual language for "this field matters for the currently selected mode, here's why" that could be lifted into other tabs later.
+
+### Resume Here Next Session
+
+Not yet merged to `main` — on branch `feature/authorization-types-tab`, awaiting user testing. Before merging, remember: the new `/increment-authorization` route needs a manual AWS API Gateway resource + Lambda zip upload, same as every other backend change in this app.
