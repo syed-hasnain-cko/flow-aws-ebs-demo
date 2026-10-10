@@ -124,6 +124,7 @@
     <script src="modules/api-log.js"></script>
     <script src="modules/payment-actions.js"></script>
     <script src="modules/competitors/stripe-shared.js"></script>
+    <script src="modules/competitors/adyen-shared.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
             // Log the onAuthorized result captured on the payment page before the
@@ -180,6 +181,24 @@
                     actionsEl: document.getElementById('action-buttons'),
                     webhookStatusEl: document.getElementById('webhook-status'),
                     paymentIdEl: document.getElementById('payment-id'),
+                });
+                return;
+            }
+
+            // ─── Adyen (Competitor Testing) return handling ───────────────
+            // A failed/cancelled/expired outcome is handed off to failure.html
+            // (same query string) from inside renderReturnPage.
+            if (window.AdyenShared && window.AdyenShared.isAdyenReturn()) {
+                document.getElementById('fetch-details-button').style.display = 'none';
+                document.getElementById('further-actions-button').style.display = 'none';
+
+                await window.AdyenShared.renderReturnPage({
+                    detailsEl: document.getElementById('payment-details-response'),
+                    detailsContainer: document.getElementById('details-container'),
+                    actionsEl: document.getElementById('action-buttons'),
+                    webhookStatusEl: document.getElementById('webhook-status'),
+                    paymentIdEl: document.getElementById('payment-id'),
+                    handoffOnFailure: true,
                 });
                 return;
             }

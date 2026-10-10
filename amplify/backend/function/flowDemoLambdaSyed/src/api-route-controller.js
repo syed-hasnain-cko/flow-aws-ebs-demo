@@ -752,6 +752,7 @@ router.post("/payments", async (req, res) => {
 });
 
 router.use('/competitors/stripe', require('./competitors/stripe-routes'));
+router.use('/competitors/adyen', require('./competitors/adyen-routes'));
 router.use('/disputes', require('./disputes/disputes-routes'));
 
 

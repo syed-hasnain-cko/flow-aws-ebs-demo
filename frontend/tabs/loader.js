@@ -27,4 +27,5 @@
 
     // 3. Inject each partner's content into its panel div (index.html above must load first)
     document.getElementById('partner-panel-stripe').innerHTML = loadSync('tabs/competitors/stripe.html');
+    document.getElementById('partner-panel-adyen').innerHTML = loadSync('tabs/competitors/adyen.html');
 })();

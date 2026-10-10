@@ -22,7 +22,13 @@ var config = {
       // separate from the Forward API tab's forward* credentials above.
       stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
-      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || ""
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+
+      // Competitor Testing → Adyen tab
+      adyenApiKey: process.env.ADYEN_API_KEY || "",
+      adyenClientKey: process.env.ADYEN_CLIENT_KEY || "",
+      adyenMerchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT || "",
+      adyenHmacKey: process.env.ADYEN_HMAC_KEY || ""
   };
   
 module.exports = config;
