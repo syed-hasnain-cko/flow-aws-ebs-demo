@@ -113,6 +113,30 @@ window.activeWallet = null;
         });
     });
 
+    // --- Competitor Testing → Adyen Tab: Currency + Country (all modes + actions panel) ---
+    ['dropin', 'component', 'hosted', 'advanced', 'links', 'action'].forEach(prefix => {
+        const cur = document.getElementById(`adyen-${prefix}-currency`);
+        if (cur) {
+            _currencies.forEach(code => {
+                const option = document.createElement('option');
+                if (code === 'EUR') option.selected = true;
+                option.value = code; // Adyen expects uppercase ISO codes
+                option.text = code;
+                cur.appendChild(option);
+            });
+        }
+        const ctry = document.getElementById(`adyen-${prefix}-country`);
+        if (ctry) {
+            COUNTRIES.forEach(country => {
+                const option = document.createElement('option');
+                if (country.alpha2Code === 'NL') option.selected = true;
+                option.value = country.alpha2Code;
+                option.text = country.name;
+                ctry.appendChild(option);
+            });
+        }
+    });
+
     // --- Competitor Testing → Stripe Tab: Countries (billing + shipping) ---
     ['stripe-billing-country', 'stripe-shipping-country'].forEach(selectId => {
         const sel = document.getElementById(selectId);
@@ -141,6 +165,9 @@ window.openTab = function (evt, tabName) {
 
     if (tabName !== 'competitors-tab' && window.stopStripeWebhookPolling) {
         window.stopStripeWebhookPolling(); // defined in modules/competitors/stripe.js
+    }
+    if (tabName !== 'competitors-tab' && window.stopAdyenWebhookPolling) {
+        window.stopAdyenWebhookPolling(); // defined in modules/competitors/adyen.js
     }
 
     if (tabName !== 'google-tab') {

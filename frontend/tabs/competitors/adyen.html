@@ -1,0 +1,248 @@
+<!-- ─── Adyen: Payment Acceptance mode selector ─────────────────────── -->
+<h2 class="section-header">Payment Acceptance</h2>
+<div class="wallet-selector-section">
+    <p class="wallet-selector-label">Pick which Adyen integration surface to test (test environment, Checkout API v72, Web SDK v6).</p>
+    <div class="wallet-selector" id="adyen-mode-selector">
+        <div class="wallet-option active" id="adyen-mode-dropin" data-mode="dropin"><span>Drop-in</span></div>
+        <div class="wallet-option" id="adyen-mode-component" data-mode="component"><span>Components (Card)</span></div>
+        <div class="wallet-option" id="adyen-mode-hosted" data-mode="hosted"><span>Hosted Checkout</span></div>
+        <div class="wallet-option" id="adyen-mode-advanced" data-mode="advanced"><span>Advanced flow</span></div>
+        <div class="wallet-option" id="adyen-mode-links" data-mode="links"><span>Pay by Link</span></div>
+    </div>
+</div>
+
+<hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
+
+<!-- ─── Drop-in (Sessions flow) ─────────────────────────────────────── -->
+<div id="adyen-mode-panel-dropin">
+    <h2 class="section-header">Drop-in — Sessions flow</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        One <code>/sessions</code> call, then Adyen's prebuilt Drop-in renders the payment method list, 3DS and redirects.
+    </p>
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="adyen-dropin-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="adyen-dropin-amount" class="text-input" value="1000" placeholder="1000 = 10.00">
+        </div>
+        <div class="form-group">
+            <label for="adyen-dropin-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="adyen-dropin-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="adyen-dropin-country" class="text-label" style="color:var(--text-secondary)">Country</label>
+            <select id="adyen-dropin-country" class="select-input"></select>
+        </div>
+    </div>
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="adyen-dropin-manual-capture"> Manual capture (<code>additionalData.manualCapture</code>)
+        </label>
+    </div>
+    <div class="button-group" style="margin-top:16px;">
+        <button id="adyen-dropin-create-btn" class="main-button">Create Session &amp; Mount Drop-in</button>
+    </div>
+    <div id="adyen-dropin-status" style="display:none; margin-top:12px;"></div>
+    <div id="adyen-dropin-container" style="margin-top:16px; max-width:520px;"></div>
+</div>
+
+<!-- ─── Components: Card ────────────────────────────────────────────── -->
+<div id="adyen-mode-panel-component" style="display:none;">
+    <h2 class="section-header">Components — Card</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        You own the layout; Adyen renders only the secure card fields (<code>Card</code> component, Sessions flow).
+    </p>
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="adyen-component-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="adyen-component-amount" class="text-input" value="1000">
+        </div>
+        <div class="form-group">
+            <label for="adyen-component-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="adyen-component-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="adyen-component-country" class="text-label" style="color:var(--text-secondary)">Country</label>
+            <select id="adyen-component-country" class="select-input"></select>
+        </div>
+    </div>
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="adyen-component-manual-capture"> Manual capture
+        </label>
+    </div>
+    <div class="button-group" style="margin-top:16px;">
+        <button id="adyen-component-create-btn" class="main-button">Create Session &amp; Mount Card</button>
+    </div>
+    <div id="adyen-component-status" style="display:none; margin-top:12px;"></div>
+    <div id="adyen-component-container" style="margin-top:16px; max-width:420px;"></div>
+</div>
+
+<!-- ─── Hosted Checkout ─────────────────────────────────────────────── -->
+<div id="adyen-mode-panel-hosted" style="display:none;">
+    <h2 class="section-header">Hosted Checkout</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        <code>/sessions</code> with <code>mode: "hosted"</code> returns a URL on Adyen's hosted page; the shopper returns to the shared success/failure pages with <code>sessionResult</code>. Requires a <strong>theme ID</strong> created in the Adyen Customer Area.
+    </p>
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="adyen-hosted-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="adyen-hosted-amount" class="text-input" value="1000">
+        </div>
+        <div class="form-group">
+            <label for="adyen-hosted-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="adyen-hosted-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="adyen-hosted-country" class="text-label" style="color:var(--text-secondary)">Country</label>
+            <select id="adyen-hosted-country" class="select-input"></select>
+        </div>
+    </div>
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:10px;">
+        <div class="form-group">
+            <label for="adyen-hosted-email" class="text-label" style="color:var(--text-secondary)">Shopper email</label>
+            <input type="email" id="adyen-hosted-email" class="text-input" placeholder="ada@example.com">
+        </div>
+        <div class="form-group">
+            <label for="adyen-hosted-shopper-ref" class="text-label" style="color:var(--text-secondary)">Shopper reference</label>
+            <input type="text" id="adyen-hosted-shopper-ref" class="text-input" value="demo-shopper-1">
+        </div>
+        <div class="form-group">
+            <label for="adyen-hosted-theme" class="text-label" style="color:var(--text-secondary)">Theme ID</label>
+            <input type="text" id="adyen-hosted-theme" class="text-input" placeholder="from Customer Area">
+        </div>
+    </div>
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="adyen-hosted-manual-capture"> Manual capture
+        </label>
+    </div>
+    <div class="button-group" style="margin-top:16px;">
+        <button id="adyen-hosted-create-btn" class="main-button">Create Session &amp; Redirect</button>
+    </div>
+    <div id="adyen-hosted-status" style="display:none; margin-top:12px;"></div>
+</div>
+
+<!-- ─── Advanced flow ───────────────────────────────────────────────── -->
+<div id="adyen-mode-panel-advanced" style="display:none;">
+    <h2 class="section-header">Advanced flow — /paymentMethods, /payments, /payments/details</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        You orchestrate three server calls yourself; the Web SDK (Drop-in) only collects and hands you <code>state.data</code>. Redirects are finalised on the result page via <code>/payments/details</code>.
+    </p>
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="adyen-advanced-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="adyen-advanced-amount" class="text-input" value="1000">
+        </div>
+        <div class="form-group">
+            <label for="adyen-advanced-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="adyen-advanced-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="adyen-advanced-country" class="text-label" style="color:var(--text-secondary)">Country</label>
+            <select id="adyen-advanced-country" class="select-input"></select>
+        </div>
+    </div>
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="adyen-advanced-manual-capture"> Manual capture
+        </label>
+    </div>
+    <div class="button-group" style="margin-top:16px;">
+        <button id="adyen-advanced-create-btn" class="main-button">Fetch Payment Methods &amp; Mount</button>
+    </div>
+    <div id="adyen-advanced-status" style="display:none; margin-top:12px;"></div>
+    <div id="adyen-advanced-container" style="margin-top:16px; max-width:520px;"></div>
+    <div id="adyen-advanced-result-container" style="display:none; margin-top:16px;">
+        <div class="detail-header"><h3>Last /payments or /payments/details response</h3></div>
+        <pre id="adyen-advanced-result" class="json-code-block"></pre>
+    </div>
+</div>
+
+<!-- ─── Pay by Link ─────────────────────────────────────────────────── -->
+<div id="adyen-mode-panel-links" style="display:none;">
+    <h2 class="section-header">Pay by Link</h2>
+    <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+        Creates a hosted payment link via <code>/paymentLinks</code>. The shopper completes payment on Adyen's page and is <strong>not</strong> redirected back here — track the result via the webhook log below or by checking the link status.
+    </p>
+    <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
+        <div class="form-group">
+            <label for="adyen-links-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="adyen-links-amount" class="text-input" value="1000">
+        </div>
+        <div class="form-group">
+            <label for="adyen-links-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+            <select id="adyen-links-currency" class="select-input"></select>
+        </div>
+        <div class="form-group">
+            <label for="adyen-links-country" class="text-label" style="color:var(--text-secondary)">Country</label>
+            <select id="adyen-links-country" class="select-input"></select>
+        </div>
+    </div>
+    <div class="form-group" style="margin-top:10px; max-width:420px;">
+        <label for="adyen-links-description" class="text-label" style="color:var(--text-secondary)">Description</label>
+        <input type="text" id="adyen-links-description" class="text-input" value="Competitor Testing Item">
+    </div>
+    <div style="margin-top:14px;">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
+            <input type="checkbox" id="adyen-links-reusable"> Reusable link
+        </label>
+    </div>
+    <div class="button-group" style="margin-top:16px;">
+        <button id="adyen-links-create-btn" class="main-button">Create Payment Link</button>
+    </div>
+    <div id="adyen-links-status" style="display:none; margin-top:12px;"></div>
+    <div id="adyen-links-result" style="display:none; margin-top:16px;">
+        <div class="form-group">
+            <label for="adyen-links-url" class="text-label" style="color:var(--text-secondary)">Payment Link URL</label>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="adyen-links-url" class="text-input" readonly style="flex:1; min-width:0; font-family:monospace; font-size:13px;">
+                <button id="adyen-links-copy-btn" class="copy-btn" style="flex-shrink:0;">Copy</button>
+                <a id="adyen-links-open-btn" href="#" target="_blank" rel="noopener" class="main-button" style="flex-shrink:0; padding:10px 16px;">Open</a>
+                <button id="adyen-links-check-btn" class="main-button" style="flex-shrink:0;">Check status</button>
+            </div>
+        </div>
+        <pre id="adyen-links-json" class="json-code-block" style="margin-top:12px;"></pre>
+    </div>
+</div>
+
+<hr style="margin: 28px 0; border: 0; border-top: 1px solid var(--border);">
+
+<!-- ─── Capture / Cancel / Refund (shared across every Adyen mode) ──── -->
+<h2 class="section-header">Capture / Cancel / Refund</h2>
+<p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+    Adyen has no "get payment" endpoint, so enter the original payment's <code>pspReference</code> (shown in the webhook log below). All three requests are asynchronous — the outcome arrives as a CAPTURE / CANCELLATION / REFUND webhook.
+</p>
+<div class="inline-form" style="grid-template-columns: 2fr 1fr 1fr;">
+    <div class="form-group">
+        <label for="adyen-action-psp" class="text-label" style="color:var(--text-secondary)">Payment pspReference</label>
+        <input type="text" id="adyen-action-psp" class="text-input" placeholder="e.g. 7914073381342284">
+    </div>
+    <div class="form-group">
+        <label for="adyen-action-amount" class="text-label" style="color:var(--text-secondary)">Amount (capture/refund)</label>
+        <input type="number" id="adyen-action-amount" class="text-input" placeholder="1000">
+    </div>
+    <div class="form-group">
+        <label for="adyen-action-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
+        <select id="adyen-action-currency" class="select-input"></select>
+    </div>
+</div>
+<div class="button-group" style="margin-top:10px; display:flex; gap:8px;">
+    <button id="adyen-capture-btn" class="main-button">Capture</button>
+    <button id="adyen-cancel-btn" class="main-button">Cancel</button>
+    <button id="adyen-refund-btn" class="main-button">Refund</button>
+</div>
+<div id="adyen-actions-status" style="display:none; margin-top:8px;"></div>
+<div id="adyen-actions-result-container" style="display:none; margin-top:16px;">
+    <div class="detail-header"><h3>Last Action Response</h3></div>
+    <pre id="adyen-actions-result" class="json-code-block"></pre>
+</div>
+
+<hr style="margin: 28px 0; border: 0; border-top: 1px solid var(--border);">
+
+<!-- ─── Webhook event log ──────────────────────────────────────────── -->
+<h2 class="section-header">Webhooks</h2>
+<p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
+    Register this URL as a <strong>Standard webhook</strong> in the Adyen Customer Area (with HMAC signing enabled): <code id="adyen-webhook-url-display"></code>
+</p>
+<div id="adyen-webhook-status" style="display:none; margin-top:8px; font-size:12px; color:var(--text-secondary);"></div>
+<div id="adyen-webhook-log" class="log-entries-container" style="position:static; max-height:260px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:8px;"></div>

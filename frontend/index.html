@@ -54,6 +54,16 @@
          API and Checkout (hosted/embedded) keep working unchanged. -->
     <script src="https://js.stripe.com/dahlia/stripe.js"></script>
 
+    <!-- Adyen Web SDK v6 — Competitor Testing → Adyen tab (Drop-in / Components / Advanced flow).
+         Pinned to 6.0.0 with the SRI hashes published in Adyen's "Upgrade to Web v6" guide
+         (test environment CDN). Requires Checkout API v69+; the backend uses v72. To move to a
+         newer 6.x, take the new version's integrity hashes from Adyen's release notes — never
+         drop the integrity attribute. Exposes window.AdyenWeb. -->
+    <link rel="stylesheet" href="https://checkoutshopper-test.cdn.adyen.com/checkoutshopper/sdk/6.0.0/adyen.css"
+          integrity="sha384-Gngchfiq4JxdVPMOwrUaDK70raLnMJ7IgBKi2OE0VSlbUeHysN7Mwd4aHREEvEAw" crossorigin="anonymous">
+    <script src="https://checkoutshopper-test.cdn.adyen.com/checkoutshopper/sdk/6.0.0/adyen.js"
+            integrity="sha384-GDA6txYXS6ka6zCgDtLmgI80TQMlYST32KjDtdiyFi/k/zp9rXP64qbziIXVOI5h" crossorigin="anonymous"></script>
+
 
     <!-- 5. Shared utilities and data (must load before feature modules) -->
     <script src="utils.js"></script>
@@ -98,6 +108,7 @@
     </script>
     <script src="modules/forward.js"></script>
     <script src="modules/competitors/stripe.js"></script>
+    <script src="modules/competitors/adyen.js"></script>
 
     <!-- 7. Main entry: dropdown population + tab switching -->
     <script src="script.js"></script>

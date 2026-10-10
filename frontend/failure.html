@@ -124,6 +124,7 @@
     <script src="modules/api-log.js"></script>
     <script src="modules/payment-actions.js"></script>
     <script src="modules/competitors/stripe-shared.js"></script>
+    <script src="modules/competitors/adyen-shared.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", async () => {
             // Log the onAuthorized result captured on the payment page before the
@@ -150,6 +151,20 @@
                     actionsEl: document.getElementById('action-buttons'),
                     webhookStatusEl: document.getElementById('webhook-status'),
                     paymentIdEl: document.getElementById('error-message'),
+                });
+                return;
+            }
+
+            // ─── Adyen (Competitor Testing) return handling ───────────────
+            if (window.AdyenShared && window.AdyenShared.isAdyenReturn()) {
+                document.getElementById('fetch-details-button').style.display = 'none';
+                await window.AdyenShared.renderReturnPage({
+                    detailsEl: document.getElementById('payment-details-response'),
+                    detailsContainer: document.getElementById('details-container'),
+                    actionsEl: document.getElementById('action-buttons'),
+                    webhookStatusEl: document.getElementById('webhook-status'),
+                    paymentIdEl: document.getElementById('error-message'),
+                    handoffOnFailure: false,
                 });
                 return;
             }
