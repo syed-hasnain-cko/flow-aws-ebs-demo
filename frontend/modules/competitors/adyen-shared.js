@@ -46,7 +46,7 @@
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        await addToApiLog('POST', `${route} - /competitors/adyen/${route}`, res.ok ? 200 : res.status, body, data);
+        await addToApiLog('POST', withUpstream(res, route, `/competitors/adyen/${route}`), res.ok ? 200 : res.status, body, data);
         return { ok: res.ok, data };
     }
 
@@ -128,7 +128,7 @@
         } else if (params.sessionId && params.sessionResult) {
             const res = await fetch(`${base()}/session-result?sessionId=${encodeURIComponent(params.sessionId)}&sessionResult=${encodeURIComponent(params.sessionResult)}`);
             const data = await res.json();
-            await addToApiLog('GET', `get session result: ${params.sessionId} - /competitors/adyen/session-result`, res.ok ? 200 : res.status, {}, data);
+            await addToApiLog('GET', withUpstream(res, `get session result: ${params.sessionId}`, '/competitors/adyen/session-result'), res.ok ? 200 : res.status, {}, data);
             result.summary.sessionResult = data;
             result.failed = !res.ok || ['canceled', 'expired'].includes(data.status);
         } else {

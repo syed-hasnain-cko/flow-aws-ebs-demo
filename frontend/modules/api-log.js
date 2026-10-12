@@ -56,6 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
     stored.forEach(e => _renderEntry(e.id, e.method, e.endpoint, e.status, e.request, e.response));
 });
 
+// Builds the sidebar label for a competitor-partner call. The backend sends the exact
+// partner endpoint it hit (e.g. "POST https://checkout-test.adyen.com/v72/sessions") in
+// the X-Upstream-Endpoint header; showing it first makes it obvious which partner API
+// endpoint backs each app call, so it can be looked up in their docs. Falls back to the
+// plain "description - /our/route" label if the header is absent (older Lambda, errors
+// before the call was made, or a non-partner route).
+function withUpstream(res, description, localRoute) {
+    const upstream = res && res.headers ? res.headers.get('X-Upstream-Endpoint') : null;
+    return upstream
+        ? `${upstream} — ${description} (via ${localRoute})`
+        : `${description} - ${localRoute}`;
+}
+
 function addToApiLog(method, endpoint, status, requestBody, responseBody) {
     const id = Date.now();
 

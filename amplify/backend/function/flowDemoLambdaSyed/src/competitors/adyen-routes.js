@@ -37,8 +37,18 @@ function requireConfig() {
     }
 }
 
-async function adyenCall(method, path, data) {
+// Exposes the exact Adyen URL being hit to the browser (read by the API log
+// sidebar) so you can see which Adyen endpoint backs each app call. Set BEFORE
+// the request so failed calls still show their endpoint. A custom response header
+// is only readable cross-origin if it is also listed in Expose-Headers.
+function setUpstream(res, method, url) {
+    res.set('X-Upstream-Endpoint', `${method.toUpperCase()} ${url}`);
+    res.set('Access-Control-Expose-Headers', 'X-Upstream-Endpoint');
+}
+
+async function adyenCall(res, method, path, data) {
     requireConfig();
+    setUpstream(res, method, `${ADYEN_BASE}${path}`);
     const response = await axios({
         method,
         url: `${ADYEN_BASE}${path}`,
@@ -118,7 +128,7 @@ router.post('/sessions', async (req, res) => {
             ...(isHosted ? { mode: 'hosted', themeId: theme_id } : { channel: 'Web' }),
             ...(manual_capture ? { additionalData: { manualCapture: 'true' } } : {}),
         };
-        const session = await adyenCall('post', '/sessions', body);
+        const session = await adyenCall(res, 'post', '/sessions', body);
         log('info', '/sessions', 'session_created', { id: session.id, mode: isHosted ? 'hosted' : 'sdk' });
         res.json({ ...session, reference });
     } catch (error) {
@@ -135,7 +145,7 @@ router.get('/session-result', async (req, res) => {
         return res.status(400).json({ error: 'sessionId and sessionResult are required' });
     }
     try {
-        const result = await adyenCall('get', `/sessions/${encodeURIComponent(sessionId)}?sessionResult=${encodeURIComponent(sessionResult)}`);
+        const result = await adyenCall(res, 'get', `/sessions/${encodeURIComponent(sessionId)}?sessionResult=${encodeURIComponent(sessionResult)}`);
         res.json(result);
     } catch (error) {
         sendError(res, '/session-result', error);
@@ -149,7 +159,7 @@ router.post('/payment-methods', async (req, res) => {
         return res.status(400).json({ error: 'amount, currency, and country_code are required' });
     }
     try {
-        const methods = await adyenCall('post', '/paymentMethods', {
+        const methods = await adyenCall(res, 'post', '/paymentMethods', {
             merchantAccount: config.adyenMerchantAccount,
             countryCode: country_code,
             amount: { currency, value: amount },
@@ -186,7 +196,7 @@ router.post('/payments', async (req, res) => {
             ...(state_data.riskData ? { riskData: state_data.riskData } : {}),
             ...(manual_capture ? { additionalData: { manualCapture: 'true' } } : {}),
         };
-        const payment = await adyenCall('post', '/payments', body);
+        const payment = await adyenCall(res, 'post', '/payments', body);
         log('info', '/payments', 'payment_created', { pspReference: payment.pspReference, resultCode: payment.resultCode });
         res.json({ ...payment, reference: ref });
     } catch (error) {
@@ -200,7 +210,7 @@ router.post('/payments-details', async (req, res) => {
     const { state_data } = req.body || {};
     if (!state_data) return res.status(400).json({ error: 'state_data is required' });
     try {
-        const result = await adyenCall('post', '/payments/details', state_data);
+        const result = await adyenCall(res, 'post', '/payments/details', state_data);
         res.json(result);
     } catch (error) {
         sendError(res, '/payments-details', error);
@@ -219,7 +229,7 @@ router.post('/payment-links', async (req, res) => {
     }
     try {
         const reference = newReference('cko-link');
-        const link = await adyenCall('post', '/paymentLinks', {
+        const link = await adyenCall(res, 'post', '/paymentLinks', {
             merchantAccount: config.adyenMerchantAccount,
             reference,
             amount: { value: amount, currency },
@@ -236,7 +246,7 @@ router.post('/payment-links', async (req, res) => {
 
 router.get('/payment-link/:id', async (req, res) => {
     try {
-        res.json(await adyenCall('get', `/paymentLinks/${encodeURIComponent(req.params.id)}`));
+        res.json(await adyenCall(res, 'get', `/paymentLinks/${encodeURIComponent(req.params.id)}`));
     } catch (error) {
         sendError(res, '/payment-link', error);
     }
@@ -260,7 +270,7 @@ function actionRoute(name, path, withAmount) {
                 reference: reference || newReference(name),
                 ...(withAmount ? { amount: { value: amount, currency } } : {}),
             };
-            const result = await adyenCall('post', `/payments/${encodeURIComponent(psp_reference)}/${path}`, body);
+            const result = await adyenCall(res, 'post', `/payments/${encodeURIComponent(psp_reference)}/${path}`, body);
             log('info', `/${name}`, 'requested', { psp_reference, status: result.status });
             res.json(result);
         } catch (error) {

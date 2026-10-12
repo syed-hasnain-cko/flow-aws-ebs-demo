@@ -1,3 +1,19 @@
+<style>
+    .adyen-tc-panel { margin-top:16px; padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-subtle); }
+    .adyen-tc-panel h3 { font-size:13px; margin:0 0 6px; color:var(--text-secondary); }
+    .adyen-tc-panel p { font-size:12px; color:var(--text-secondary); margin:0 0 6px; line-height:1.5; }
+    .adyen-tc-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px 0; border-top:1px solid var(--border); }
+    .adyen-tc-label { font-size:12px; color:var(--text-secondary); min-width:210px; }
+    .adyen-tc-chip {
+        display:inline-flex; align-items:center; padding:3px 9px; border-radius:6px; font-size:12px;
+        font-family:monospace; cursor:pointer; user-select:none; line-height:1.4;
+        background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-primary);
+        transition: background 0.12s, color 0.12s;
+    }
+    .adyen-tc-chip:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .adyen-tc-note { font-size:11px; color:var(--text-secondary); opacity:0.8; margin-top:8px; }
+</style>
+
 <!-- ─── Adyen: Payment Acceptance mode selector ─────────────────────── -->
 <h2 class="section-header">Payment Acceptance</h2>
 <div class="wallet-selector-section">
@@ -38,6 +54,7 @@
             <input type="checkbox" id="adyen-dropin-manual-capture"> Manual capture (<code>additionalData.manualCapture</code>)
         </label>
     </div>
+    <div class="adyen-test-cards" data-context="dropin"></div>
     <div class="button-group" style="margin-top:16px;">
         <button id="adyen-dropin-create-btn" class="main-button">Create Session &amp; Mount Drop-in</button>
     </div>
@@ -70,6 +87,7 @@
             <input type="checkbox" id="adyen-component-manual-capture"> Manual capture
         </label>
     </div>
+    <div class="adyen-test-cards" data-context="component"></div>
     <div class="button-group" style="margin-top:16px;">
         <button id="adyen-component-create-btn" class="main-button">Create Session &amp; Mount Card</button>
     </div>
@@ -116,6 +134,7 @@
             <input type="checkbox" id="adyen-hosted-manual-capture"> Manual capture
         </label>
     </div>
+    <div class="adyen-test-cards" data-context="hosted"></div>
     <div class="button-group" style="margin-top:16px;">
         <button id="adyen-hosted-create-btn" class="main-button">Create Session &amp; Redirect</button>
     </div>
@@ -147,6 +166,7 @@
             <input type="checkbox" id="adyen-advanced-manual-capture"> Manual capture
         </label>
     </div>
+    <div class="adyen-test-cards" data-context="advanced"></div>
     <div class="button-group" style="margin-top:16px;">
         <button id="adyen-advanced-create-btn" class="main-button">Fetch Payment Methods &amp; Mount</button>
     </div>
@@ -187,6 +207,7 @@
             <input type="checkbox" id="adyen-links-reusable"> Reusable link
         </label>
     </div>
+    <div class="adyen-test-cards" data-context="links"></div>
     <div class="button-group" style="margin-top:16px;">
         <button id="adyen-links-create-btn" class="main-button">Create Payment Link</button>
     </div>
@@ -212,7 +233,8 @@
 <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
     Adyen has no "get payment" endpoint, so enter the original payment's <code>pspReference</code> (shown in the webhook log below). All three requests are asynchronous — the outcome arrives as a CAPTURE / CANCELLATION / REFUND webhook.
 </p>
-<div class="inline-form" style="grid-template-columns: 2fr 1fr 1fr;">
+<div class="adyen-test-cards" data-context="actions"></div>
+    <div class="inline-form" style="grid-template-columns: 2fr 1fr 1fr;">
     <div class="form-group">
         <label for="adyen-action-psp" class="text-label" style="color:var(--text-secondary)">Payment pspReference</label>
         <input type="text" id="adyen-action-psp" class="text-input" placeholder="e.g. 7914073381342284">

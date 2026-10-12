@@ -37,6 +37,17 @@ function log(level, route, message, data = {}) {
     }));
 }
 
+// Exposes the exact Stripe REST endpoint behind each route to the browser (read by
+// the API log sidebar) so you can see which Stripe API call backs each app call.
+// The Stripe SDK hides the URL, so each route states it explicitly (paths verified
+// against the stripe-node resource definitions). Set BEFORE the SDK call so failed
+// calls still show their endpoint. Needs Expose-Headers to be readable cross-origin.
+const STRIPE_API = 'https://api.stripe.com';
+function setUpstream(res, method, path) {
+    res.set('X-Upstream-Endpoint', `${method} ${STRIPE_API}${path}`);
+    res.set('Access-Control-Expose-Headers', 'X-Upstream-Endpoint');
+}
+
 // In-memory store for webhook events, keyed by object id (PaymentIntent id, etc).
 // Same 2-minute-poll-then-delete pattern as the Checkout.com /webhook-event route.
 const webhookEventStore = new Map();
@@ -56,6 +67,7 @@ router.post('/direct/payment-intent', async (req, res) => {
         return res.status(400).json({ error: 'amount, currency, and payment_method_id are required' });
     }
     try {
+        setUpstream(res, 'POST', '/v1/payment_intents');
         const intent = await stripe().paymentIntents.create({
             amount,
             currency,
@@ -102,6 +114,7 @@ router.post('/checkout/session', async (req, res) => {
     const successUrl = `${return_base}/success.html?stripe_cos_id={CHECKOUT_SESSION_ID}&partner=stripe`;
     const cancelUrl = `${return_base}/failure.html?stripe_cos_status=cancelled&partner=stripe`;
     try {
+        setUpstream(res, 'POST', '/v1/checkout/sessions');
         const session = await stripe().checkout.sessions.create({
             mode: 'payment',
             // Stripe renamed this value on API version 2025-xx+: 'embedded' → 'embedded_page'.
@@ -135,6 +148,7 @@ router.post('/checkout/session', async (req, res) => {
 
 router.get('/checkout/session/:id', async (req, res) => {
     try {
+        setUpstream(res, 'GET', `/v1/checkout/sessions/${encodeURIComponent(req.params.id)}?expand[0]=payment_intent`);
         const session = await stripe().checkout.sessions.retrieve(req.params.id, { expand: ['payment_intent'] });
         res.json(session);
     } catch (error) {
@@ -154,6 +168,7 @@ router.post('/payment-element/session', async (req, res) => {
         return res.status(400).json({ error: 'amount, currency, and return_base are required' });
     }
     try {
+        setUpstream(res, 'POST', '/v1/checkout/sessions');
         const session = await stripe().checkout.sessions.create({
             mode: 'payment',
             ui_mode: 'elements',
@@ -187,6 +202,7 @@ router.post('/payment-links', async (req, res) => {
         return res.status(400).json({ error: 'amount and currency are required' });
     }
     try {
+        setUpstream(res, 'POST', '/v1/payment_links');
         const link = await stripe().paymentLinks.create({
             line_items: [{
                 price_data: {
@@ -217,6 +233,7 @@ router.post('/payment-links', async (req, res) => {
 // or to re-fetch state for the Refund/Actions panel.
 router.get('/payment-intent/:id', async (req, res) => {
     try {
+        setUpstream(res, 'GET', `/v1/payment_intents/${encodeURIComponent(req.params.id)}`);
         const intent = await stripe().paymentIntents.retrieve(req.params.id);
         res.json(intent);
     } catch (error) {
@@ -229,6 +246,7 @@ router.post('/capture-payment-intent', async (req, res) => {
     const { id, amount_to_capture } = req.body || {};
     if (!id) return res.status(400).json({ error: 'id is required' });
     try {
+        setUpstream(res, 'POST', `/v1/payment_intents/${encodeURIComponent(id)}/capture`);
         const intent = await stripe().paymentIntents.capture(id, amount_to_capture ? { amount_to_capture } : undefined);
         log('info', '/capture-payment-intent', 'captured', { id, status: intent.status });
         res.json(intent);
@@ -241,6 +259,7 @@ router.post('/cancel-payment-intent', async (req, res) => {
     const { id } = req.body || {};
     if (!id) return res.status(400).json({ error: 'id is required' });
     try {
+        setUpstream(res, 'POST', `/v1/payment_intents/${encodeURIComponent(id)}/cancel`);
         const intent = await stripe().paymentIntents.cancel(id);
         log('info', '/cancel-payment-intent', 'canceled', { id, status: intent.status });
         res.json(intent);
@@ -253,6 +272,7 @@ router.post('/refund', async (req, res) => {
     const { payment_intent, amount, reason } = req.body || {};
     if (!payment_intent) return res.status(400).json({ error: 'payment_intent is required' });
     try {
+        setUpstream(res, 'POST', '/v1/refunds');
         const refund = await stripe().refunds.create({ payment_intent, amount, reason });
         log('info', '/refund', 'refunded', { payment_intent, refundId: refund.id, amount: refund.amount });
         res.json(refund);
