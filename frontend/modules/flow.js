@@ -103,13 +103,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
         const NO_MANUAL_CAPTURE_METHODS = new Set(["alma", "wechatpay"]);
 
         const handleSubmit = async (self, submitData) => {
-            // Providing this callback at all opts OUT of Flow's default automatic
-            // submission for EVERY payment method, not just the one branch we
-            // customize — per CKO's docs: "If you do not provide this callback,
-            // [Flow] sends the request [automatically]." There is no way to fall
-            // through to that default once the callback exists (mobile-only
-            // behavior), so every method must forward the full session data
-            // (amount/items/3ds/payment_type) here.
+     
             const submitResponse = await performPaymentSubmission({
                 paymentSessionId: paymentSession.id,
                 sessionData: submitData,
