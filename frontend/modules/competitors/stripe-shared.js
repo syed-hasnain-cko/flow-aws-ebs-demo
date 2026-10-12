@@ -19,14 +19,14 @@
     async function fetchPaymentIntent(id) {
         const res = await fetch(`${base()}/payment-intent/${id}`);
         const data = await res.json();
-        await addToApiLog('GET', `get PaymentIntent: ${id} - /competitors/stripe/payment-intent/${id}`, res.ok ? 200 : res.status, {}, data);
+        await addToApiLog('GET', withUpstream(res, `get PaymentIntent: ${id}`, `/competitors/stripe/payment-intent/${id}`), res.ok ? 200 : res.status, {}, data);
         return { ok: res.ok, data };
     }
 
     async function fetchCheckoutSession(id) {
         const res = await fetch(`${base()}/checkout/session/${id}`);
         const data = await res.json();
-        await addToApiLog('GET', `get Checkout Session: ${id} - /competitors/stripe/checkout/session/${id}`, res.ok ? 200 : res.status, {}, data);
+        await addToApiLog('GET', withUpstream(res, `get Checkout Session: ${id}`, `/competitors/stripe/checkout/session/${id}`), res.ok ? 200 : res.status, {}, data);
         return { ok: res.ok, data };
     }
 
@@ -37,7 +37,7 @@
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        await addToApiLog('POST', `${route} - /competitors/stripe/${route}`, res.ok ? 200 : res.status, body, data);
+        await addToApiLog('POST', withUpstream(res, route, `/competitors/stripe/${route}`), res.ok ? 200 : res.status, body, data);
         return { ok: res.ok, data };
     }
 

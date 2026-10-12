@@ -121,7 +121,7 @@
             body: JSON.stringify(body),
         });
         const intent = await res.json();
-        await addToApiLog('POST', `create+confirm PaymentIntent - /competitors/stripe/direct/payment-intent`, res.ok ? 200 : res.status, body, intent);
+        await addToApiLog('POST', withUpstream(res, 'create+confirm PaymentIntent', '/competitors/stripe/direct/payment-intent'), res.ok ? 200 : res.status, body, intent);
 
         if (!res.ok) {
             setStatus(statusEl, 'error', intent.error || 'PaymentIntent creation failed.');
@@ -222,7 +222,7 @@
         }
         const res = await fetch(`${STRIPE_BASE()}/payment-intent/${id}`);
         const intent = await res.json();
-        await addToApiLog('GET', `get PaymentIntent: ${id} - /competitors/stripe/payment-intent/${id}`, res.ok ? 200 : res.status, {}, intent);
+        await addToApiLog('GET', withUpstream(res, `get PaymentIntent: ${id}`, `/competitors/stripe/payment-intent/${id}`), res.ok ? 200 : res.status, {}, intent);
 
         if (!res.ok) {
             setStatus(statusEl, 'error', intent.error || 'Not found.');
@@ -269,7 +269,7 @@
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        await addToApiLog('POST', `${route} - /competitors/stripe/${route}`, res.ok ? 200 : res.status, body, data);
+        await addToApiLog('POST', withUpstream(res, route, `/competitors/stripe/${route}`), res.ok ? 200 : res.status, body, data);
 
         if (res.ok) {
             showToast(`${route.replace(/-/g, ' ')} succeeded.`);
@@ -312,7 +312,7 @@
             body: JSON.stringify(body),
         });
         const session = await res.json();
-        await addToApiLog('POST', 'create Checkout Session - /competitors/stripe/checkout/session', res.ok ? 200 : res.status, body, session);
+        await addToApiLog('POST', withUpstream(res, 'create Checkout Session', '/competitors/stripe/checkout/session'), res.ok ? 200 : res.status, body, session);
 
         if (!res.ok) {
             setStatus(statusEl, 'error', session.error || 'Checkout Session creation failed.');
@@ -373,7 +373,7 @@
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        await addToApiLog('POST', 'create Payment Element session - /competitors/stripe/payment-element/session', res.ok ? 200 : res.status, body, data);
+        await addToApiLog('POST', withUpstream(res, 'create Payment Element session', '/competitors/stripe/payment-element/session'), res.ok ? 200 : res.status, body, data);
 
         if (!res.ok) {
             setStatus(statusEl, 'error', data.error || 'Session creation failed.');
@@ -452,7 +452,7 @@
             body: JSON.stringify(body),
         });
         const link = await res.json();
-        await addToApiLog('POST', 'create Payment Link - /competitors/stripe/payment-links', res.ok ? 200 : res.status, body, link);
+        await addToApiLog('POST', withUpstream(res, 'create Payment Link', '/competitors/stripe/payment-links'), res.ok ? 200 : res.status, body, link);
 
         if (!res.ok) {
             setStatus(statusEl, 'error', link.error || 'Payment Link creation failed.');

@@ -404,3 +404,47 @@ const AUTH_TYPE_INCREMENTAL_SUPPORT = {
     'American Express': { increaseAmount: true, extendValidity: false }, // US only
     Mada:             { increaseAmount: false, extendValidity: true  },
 };
+
+// ─── Adyen test cards (Competitor Testing → Adyen) ─────────────────────
+// Public sandbox cards from Adyen's docs ("Test card numbers"); they only work on
+// Adyen's TEST platform. Deliberately NOT included (extend from Adyen's docs when
+// needed): 3D Secure 2 challenge/frictionless cards and the refusal / outcome-trigger
+// rules — those live on Adyen pages that were not available when this was built.
+// `tests` states only what the card is documented as (scheme, issuing country, card
+// type); never add an expected-outcome claim here that Adyen's docs don't make.
+const ADYEN_TEST_CARDS = [
+    { id: 'visa-nl-consumer', scheme: 'Visa', type: 'Consumer', country: 'NL', number: '4111111111111111', expiry: '03/2030', cvc: '737',
+      tests: 'Standard Visa test card issued in the Netherlands — the baseline card for a normal authorisation.' },
+    { id: 'mc-gb-credit', scheme: 'Mastercard', type: 'Credit', country: 'GB', number: '5555555555554444', expiry: '03/2030', cvc: '737',
+      tests: 'Standard Mastercard credit test card issued in the UK — checks a second scheme and issuer country.' },
+    { id: 'mc-gb-consumer', scheme: 'Mastercard', type: 'Consumer', country: 'GB', number: '5555444433331111', expiry: '03/2030', cvc: '737',
+      tests: 'Standard Mastercard consumer test card issued in the UK — same scheme as above, different card type.' },
+];
+
+// What each Adyen testing section is exercising, shown above the cards in that section.
+const ADYEN_TEST_CARD_CONTEXT = {
+    dropin: {
+        entry: 'Type into Drop-in\'s card form. Adyen\'s fields are secure iframes and can\'t be auto-filled, so click a value below to copy it.',
+        tests: 'The full Sessions flow: /sessions → card authorisation → onPaymentCompleted → success page → AUTHORISATION webhook. BobsBurgersECOM captures manually, so expect an authorisation only; capture it from the Capture / Cancel / Refund panel.',
+    },
+    component: {
+        entry: 'Type into the Card component below (Adyen\'s secure iframes — click a value to copy it).',
+        tests: 'The standalone Card component: your own layout around Adyen-secured fields, with the same Sessions flow and webhook outcome as Drop-in. Compare field validation and error UX against Drop-in.',
+    },
+    hosted: {
+        entry: 'You enter the card on Adyen\'s hosted page after the redirect — copy these values first, then click Create Session & Redirect.',
+        tests: 'The hosted round trip: redirect out, theme rendering, return to success.html with sessionResult, and GET /sessions/{id} reporting "completed".',
+    },
+    advanced: {
+        entry: 'Type into the Drop-in mounted below (click a value to copy it).',
+        tests: 'Your own /paymentMethods → /payments → /payments/details orchestration and the onSubmit / onAdditionalDetails → actions.resolve wiring. 3D Secure test cards are not listed here — use Adyen\'s 3D Secure 2 testing docs to exercise the additional-details step.',
+    },
+    links: {
+        entry: 'You enter the card on Adyen\'s payment page after opening the link — copy these values first.',
+        tests: 'Pay by Link creation, link status moving from active to completed (Check status button), and webhook correlation by reference. The shopper is not redirected back to this app.',
+    },
+    actions: {
+        entry: 'Pay with any card here in one of the sections above first, then use that payment\'s pspReference.',
+        tests: 'Post-authorisation modifications: Capture (required on this manual-capture merchant), Cancel (before capture) and Refund (after capture). Each is asynchronous — the outcome arrives as a CAPTURE / CANCELLATION / REFUND webhook.',
+    },
+};

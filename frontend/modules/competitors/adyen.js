@@ -31,7 +31,7 @@
             body: body ? JSON.stringify(body) : undefined,
         });
         const data = await res.json();
-        await addToApiLog(method, `${label || route} - /competitors/adyen/${route.split('?')[0]}`, res.ok ? 200 : res.status, body || {}, data);
+        await addToApiLog(method, withUpstream(res, label || route, `/competitors/adyen/${route.split('?')[0]}`), res.ok ? 200 : res.status, body || {}, data);
         return { ok: res.ok, data };
     }
 
@@ -345,10 +345,50 @@
         addToApiLog('INCOMING WEBHOOK', `${event.type} — /competitors/adyen/webhook`, 200, {}, d);
     }
 
+    // ─── Test cards (data + per-section messaging live in modules/data.js) ──
+    function renderTestCards() {
+        document.querySelectorAll('.adyen-test-cards').forEach(container => {
+            const ctx = ADYEN_TEST_CARD_CONTEXT[container.dataset.context];
+            if (!ctx) return;
+            const chip = (label, value) =>
+                `<span class="adyen-tc-chip" data-copy="${value}" title="Click to copy">${label}</span>`;
+            const rows = ADYEN_TEST_CARDS.map(c => `
+                <div class="adyen-tc-row">
+                    <span class="adyen-tc-label"><strong>${c.scheme}</strong> · ${c.type} · ${c.country}<br>${c.tests}</span>
+                    ${chip(c.number.replace(/(\d{4})(?=\d)/g, '$1 '), c.number)}
+                    ${chip(`exp ${c.expiry}`, c.expiry)}
+                    ${chip(`cvc ${c.cvc}`, c.cvc)}
+                </div>`).join('');
+            container.innerHTML = `
+                <div class="adyen-tc-panel">
+                    <h3>Adyen test cards</h3>
+                    <p><strong>How to use:</strong> ${ctx.entry}</p>
+                    <p><strong>What this section tests:</strong> ${ctx.tests}</p>
+                    ${rows}
+                    <div class="adyen-tc-note">Sandbox cards from Adyen's docs (Test card numbers); they only work on Adyen's test platform.
+                    3D Secure 2 cards and refusal/outcome-trigger test rules are not listed here — see Adyen's testing docs.</div>
+                </div>`;
+        });
+    }
+
+    // One delegated listener copies any chip's value (container is re-rendered, not re-bound).
+    document.addEventListener('click', async (e) => {
+        const chip = e.target.closest('.adyen-tc-chip');
+        if (!chip) return;
+        try {
+            await navigator.clipboard.writeText(chip.dataset.copy);
+            showToast(`Copied ${chip.dataset.copy}`);
+        } catch (err) {
+            showToast('Copy failed — select the value manually.', false);
+        }
+    });
+
     // ─── Wiring ───────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         const dropinBtn = document.getElementById('adyen-dropin-create-btn');
         if (!dropinBtn) return; // tab not yet loaded on this page
+
+        renderTestCards();
 
         const urlDisplay = document.getElementById('adyen-webhook-url-display');
         if (urlDisplay && window.APP_CONFIG?.apiBaseUrl) {
