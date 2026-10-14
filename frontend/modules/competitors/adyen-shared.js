@@ -31,6 +31,7 @@
             sessionResult: p.get('sessionResult'),
             redirectResult: p.get('redirectResult'),
             sdkResult: p.get('adyen_result'), // resultCode from the Web SDK's own completion callback
+            sdkSessionResult: p.get('adyen_sr'), // sessionResult from the SDK callback, when it provides one
         };
     }
 
@@ -125,12 +126,17 @@
             result.summary.paymentsDetails = data;
             result.failed = !ok || !['Authorised', 'Received', 'Pending'].includes(data.resultCode);
             if (ok && data.pspReference) result.payment = { pspReference: data.pspReference, amount: data.amount?.value, currency: data.amount?.currency };
-        } else if (params.sessionId && params.sessionResult) {
-            const res = await fetch(`${base()}/session-result?sessionId=${encodeURIComponent(params.sessionId)}&sessionResult=${encodeURIComponent(params.sessionResult)}`);
+        } else if (params.sessionId && (params.sessionResult || params.sdkSessionResult)) {
+            const sessionResult = params.sessionResult || params.sdkSessionResult;
+            const res = await fetch(`${base()}/session-result?sessionId=${encodeURIComponent(params.sessionId)}&sessionResult=${encodeURIComponent(sessionResult)}`);
             const data = await res.json();
             await addToApiLog('GET', withUpstream(res, `get session result: ${params.sessionId}`, '/competitors/adyen/session-result'), res.ok ? 200 : res.status, {}, data);
             result.summary.sessionResult = data;
             result.failed = !res.ok || ['canceled', 'expired'].includes(data.status);
+            const first = Array.isArray(data.payments) ? data.payments[0] : null;
+            if (res.ok && first?.pspReference) {
+                result.payment = { pspReference: first.pspReference, amount: first.amount?.value, currency: first.amount?.currency };
+            }
         } else {
             // Drop-in/Components redirect (sessionId + redirectResult only): the SDK
             // that created the session isn't loaded on this page, so the AUTHORISATION
@@ -156,22 +162,46 @@
 
         if (paymentIdEl) paymentIdEl.textContent = result.payment?.pspReference || params.ref;
 
+        const cacheKey = `adyen_result_${params.ref}`;
         const state = { ...result.summary, webhookEvents: [] };
+        const seen = new Set();
         let payment = result.payment;
         const refresh = () => {
             renderJSON(detailsEl, state);
             detailsContainer.style.display = 'flex';
             renderActionButtons(actionsEl, payment, () => {});
         };
+
+        // Fold one webhook event into the page + cached result (deduped, since
+        // the history replay and live polling can both deliver the same event).
+        const applyEvent = (event) => {
+            const key = `${event.data?.pspReference}:${event.type}:${event.data?.eventDate || event.receivedAt}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            state.webhookEvents.push({ eventCode: event.type, success: event.success, pspReference: event.data.pspReference, reason: event.data.reason });
+            if (event.type === 'AUTHORISATION' && event.data.pspReference && !payment) {
+                payment = { pspReference: event.data.pspReference, amount: event.data.amount?.value, currency: event.data.amount?.currency };
+                result.payment = payment;
+                sessionStorage.setItem(cacheKey, JSON.stringify(result));
+            }
+            if (payment && paymentIdEl) paymentIdEl.textContent = payment.pspReference;
+        };
+
         refresh();
+
+        // Rebuild from webhooks the poller already consumed on a previous load.
+        try {
+            const res = await fetch(`${base()}/webhook-event?id=${encodeURIComponent(params.ref)}&peek=1`);
+            if (res.ok) {
+                const history = await res.json();
+                (history.events || []).forEach(applyEvent);
+                refresh();
+            }
+        } catch (e) { console.error('Adyen webhook history lookup failed', e); }
 
         if (webhookStatusEl) {
             startWebhookPolling(params.ref, webhookStatusEl, (event) => {
-                state.webhookEvents.push({ eventCode: event.type, success: event.success, pspReference: event.data.pspReference, reason: event.data.reason });
-                if (event.type === 'AUTHORISATION' && event.data.pspReference) {
-                    payment = { pspReference: event.data.pspReference, amount: event.data.amount?.value, currency: event.data.amount?.currency };
-                    if (paymentIdEl) paymentIdEl.textContent = payment.pspReference;
-                }
+                applyEvent(event);
                 refresh();
             });
         }

@@ -106,11 +106,11 @@
             session: { id: session.id, sessionData: session.sessionData },
             onPaymentCompleted: async (result) => {
                 await addToApiLog('POST', 'AdyenCheckout onPaymentCompleted (client-side)', 200, {}, result);
-                goToResult(true, { adyen_ref: session.reference, sessionId: session.id, adyen_result: result.resultCode });
+                goToResult(true, { adyen_ref: session.reference, sessionId: session.id, adyen_result: result.resultCode, ...(result.sessionResult ? { adyen_sr: result.sessionResult } : {}) });
             },
             onPaymentFailed: async (result) => {
                 await addToApiLog('POST', 'AdyenCheckout onPaymentFailed (client-side)', 402, {}, result);
-                goToResult(false, { adyen_ref: session.reference, sessionId: session.id, adyen_result: result.resultCode });
+                goToResult(false, { adyen_ref: session.reference, sessionId: session.id, adyen_result: result.resultCode, ...(result.sessionResult ? { adyen_sr: result.sessionResult } : {}) });
             },
             onError: async (error) => {
                 await addToApiLog('POST', 'AdyenCheckout onError (client-side)', 500, {}, { name: error.name, message: error.message });
