@@ -76,11 +76,19 @@ function newReference(prefix = 'cko-demo') {
 const webhookEventStore = new Map();
 const WEBHOOK_TTL_MS = 5 * 60 * 1000;
 
+// Non-consuming copy of every event, so a refreshed/re-opened success page can
+// rebuild what the queue above already delivered once (`?peek=1`).
+const webhookHistory = new Map();
+const WEBHOOK_HISTORY_TTL_MS = 60 * 60 * 1000;
+
 function storeWebhookEvent(key, event) {
     if (!key) return;
     const queue = webhookEventStore.get(key) || [];
     queue.push(event);
     webhookEventStore.set(key, queue);
+    const history = webhookHistory.get(key) || [];
+    history.push(event);
+    webhookHistory.set(key, history);
 }
 
 function pruneWebhookStore() {
@@ -89,6 +97,12 @@ function pruneWebhookStore() {
         const fresh = queue.filter(e => e.receivedAt >= cutoff);
         if (fresh.length) webhookEventStore.set(key, fresh);
         else webhookEventStore.delete(key);
+    }
+    const historyCutoff = Date.now() - WEBHOOK_HISTORY_TTL_MS;
+    for (const [key, events] of webhookHistory) {
+        const fresh = events.filter(e => e.receivedAt >= historyCutoff);
+        if (fresh.length) webhookHistory.set(key, fresh);
+        else webhookHistory.delete(key);
     }
 }
 
@@ -336,6 +350,13 @@ router.post('/webhook', (req, res) => {
 router.get('/webhook-event', (req, res) => {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id query param is required' });
+
+    // ?peek=1 → every event seen for this id, without consuming the queue.
+    if (req.query.peek) {
+        pruneWebhookStore();
+        const events = webhookHistory.get(id) || [];
+        return res.json({ found: events.length > 0, events });
+    }
 
     const queue = webhookEventStore.get(id);
     if (!queue || !queue.length) return res.status(404).json({ found: false });
