@@ -22,7 +22,7 @@
     document.getElementById('payouts-tab').innerHTML = loadSync('tabs/payouts.html');
     document.getElementById('disputes-tab').innerHTML = loadSync('tabs/disputes.html');
     document.getElementById('auth-types-tab').innerHTML = loadSync('tabs/auth-types.html');
-    document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261030d');
+    document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261031b');
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
 

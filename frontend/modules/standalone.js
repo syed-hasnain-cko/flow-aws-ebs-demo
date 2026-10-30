@@ -22,9 +22,41 @@
     // One authentication buys one payment: once a payment has been created against a session id it is recorded
     // here ({ [sid]: { payment_id, approved, status, response_code, at } }) and Step 3 stays locked for that sid.
     const LS_CONSUMED  = 'cko-suite-3ds-consumed';
+    const SS_WH_SEEN   = 'cko-suite-wh-seen';          // webhook events already shown + logged in THIS tab (same lifetime as the API log)
     // Step 3 may only open for a status that is explicitly terminal. Anything else — pending, processing,
     // challenged, or a status this tester has never seen — counts as "authentication not finished".
     const FINAL_STATUSES = ['approved', 'attempted', 'declined', 'rejected', 'unavailable', 'challenge_abandoned', 'expired'];
+
+    // What each challenge_indicator value means. Sandbox remarks come from real runs against the sandbox Sessions API
+    // (non_hosted + channel_data): every value is echoed as exemption.requested, but the simulator only APPLIES one.
+    const CHALLENGE_INFO = {
+        no_preference: 'No preference — the issuer decides whether to challenge.',
+        no_challenge_requested: 'You ask for no challenge. The issuer still has the final say.',
+        challenge_requested: 'You prefer a challenge. Frictionless test cards still approve silently in the sandbox.',
+        challenge_requested_mandate: 'A challenge is mandated by local rules (for example saving a card, or starting a subscription).',
+        low_value: 'SCA exemption — payments under €30. The issuer may still demand SCA (5th use since the last SCA, or €100 spent cumulatively). Sandbox: echoed as exemption.requested, normally not applied.',
+        transaction_risk_assessment: 'SCA exemption — TRA, up to €250 for UK / EU domestic acquiring, and your PSP must meet fraud-rate thresholds. Sandbox: echoed, normally not applied.',
+        trusted_listing: 'SCA exemption — the cardholder previously added you to their trusted merchant list (Amex handles this itself). Sandbox: APPLIED for Visa 4556085951507152 — use the “Exemption applied” preset.',
+        trusted_listing_prompt: 'Asks the issuer to offer the cardholder the chance to add you to their trusted list — used on the first payment, then trusted_listing afterwards.',
+        secure_corporate_payment: 'SCA exemption — secure corporate payments (virtual / lodged cards). Accepted by the API; not applied for the test cards.',
+        data_share: 'Data Sharing — frictionless authentication for transactions outside SCA scope. Needs enablement; on a challenge test card the sandbox answered “unavailable”.',
+    };
+
+    // One-click setups for the frictionless / exemption scenarios. Each loads a raw test card + the form values.
+    const SESSION_PRESETS = [
+        { id: 'classic', label: 'Classic redirect (HTTP 202)', pan: '4485040371536584', amount: 100, indicator: 'no_preference', redirectless: false,
+          hint: 'Baseline: 202 pending + a redirect link — the hosted page collects the browser data.' },
+        { id: 'redirectless', label: 'Redirectless frictionless (HTTP 201)', pan: '4485040371536584', amount: 100, indicator: 'no_preference', redirectless: true,
+          hint: 'channel_data is sent, so a frictionless card returns 201 approved immediately — no redirect, eci + cryptogram included. Step 3 unlocks straight away.' },
+        { id: 'tl-applied', label: 'Exemption applied (trusted_listing)', pan: '4556085951507152', amount: 5000, indicator: 'trusted_listing', redirectless: true,
+          hint: 'The one combination the sandbox applies: exemption.requested = applied = trusted_listing, frictionless, no redirect. No liability shift.' },
+        { id: 'lv-challenge', label: 'low_value requested → challenge anyway', pan: '4243754271700719', amount: 2000, indicator: 'low_value', redirectless: true,
+          hint: '201 challenged — the issuer does not apply the exemption for this card (requested ≠ applied), so the challenge still happens.' },
+        { id: 'tra-challenge', label: 'TRA requested → challenge anyway', pan: '4243754271700719', amount: 10000, indicator: 'transaction_risk_assessment', redirectless: true,
+          hint: '201 challenged — TRA is requested but not applied for this card; redirect the cardholder to finish the challenge.' },
+        { id: 'challenge-rl', label: 'Challenge card + channel_data', pan: '4243754271700719', amount: 100, indicator: 'no_preference', redirectless: true,
+          hint: '201 challenged: nothing to collect, but a challenge is still required — hosted sessions return a redirect link for it.' },
+    ];
     const RESULT_BOXES = ['sa-3ds-create-res', 'sa-3ds-session-res', 'sa-pay-res', 'sa-pay-details-res'];
 
     // ----- DOM helpers -----
@@ -71,7 +103,7 @@
         sid: null, session: null, redirectHref: null, sessionSource: null, prefilled: {}, pollTimer: null, pollStatus: null, pollStarted: 0,
         payAuth: 'sid',
         lastPaymentId: null,
-        whTimer: null, whSeq: 0, whPaused: false, whReplay: true, whEvents: [],
+        whTimer: null, whPaused: false, whAll: new Map(), whSeen: new Set(), whBaselined: false,
         resText: {},
     };
 
@@ -459,6 +491,61 @@
         return s;
     }
 
+    // ----- Redirectless frictionless: browser data (channel_data) -----
+    function detectBrowserData() {
+        const set = (id, v) => { const e = $(id); if (e) e.value = v; };
+        set('sa-cd-ua', navigator.userAgent || '');
+        set('sa-cd-accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
+        set('sa-cd-language', navigator.language || 'en-GB');
+        set('sa-cd-timezone', String(new Date().getTimezoneOffset()));
+        set('sa-cd-color', String(screen.colorDepth || 24));
+        set('sa-cd-width', String(screen.width || 1920));
+        set('sa-cd-height', String(screen.height || 1080));
+        set('sa-cd-java', String(!!(navigator.javaEnabled && navigator.javaEnabled())));
+        set('sa-cd-js', 'true');
+        set('sa-cd-iframe', 'true');
+        const brands = navigator.userAgentData?.brands;
+        set('sa-cd-hint', brands ? 'Sec-CH-UA: ' + brands.map(b => `"${b.brand}";v="${b.version}"`).join(', ') : '');
+    }
+
+    function channelDataFromForm() {
+        const cd = {
+            channel: 'browser',
+            accept_header: val('sa-cd-accept'), java_enabled: val('sa-cd-java') === 'true', javascript_enabled: val('sa-cd-js') === 'true',
+            language: val('sa-cd-language'), color_depth: val('sa-cd-color'), screen_height: val('sa-cd-height'), screen_width: val('sa-cd-width'),
+            timezone: val('sa-cd-timezone'), user_agent: val('sa-cd-ua'), ip_address: val('sa-cd-ip'),
+            three_ds_method_completion: val('sa-cd-method'), iframe_payment_allowed: val('sa-cd-iframe') === 'true',
+        };
+        if (val('sa-cd-hint')) cd.user_agent_client_hint = val('sa-cd-hint');
+        return cd;
+    }
+
+    function renderChallengeHelp() {
+        const e = $('sa-3ds-challenge-help');
+        if (e) e.textContent = CHALLENGE_INFO[val('sa-3ds-challenge')] || '';
+    }
+
+    function renderPresets() {
+        const box = $('sa-3ds-presets');
+        if (!box) return;
+        box.innerHTML = SESSION_PRESETS.map(p => `<span class="sa-chip" data-sa-preset="${esc(p.id)}" title="${esc(p.hint)}">${esc(p.label)}</span>`).join('');
+    }
+
+    function applyPreset(id) {
+        const p = SESSION_PRESETS.find(x => x.id === id);
+        if (!p) return;
+        setMode('raw');
+        $('sa-raw-number').value = p.pan; $('sa-raw-month').value = '12'; $('sa-raw-year').value = '2030'; $('sa-raw-cvv').value = '100';
+        $('sa-3ds-amount').value = p.amount;
+        $('sa-3ds-challenge').value = p.indicator;
+        $('sa-3ds-redirectless').checked = p.redirectless;
+        $('sa-3ds-completion-type').value = 'hosted';
+        syncDependentUi();
+        updateActiveSource();
+        refreshPreviews();
+        showToast(`Preset loaded — ${p.label}. ${p.hint}`);
+    }
+
     function buildSessionBody(quiet) {
         const src = getCardSource(true);
         if (!src && !quiet) { getCardSource(false); return null; }
@@ -484,8 +571,12 @@
             transaction_type: val('sa-3ds-transaction-type'),
             reference: val('sa-3ds-reference') || `suite-3ds-${Date.now().toString().slice(-8)}`,
             shipping_address_matches_billing: checked('sa-3ds-ship-matches'),
-            completion: { type: 'hosted', success_url: val('sa-3ds-success-url'), failure_url: val('sa-3ds-failure-url') },
+            completion: val('sa-3ds-completion-type') === 'non_hosted'
+                ? { type: 'non_hosted' }
+                : { type: 'hosted', success_url: val('sa-3ds-success-url'), failure_url: val('sa-3ds-failure-url') },
         };
+        // Redirectless frictionless: hand Checkout.com the browser data up front so it need not collect it via a redirect.
+        if (checked('sa-3ds-redirectless')) body.channel_data = channelDataFromForm();
         if (!checked('sa-3ds-ship-matches')) {
             body.shipping_address = {
                 address_line1: val('sa-3ds-ship-line1'), city: val('sa-3ds-ship-city'),
@@ -513,7 +604,9 @@
         const source = paymentSource(src, cvv ? { cvv } : {});
         const threeDs = state.payAuth === 'sid'
             ? { enabled: true, authentication_id: val('sa-3ds-sid') || '<session id>' }
-            : { enabled: true, eci: val('sa-pay-eci'), cryptogram: val('sa-pay-cryptogram'), xid: val('sa-pay-xid'), version: val('sa-pay-version') };
+            : { enabled: true, eci: val('sa-pay-eci'), cryptogram: val('sa-pay-cryptogram'), xid: val('sa-pay-xid'), version: val('sa-pay-version'),
+                // docs: when the exemption was applied during authentication, flag it again in the authorization
+                ...(val('sa-pay-exemption') ? { exemption: val('sa-pay-exemption') } : {}) };
         return {
             source,
             amount: parseInt(val('sa-pay-amount'), 10),
@@ -706,7 +799,7 @@
             sid: state.sid, saved_at: Date.now(), mode: state.mode, payAuth: state.payAuth, fields, checks, results,
             sessionSource: src ? (src.type === 'instrument' ? { type: 'instrument', id: src.id } : { type: 'card', card: src.card }) : null,
             redirectHref: state.redirectHref, session: state.session, lastPaymentId: state.lastPaymentId,
-            whSeq: state.whSeq, whEvents: state.whEvents.slice(0, 30),
+            whEvents: [...state.whAll.values()].filter(whRelevant).slice(-60),     // only this session's events travel with it
         };
         const all = readSnaps();
         all[state.sid] = snap;
@@ -725,6 +818,9 @@
         ['bin', 'token', 'dpan'].forEach(x => { const g = $(`sa-meta-${x}-group`); if (g) g.style.display = m === x ? '' : 'none'; });
         if ($('sa-pay-data-fields')) $('sa-pay-data-fields').style.display = state.payAuth === 'data' ? 'grid' : 'none';
         document.querySelectorAll('#sa-3ds-auth-mode-pills .sa-pill').forEach(x => x.classList.toggle('active', x.dataset.saAuth === state.payAuth));
+        if ($('sa-3ds-redirectless-fields')) $('sa-3ds-redirectless-fields').style.display = checked('sa-3ds-redirectless') ? '' : 'none';
+        if ($('sa-3ds-nonhosted-note')) $('sa-3ds-nonhosted-note').style.display = val('sa-3ds-completion-type') === 'non_hosted' ? 'flex' : 'none';
+        renderChallengeHelp();
     }
 
     function restoreSnapshot(snap) {
@@ -744,9 +840,7 @@
         state.redirectHref = snap.redirectHref;
         state.sessionSource = snap.sessionSource;
         state.lastPaymentId = snap.lastPaymentId;
-        state.whEvents = snap.whEvents || [];
-        state.whSeq = snap.whSeq || 0;
-        state.whReplay = false;                         // events that arrived while the user was away are "new" → logged
+        adoptWebhooks(snap.whEvents || []);             // list and API log stay identical, even in a brand-new tab
         syncDependentUi();
         Object.entries(snap.results || {}).forEach(([id, r]) => {
             const b = $(id);
@@ -768,12 +862,15 @@
         const st = s.status;
         let cls = 'info', icon = '⏳', msg, jump = false;
         if (!isFinalStatus(st)) {
-            msg = st === 'pending' ? 'Waiting for the cardholder — redirect them to the hosted page (Step 2). This page keeps polling and restores itself when they come back.'
-                : st === 'challenged' ? 'The issuer requires a challenge — the cardholder is on the 3DS page (password <code>Checkout1!</code>).'
+            msg = (s.next_actions || []).includes('challenge_cardholder') ? '<strong>Challenge required (non_hosted).</strong> Non-hosted sessions leave the challenge UI to you, and this tester has none — create a <strong>hosted</strong> session for challenge cards.'
+                : st === 'pending' && (s.next_actions || []).some(a => a === 'collect_channel_data' || a === 'issuer_fingerprint') ? '<strong>Waiting for channel data.</strong> This non-hosted session was created without <code>channel_data</code> — switch on “Redirectless frictionless” so it is sent with the session.'
+                : st === 'pending' ? 'Waiting for the cardholder — redirect them to the hosted page (Step 2). This page keeps polling and restores itself when they come back.'
+                : st === 'challenged' ? 'The issuer requires a challenge — redirect the cardholder to the hosted page (Step 2) and complete it (password <code>Checkout1!</code>).'
                 : 'The issuer is evaluating the authentication…';
         } else if (st === 'approved') {
             cls = 'info'; icon = '✅'; jump = true;
-            msg = `<strong>Authenticated${s.challenged ? ' after a challenge' : ' (frictionless)'}.</strong> Authorize the payment in Step 3 — via session id, or with the raw 3DS data.`;
+            msg = `<strong>Authenticated${s.challenged ? ' after a challenge' : ' (frictionless)'}.</strong> Authorize the payment in Step 3 — via session id, or with the raw 3DS data.`
+                + (s.exemption?.applied && s.exemption.applied !== 'none' ? ` <strong>Exemption applied: ${esc(s.exemption.applied)}</strong> — no liability shift.` : '');
         } else if (st === 'attempted') {
             cls = 'warn'; icon = '🟡'; jump = true;
             msg = '<strong>Attempted (stand-in) authentication.</strong> Treated as a success — go ahead and authorize in Step 3; liability differs from a fully authenticated payment.';
@@ -815,8 +912,20 @@
         if (link) {
             link.innerHTML = state.redirectHref
                 ? `Hosted page: <a href="${esc(state.redirectHref)}" target="_blank" rel="noopener">${esc(state.redirectHref)}</a> <button class="copy-btn" type="button" data-sa-copy="sa-3ds-redirect-href">Copy</button><span id="sa-3ds-redirect-href" style="display:none;">${esc(state.redirectHref)}</span>`
-                : '';
+                : (state.session && isFinalStatus(state.session.status) ? '✓ No redirect needed — this session completed without one.' : '');
         }
+    }
+
+    // requested vs applied — the heart of exemption testing
+    function exemptionNote(s) {
+        const ex = s?.exemption || {};
+        if (ex.applied && ex.applied !== 'none') {
+            return `<div class="sa-note"><strong>Exemption applied: ${esc(ex.applied)}.</strong> The issuer accepted it, so SCA was skipped — and there is <strong>no liability shift</strong> (you are liable if the payment turns out to be fraudulent). When you pay with the raw 3DS data, flag it in <code>3ds.exemption</code>.</div>`;
+        }
+        if (ex.requested && ex.requested !== 'none') {
+            return `<div class="sa-note"><strong>Exemption requested (${esc(ex.requested)}) but not applied.</strong> The issuer / simulator decides, so the normal outcome for this card followed (${esc(s.flow_type || s.status)}). In the sandbox most test cards echo the request without applying it.</div>`;
+        }
+        return '';
     }
 
     function sessionSummary(s) {
@@ -838,8 +947,10 @@
             ['status', st, cls], ['status_reason', s.status_reason], ['approved', s.approved], ['completed', s.completed], ['challenged', s.challenged],
             ['flow_type', s.flow_type], ['protocol_version', s.protocol_version], ['scheme', s.scheme], ['next_actions', s.next_actions],
             ['response_code', s.response_code], ['eci', s.eci], ['cryptogram', s.cryptogram], ['xid', s.xid],
-            ['exemption.requested', s.exemption?.requested], ['exemption.applied', s.exemption?.applied], ['transaction_id', s.transaction_id],
-        ])}${hint ? `<div class="sa-note"><strong>What now:</strong> ${esc(hint)}</div>` : ''}`;
+            ['challenge_indicator', s.challenge_indicator],
+            ['exemption.requested', s.exemption?.requested], ['exemption.applied', s.exemption?.applied, s.exemption?.applied && s.exemption.applied !== 'none' ? 'good' : ''],
+            ['transaction_id', s.transaction_id],
+        ])}${exemptionNote(s)}${hint ? `<div class="sa-note"><strong>What now:</strong> ${esc(hint)}</div>` : ''}`;
     }
 
     function applySession(s) {
@@ -866,6 +977,7 @@
             prefill('sa-pay-eci', s.eci); prefill('sa-pay-cryptogram', s.cryptogram);
             prefill('sa-pay-xid', s.xid); prefill('sa-pay-version', s.protocol_version);
         }
+        prefill('sa-pay-exemption', s.exemption?.applied && s.exemption.applied !== 'none' ? s.exemption.applied : undefined);
         prefill('sa-pay-amount', s.amount); prefill('sa-pay-currency', s.currency);
         syncRedirectButtons();
         renderNextStep(s);
@@ -885,10 +997,15 @@
             applySession(env.data);
             state.sessionSource = sourceUsed;
             $('sa-pay-reference').value = '';
-            summary = `<div class="sa-note"><strong>Session created.</strong> Status <code>${esc(env.data.status)}</code> — next: redirect the cardholder (Step 2). Live status below.</div>`;
+            const finalNow = isFinalStatus(env.data.status);
+            summary = env.upstream_status === 201 && finalNow
+                ? `<div class="sa-banner info" style="display:flex;"><span>⚡</span><div><strong>HTTP 201 — authentication completed without a redirect.</strong> Status <code>${esc(env.data.status)}</code>${env.data.flow_type ? ` (${esc(env.data.flow_type)})` : ''}${env.data.eci ? `, eci <code>${esc(env.data.eci)}</code>` : ''}${env.data.cryptogram ? ' with a cryptogram' : ''}. Nothing to redirect — Step 3 is ready${(env.data.next_actions || []).includes('complete') ? ' (the optional “complete” session step is not needed here)' : ''}.</div></div>`
+                : env.upstream_status === 201
+                ? `<div class="sa-note"><strong>HTTP 201 — session created with its channel data.</strong> Status <code>${esc(env.data.status)}</code>: ${state.redirectHref ? 'redirect the cardholder (Step 2) to complete the challenge.' : 'see next_actions below.'}</div>`
+                : `<div class="sa-note"><strong>HTTP 202 — session created.</strong> Status <code>${esc(env.data.status)}</code> — next: redirect the cardholder (Step 2). Live status below.</div>`;
             $('sa-3ds-create-hint').textContent = '';
             renderResponse('sa-3ds-session-res', { ...env, upstream: env.upstream }, sessionSummary(env.data));
-            startPolling();
+            if (finalNow) stopPolling('not needed — the session finished synchronously'); else startPolling();
         } else if (env.data?.error_codes?.includes('card_not_enrolled')) {
             summary = `<div class="sa-note"><strong>card_not_enrolled</strong> — this card cannot be authenticated with 3DS. To continue, authorize via POST /payments with <code>3ds.enabled=false</code> (no liability shift), as documented.</div>`;
         } else if (env.upstream_status === 401 || env.upstream_status === 403) {
@@ -1257,9 +1374,56 @@
         if (next !== val('sa-wh-match')) { $('sa-wh-match').value = next; resetWebhookView(); }
     }
 
+    // =====================================================================
+    // Webhook pipeline — ONE path decides what is listed AND logged
+    //   ingest (relevant + not seen before) → whAll (the list) + API log, exactly once per event.
+    // Polling always asks for everything from the buffer (since=0, types only) and works out the rest here, so:
+    //   • list and API log can never diverge (no "replay" mode that lists without logging),
+    //   • a filter change cannot swallow an event that arrives right after it,
+    //   • events held by different warm Lambda containers (separate buffers / sequence numbers) all get picked up.
+    // =====================================================================
+    const loadSeen = () => { try { return new Set(JSON.parse(sessionStorage.getItem(SS_WH_SEEN) || '[]')); } catch (e) { return new Set(); } };
+    const persistSeen = () => { try { sessionStorage.setItem(SS_WH_SEEN, JSON.stringify([...state.whSeen].slice(-500))); } catch (e) { /* storage full */ } };
+    const whKey = (e) => e.event_id || `${e.type}|${e.created_on}|${e.received_at}`;
+    const whIds = () => val('sa-wh-match').split(',').map(x => x.trim()).filter(Boolean);
+
+    // With ids (the session / payment / token being tested) only events mentioning one of them are relevant;
+    // with none, the panel is a live view of everything of the selected types.
+    function whRelevant(e) {
+        const ids = whIds();
+        if (!ids.length) return true;
+        const hay = JSON.stringify(e.data || {});
+        return ids.some(id => hay.includes(id));
+    }
+
+    function logWebhook(e) {
+        addToApiLog('WEBHOOK', `${e.type} — /webhook`, 200, {}, { event_id: e.event_id, received_at: e.received_at, created_on: e.created_on, data: e.data });
+    }
+
+    function ingestWebhook(e) {
+        const k = whKey(e);
+        if (state.whSeen.has(k) || !whRelevant(e)) return false;
+        state.whSeen.add(k);
+        state.whAll.set(k, e);
+        logWebhook(e);
+        return true;
+    }
+
+    // Events restored from a snapshot: show them, and log any this tab has not logged yet.
+    function adoptWebhooks(list) {
+        list.filter(whRelevant).forEach(e => {                          // same rule as the live pipeline: list ≡ log
+            const k = whKey(e);
+            state.whAll.set(k, e);
+            if (!state.whSeen.has(k)) { state.whSeen.add(k); logWebhook(e); }
+        });
+        persistSeen();
+    }
+
+    // Called whenever the filter changes: re-filter what is shown and fetch immediately — nothing is cleared or "replayed".
     function resetWebhookView() {
-        state.whSeq = 0; state.whReplay = true; state.whEvents = [];
+        state.whBaselined = false;      // live-view mode re-baselines so old buffered events are not dumped on the user
         renderWebhooks();
+        pollWebhooks();
     }
 
     function whSummary(e) {
@@ -1273,8 +1437,16 @@
     function renderWebhooks() {
         const box = $('sa-wh-list');
         if (!box) return;
-        box.innerHTML = state.whEvents.length
-            ? state.whEvents.slice(0, 50).map(e => `<details class="sa-wh-item"><summary><span class="sa-wh-type">${esc(e.type)}</span>
+        const all = [...state.whAll.values()];
+        const visible = all.filter(whRelevant).sort((a, b) => String(b.received_at).localeCompare(String(a.received_at)));
+        const count = $('sa-wh-count');
+        if (count) {
+            const hidden = all.length - visible.length;
+            count.textContent = `${visible.length} event${visible.length === 1 ? '' : 's'} shown — each one is also in the API log sidebar`
+                + (hidden > 0 ? ` · ${hidden} from other sessions hidden by the id filter (clear the field to see them)` : '');
+        }
+        box.innerHTML = visible.length
+            ? visible.slice(0, 50).map(e => `<details class="sa-wh-item"><summary><span class="sa-wh-type">${esc(e.type)}</span>
                 <span class="sa-wh-time">${esc(new Date(e.received_at).toLocaleTimeString())}</span><span class="sa-wh-sum">${esc(whSummary(e))}</span></summary>
                 <pre class="sa-preview" style="padding:0 12px 10px;">${esc(jsonOf({ event_id: e.event_id, created_on: e.created_on, type: e.type, data: e.data }))}</pre></details>`).join('')
             : '<div class="sa-note">No events yet — they appear here within seconds of CKO delivering them.</div>';
@@ -1287,20 +1459,21 @@
         $('sa-wh-state').textContent = state.whPaused ? 'paused' : live ? 'listening' : 'idle';
         if (!live) return;
         try {
-            const q = new URLSearchParams({ since: String(state.whSeq) });
+            const q = new URLSearchParams({ since: '0' });            // always the whole buffer: containers have independent sequence numbers
             if (whTypes()) q.set('types', whTypes());
-            if (val('sa-wh-match').trim()) q.set('match', val('sa-wh-match').trim());
             const res = await fetch(`${API_BASE}/standalone/webhook-events?${q}`);
             if (!res.ok) return;
-            const { events, last_seq } = await res.json();
-            const replay = state.whReplay;
-            events.forEach(e => {
-                state.whEvents.unshift(e);
-                if (!replay) addToApiLog('WEBHOOK', `${e.type} — /webhook`, 200, {}, e.data);   // only genuinely new arrivals reach the sidebar
-            });
-            state.whSeq = Math.max(state.whSeq, last_seq || 0);
-            state.whReplay = false;
-            if (events.length) { renderWebhooks(); if (state.sid) scheduleSave(); }
+            const { events } = await res.json();
+            // Live-view mode (no ids to follow): first sight of the buffer is the baseline, not news.
+            if (!whIds().length && !state.whBaselined) {
+                events.forEach(e => state.whSeen.add(whKey(e)));
+                state.whBaselined = true;
+                persistSeen();
+                return;
+            }
+            let added = 0;
+            events.slice().sort((a, b) => String(a.received_at).localeCompare(String(b.received_at))).forEach(e => { if (ingestWebhook(e)) added++; });
+            if (added) { persistSeen(); renderWebhooks(); if (state.sid) scheduleSave(); }
         } catch (e) { /* transient */ }
     }
 
@@ -1422,6 +1595,7 @@
     // =====================================================================
     function init() {
         if (!$('sa-card-source')) return;     // tab HTML not present
+        state.whSeen = loadSeen();
 
         // Dropdowns
         const cur = (CURRENCIES || []).map(c => c.iso4217);
@@ -1463,8 +1637,9 @@
 
         // Delegated: test cards, copy buttons, filters
         $('standalone-tab').addEventListener('click', (ev) => {
-            const t = ev.target.closest('[data-sa-pan], [data-sa-more], [data-sa-copy], [data-sa-copyres], [data-sa-jump], [data-sa-newsession]');
+            const t = ev.target.closest('[data-sa-pan], [data-sa-more], [data-sa-copy], [data-sa-copyres], [data-sa-jump], [data-sa-newsession], [data-sa-preset]');
             if (!t) return;
+            if (t.dataset.saPreset) return applyPreset(t.dataset.saPreset);
             if (t.dataset.saNewsession) { ev.preventDefault(); resetSessionState(); $('sa-3ds-create-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
             if (t.dataset.saJump) { ev.preventDefault(); $(t.dataset.saJump)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
             if (t.dataset.saPan) return useTestCard(t.dataset.saPan, t.dataset.saScheme);
@@ -1482,6 +1657,10 @@
         $('standalone-tab').addEventListener('change', () => { updateActiveSource(); refreshPreviews(); if (state.sid) scheduleSave(); });
 
         // 3DS
+        detectBrowserData();
+        renderPresets();
+        ['sa-3ds-redirectless', 'sa-3ds-completion-type', 'sa-3ds-challenge'].forEach(id => $(id).addEventListener('change', syncDependentUi));
+        $('sa-3ds-detect-btn').addEventListener('click', () => { detectBrowserData(); refreshPreviews(); showToast('Browser data re-detected'); });
         $('sa-3ds-auth-type').addEventListener('change', syncDependentUi);
         $('sa-3ds-ship-matches').addEventListener('change', syncDependentUi);
         syncDependentUi();
@@ -1534,7 +1713,7 @@
             $('sa-wh-toggle').textContent = state.whPaused ? 'Resume' : 'Pause';
             pollWebhooks();
         });
-        $('sa-wh-clear').addEventListener('click', () => { state.whEvents = []; renderWebhooks(); });
+        $('sa-wh-clear').addEventListener('click', () => { state.whAll.clear(); renderWebhooks(); });   // view only — events stay logged and are not re-added
         state.whTimer = setInterval(pollWebhooks, 3000);
 
         // Theme change → remount Flow card field with the new appearance
