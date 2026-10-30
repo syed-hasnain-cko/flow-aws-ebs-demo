@@ -30,7 +30,15 @@ var config = {
       adyenApiKey: process.env.ADYEN_API_KEY || "",
       adyenClientKey: process.env.ADYEN_CLIENT_KEY || "",
       adyenMerchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT || "",
-      adyenHmacKey: process.env.ADYEN_HMAC_KEY || ""
+      adyenHmacKey: process.env.ADYEN_HMAC_KEY || "",
+
+      // Standalone Checkout Suite tab — OAuth client credentials. The Sessions
+      // API (Standalone 3DS) only accepts an access token, not the secret key.
+      // ckoAccessUrl is the full token endpoint, e.g.
+      // https://{prefix}.access.sandbox.checkout.com/connect/token
+      ckoAccessKeyId: process.env.CKO_ACCESS_KEY_ID || "",
+      ckoAccessKeySecret: process.env.CKO_ACCESS_KEY_SECRET || "",
+      ckoAccessUrl: process.env.CKO_ACCESS_URL || ""
   };
   
 module.exports = config;

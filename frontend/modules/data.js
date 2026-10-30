@@ -448,3 +448,133 @@ const ADYEN_TEST_CARD_CONTEXT = {
         tests: 'Post-authorisation modifications: Capture (required on this manual-capture merchant), Cancel (before capture) and Refund (after capture). Each is asynchronous — the outcome arrives as a CAPTURE / CANCELLATION / REFUND webhook.',
     },
 };
+
+
+// =============================================
+// Standalone Checkout Suite — test data
+// Source: /developer-resources/testing/test-cards (3DS section) and
+// /payments/manage-payments/retrieve-card-metadata (Testing section).
+// Cards are written as [scheme label, PAN, issuer country] to keep this compact;
+// SUITE_3DS_GROUPS is expanded into objects just below.
+// Any future expiry date and any CVV (3 digits; 4 for Amex) work with all of them.
+// Challenge password on the 3DS simulator page: Checkout1!
+// =============================================
+
+const SUITE_3DS_PASSWORD = 'Checkout1!';
+
+// likelyStatus is inferred from the Sessions status definitions (approved /
+// attempted / declined / rejected / unavailable); CKO's test-card table only
+// states the human-readable result.
+const SUITE_3DS_GROUPS = [
+    // ── Frictionless (no challenge screen) ──────────────────────────────
+    { id: 'f-ok', flow: 'frictionless', title: 'Authenticated', result: 'Authentication successful', likelyStatus: 'approved',
+      summary: 'Silent approval — no challenge page. Session goes straight to approved; payment gets ECI 05/02 and a cryptogram.',
+      cards: [['Visa', '4485040371536584', 'US'], ['Mastercard', '5588686116426417', 'CN'], ['Amex', '345678901234564', 'ES'],
+              ['CB / Visa', '4010056200000018', 'FR'], ['CB / Mastercard', '5137210000000018', 'FR'], ['UnionPay', '6224120000000094', 'CN']] },
+    { id: 'f-n', flow: 'frictionless', title: 'Not authenticated', result: 'Not authenticated', likelyStatus: 'declined',
+      summary: 'Issuer denies authentication without a challenge. Session declined → failure_url; do not authorize.',
+      cards: [['Visa', '4539628347117863', 'AD'], ['Mastercard', '5309961755464047', 'BR'], ['Amex', '371064645462927', 'US'],
+              ['CB / Visa', '4022050100000000', 'FR'], ['CB / Mastercard', '5132562600000029', 'FR'], ['UnionPay', '6224120000000086', 'CN']] },
+    { id: 'f-u', flow: 'frictionless', title: 'Could not be performed', result: 'Authentication could not be performed', likelyStatus: 'unavailable',
+      summary: 'Technical problem at the DS/ACS. Session unavailable — a good test for your fallback (retry or non-3DS) logic.',
+      cards: [['Visa', '4024007186645015', 'US'], ['Mastercard', '5234106378657904', 'KR'], ['Amex', '344282679519362', 'US'],
+              ['CB / Visa', '4022050100000018', 'FR'], ['CB / Mastercard', '5132562600000011', 'FR'], ['UnionPay', '6224120000000078', 'CN']] },
+    { id: 'f-a', flow: 'frictionless', title: 'Attempted', result: 'Attempted authentication', likelyStatus: 'attempted',
+      summary: 'Stand-in authentication. Treated as success — proceed to authorization (liability rules differ from fully authenticated).',
+      cards: [['Visa', '4556574722325580', 'PT'], ['Mastercard (debit)', '5558468902774508', 'KE'], ['CB / Visa', '4022050100000026', 'FR'],
+              ['UnionPay', '6224120000000029', 'CN']] },
+    { id: 'f-r', flow: 'frictionless', title: 'Rejected', result: 'Authentication rejected', likelyStatus: 'rejected',
+      summary: 'Issuer rejects and asks you NOT to attempt authorization. Session rejected → failure_url.',
+      cards: [['Visa', '4275765574319271', 'JP'], ['Mastercard (debit)', '5596061690670931', 'IN'], ['Amex', '343397288296672', 'US'],
+              ['UnionPay', '6224120000000011', 'CN']] },
+    { id: 'f-ne', flow: 'frictionless', title: 'Card not enrolled', result: 'Card not enrolled', likelyStatus: '422 card_not_enrolled',
+      summary: 'POST /sessions returns 422 card_not_enrolled. Fall back to a non-3DS payment (3ds.enabled=false) if you accept the liability.',
+      cards: [['Visa', '4484070000035519', 'GB'], ['Mastercard (debit)', '5352151570003404', 'FR'], ['Amex', '378282246310005', 'US'],
+              ['CB / Visa', '4022050100000182', 'FR'], ['CB / Mastercard', '5132562600000045', 'FR']] },
+    { id: 'f-err', flow: 'frictionless', title: 'Scheme communication error', result: 'Error message during scheme communication', likelyStatus: 'error / unavailable',
+      summary: 'Simulates the scheme returning an error message (ERro). Check the status_reason on GET /sessions/{id}.',
+      cards: [['Visa', '4452927588210665', 'US'], ['Mastercard', '5291144083573579', 'US'], ['Amex', '378702153281139', 'US'],
+              ['CB / Visa', '4022050100000133', 'FR'], ['CB / Mastercard', '5132562600000060', 'FR']] },
+    { id: 'f-nomu', flow: 'frictionless', title: 'No 3DS method URL', result: 'No associated 3DS method URL', likelyStatus: 'approved',
+      summary: 'Issuer has no 3DS Method URL, so there is no device fingerprint step — tests that flow still completes without it.',
+      cards: [['Visa', '4556085951507152', 'ES'], ['Mastercard', '5121073611487018', 'US'], ['Amex', '340282533032846', 'US'],
+              ['Diners (DCI)', '36747880216043', 'US'], ['JCB', '3528982710432481', 'JP'], ['UnionPay', '6224120000000110', 'CN']] },
+
+    // ── Challenge (3DS simulator page, password Checkout1!) ─────────────
+    { id: 'c-ok', flow: 'challenge', title: 'Authenticated after challenge', result: 'Authentication successful', likelyStatus: 'approved (challenged)',
+      summary: 'Redirects to the 3DS simulator — enter the password to approve. Session approved with challenged = true.',
+      cards: [['Mastercard', '5385308360135181', 'US'], ['Amex', '372688581899681', 'US'], ['CB / Visa (debit)', '4010061700000021', 'FR'],
+              ['CB / Mastercard', '5137210000000158', 'FR'], ['UnionPay', '6224120000000003', 'CN']] },
+    { id: 'c-a', flow: 'challenge', title: 'Attempted after challenge', result: 'Authentication attempted', likelyStatus: 'attempted',
+      summary: 'Challenge flow ending in a stand-in result.',
+      cards: [['Visa', '4152868552773614', 'BH'], ['Mastercard (debit)', '5518832400606463', 'US'], ['Amex', '346126139326850', 'US'],
+              ['CB / Visa', '4150561000000001', 'FR'], ['CB / Mastercard', '5341034800000008', 'FR'], ['UnionPay', '6224120000000060', 'CN']] },
+    { id: 'c-r', flow: 'challenge', title: 'Rejected after challenge', result: 'Authentication rejected', likelyStatus: 'rejected',
+      summary: 'Challenge presented, then the issuer rejects.',
+      cards: [['Amex', '375982239796002', 'US'], ['CB / Visa', '4150561000000019', 'FR'], ['CB / Mastercard', '5341034800000016', 'FR'],
+              ['UnionPay', '6224120000000052', 'CN']] },
+    { id: 'c-n', flow: 'challenge', title: 'Not authenticated after challenge', result: 'Not authenticated', likelyStatus: 'declined',
+      summary: 'Challenge presented, authentication fails. Also test abandoning the challenge page → challenge_abandoned.',
+      cards: [['Visa', '4243754271700719', 'US'], ['Mastercard', '5258901507741160', 'CA'], ['Amex', '347411540178242', 'US'],
+              ['CB / Visa', '4150561000000027', 'FR'], ['CB / Mastercard', '5341034800000024', 'FR'], ['UnionPay', '6224120000000045', 'CN']] },
+    { id: 'c-u', flow: 'challenge', title: 'Could not be performed (challenge)', result: 'Authentication could not be performed', likelyStatus: 'unavailable',
+      summary: 'Challenge path where authentication cannot be completed.',
+      cards: [['Visa (debit)', '4447336775378848', 'US'], ['Mastercard', '5569757734785691', 'US'], ['Amex', '377990956548835', 'US'],
+              ['CB / Visa', '4150561000000035', 'FR'], ['CB / Mastercard', '5341034800000032', 'FR'], ['UnionPay', '6224120000000037', 'CN']] },
+    { id: 'c-err', flow: 'challenge', title: 'Scheme communication error (challenge)', result: 'Error message during scheme communication', likelyStatus: 'error / unavailable',
+      summary: 'Scheme returns an error message on the challenge path.',
+      cards: [['Visa', '4539929207120660', 'IN'], ['Mastercard (prepaid)', '5572408422189334', 'IE'], ['CB / Visa', '4150561000000043', 'FR'],
+              ['CB / Mastercard', '5341034800000040', 'FR']] },
+    { id: 'c-nomu', flow: 'challenge', title: 'No 3DS method URL (challenge)', result: 'No associated 3DS method URL', likelyStatus: 'approved (challenged)',
+      summary: 'Challenge path where the issuer has no 3DS Method URL.',
+      cards: [['Visa', '4485597929486000', 'US'], ['Mastercard', '5259410220714099', 'US'], ['Amex', '372310461284948', 'US'],
+              ['Diners (DCI)', '36138956596288', 'AT'], ['JCB', '3528682570029332', 'JP'], ['UnionPay', '6224120000000128', 'CN']] },
+];
+SUITE_3DS_GROUPS.forEach(g => {
+    g.cards = g.cards.map(([scheme, number, country]) => ({ scheme, number, country }));
+});
+
+// Not enrolled for 3DS at all — a payment with 3ds.enabled=true returns 20150 "Card not 3D-Secure enabled".
+const SUITE_NON_3DS_CARDS = {
+    title: 'Not 3DS-enabled',
+    summary: 'Payment with 3ds.enabled=true returns response_code 20150 "Card not 3D-Secure enabled". Use attempt_n3d to see the downgrade path.',
+    cards: [
+        { scheme: 'Visa', number: '4532432452900131', country: 'DE', cvv: '257' },
+        { scheme: 'Mastercard (debit)', number: '5352151570003404', country: 'FR', cvv: '100' },
+        { scheme: 'JCB (UK only)', number: '3530111333300000', country: 'JP', cvv: '100' },
+    ],
+};
+
+// Card Metadata — expected card_payouts values per documented test card.
+// Order of each triple: [domestic, cross-border] for NMT, MT, Gambling.
+const SUITE_METADATA_CARDS = [
+    { number: '4273149019799094', scheme: 'Visa',       nmt: ['fast_funds', 'fast_funds'],       mt: ['fast_funds', 'fast_funds'],       gam: ['not_supported', 'not_supported'] },
+    { number: '4024007181869214', scheme: 'Visa',       nmt: ['not_supported', 'not_supported'], mt: ['not_supported', 'not_supported'], gam: ['not_supported', 'not_supported'] },
+    { number: '4916301720257093', scheme: 'Visa',       nmt: ['unknown', 'unknown'],             mt: ['unknown', 'unknown'],             gam: ['unknown', 'unknown'] },
+    { number: '4095254802642505', scheme: 'Visa',       nmt: ['fast_funds', 'not_supported'],    mt: ['fast_funds', 'not_supported'],    gam: ['fast_funds', 'not_supported'] },
+    { number: '4140253846048187', scheme: 'Visa',       nmt: ['standard', 'standard'],           mt: ['standard', 'standard'],           gam: ['not_supported', 'not_supported'] },
+    { number: '4659105569051157', scheme: 'Visa',       nmt: ['fast_funds', 'fast_funds'],       mt: ['fast_funds', 'fast_funds'],       gam: ['fast_funds', 'fast_funds'] },
+    { number: '4484070000035519', scheme: 'Visa',       nmt: ['standard', 'standard'],           mt: ['standard', 'standard'],           gam: ['standard', 'standard'] },
+    { number: '4820285375797526', scheme: 'Visa',       nmt: ['standard', 'not_supported'],      mt: ['standard', 'not_supported'],      gam: ['not_supported', 'not_supported'] },
+    { number: '5352151570003404', scheme: 'Mastercard', nmt: ['fast_funds', 'fast_funds'],       mt: ['fast_funds', 'fast_funds'],       gam: ['not_supported', 'not_supported'] },
+    { number: '5558468902774508', scheme: 'Mastercard', nmt: ['fast_funds', 'fast_funds'],       mt: ['fast_funds', 'fast_funds'],       gam: ['not_supported', 'not_supported'] },
+    { number: '5356860600000133', scheme: 'Mastercard', nmt: ['standard', 'standard'],           mt: ['standard', 'standard'],           gam: ['fast_funds', 'fast_funds'] },
+];
+
+// Network token provisioning — CKO documents no failure-trigger cards; every 3DS test card
+// is stated to work as a valid network token, plus the card used in the provisioning docs.
+const SUITE_NT_CARDS = [
+    { scheme: 'Visa',       number: '4539467987109256', note: 'Card used in the "Provision a network token" docs example.' },
+    { scheme: 'Visa',       number: '4242424242424242', note: 'Default sandbox Visa — also the payment-time provisioning example.' },
+    { scheme: 'Mastercard', number: '5436031030606378', note: 'Default sandbox Mastercard (MDES) — returns token type mdes.' },
+    { scheme: 'Visa',       number: '4485040371536584', note: 'Frictionless 3DS card — use to chain NT → 3DS test.' },
+    { scheme: 'Mastercard', number: '5588686116426417', note: 'Frictionless 3DS card (MDES).' },
+];
+
+// What each product's test cards will do, shown above the cards.
+const SUITE_PRODUCT_NOTES = {
+    '3ds': 'Hosted Standalone 3DS: the session decides the result, so the card you pick sets the authentication outcome (frictionless vs challenge, approved vs declined…). Any future expiry and any CVV.',
+    nt: 'Network token provisioning has no documented failure-trigger cards. Per CKO docs, every card on the 3DS test-card list is also a valid network token source.',
+    au: 'CKO publishes no sandbox test cards for the Standalone Account Updater or Real-Time Account Updater, and both need to be enabled on your account by your account manager. Use any card numbers your team has been given; the UI decodes whatever comes back.',
+    meta: 'Each card returns a fixed eligibility result per payout type (non-money-transfer, money-transfer, gambling), domestic and cross-border. Use format = card_payouts to see them.',
+};

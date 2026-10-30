@@ -28,7 +28,13 @@ var config = {
       adyenApiKey: process.env.ADYEN_API_KEY || "",
       adyenClientKey: process.env.ADYEN_CLIENT_KEY || "",
       adyenMerchantAccount: process.env.ADYEN_MERCHANT_ACCOUNT || "",
-      adyenHmacKey: process.env.ADYEN_HMAC_KEY || ""
+      adyenHmacKey: process.env.ADYEN_HMAC_KEY || "",
+
+      // Standalone Checkout Suite tab — OAuth client credentials (Sessions API
+      // only accepts an access token). ckoAccessUrl is the full token endpoint.
+      ckoAccessKeyId: process.env.CKO_ACCESS_KEY_ID || "",
+      ckoAccessKeySecret: process.env.CKO_ACCESS_KEY_SECRET || "",
+      ckoAccessUrl: process.env.CKO_ACCESS_URL || ""
   };
   
 module.exports = config;

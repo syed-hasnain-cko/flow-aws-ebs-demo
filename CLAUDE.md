@@ -70,6 +70,9 @@ ENV                         # DEV or PROD
 STRIPE_SECRET_KEY           # Competitor Testing → Stripe tab (rk_/sk_ sandbox key)
 STRIPE_PUBLISHABLE_KEY      # Competitor Testing → Stripe tab (pk_ sandbox key)
 STRIPE_WEBHOOK_SECRET       # Signing secret from the Stripe Dashboard webhook endpoint (whsec_...)
+CKO_ACCESS_KEY_ID           # Standalone Suite → OAuth client id (ack_...) — Sessions API needs an access token
+CKO_ACCESS_KEY_SECRET       # Standalone Suite → OAuth client secret
+CKO_ACCESS_URL              # Full token endpoint, e.g. https://{prefix}.access.sandbox.checkout.com/connect/token
 ```
 
 ### API Endpoints
@@ -651,3 +654,47 @@ New **Authorization Types** tab testing Partial Authorization, Estimated Authori
 ### Resume Here Next Session
 
 Not yet merged to `main` — on branch `feature/authorization-types-tab`, awaiting user testing. Before merging, remember: the new `/increment-authorization` route needs a manual AWS API Gateway resource + Lambda zip upload, same as every other backend change in this app.
+
+
+---
+
+## Session Summary (2026-10-28) — Standalone Checkout Suite Tab
+
+### What Was Built
+
+New **Standalone Suite** tab with a product selector (like Card/Bank payouts): **Standalone 3DS (hosted sessions)**, **Network Tokens**, **Account Updater & RTAU**, **Card Metadata**. One shared **Card Source** panel feeds every product: *Saved card (COF CIT)* dropdown of `src_` ids, *New card* (Flow tokenization → `POST /instruments` → saved), or *Raw test card*. One shared **Live Webhooks** panel. Every request/response/webhook goes to the API log sidebar.
+
+### New Files
+
+| File | Purpose |
+|---|---|
+| `amplify/.../src/standalone/standalone-routes.js` | 10 routes mounted at `/standalone`: OAuth token helper (cached per scope), uniform envelope `{ upstream_status, upstream, auth_mode, cko_request_id, data }`, webhook ring buffer |
+| `frontend/tabs/standalone.html` | Tab UI |
+| `frontend/modules/standalone.js` | All logic |
+
+### Files Modified (additive)
+
+`config.js` ×2 (`ckoAccessKeyId/Secret/Url`), `api-route-controller.js` (mount; `/webhook` also calls `standaloneRoutes.recordWebhook`; `/payments` now also accepts `source.id` instruments, `source.type=network_token`, `allow_update`, `3ds`, `processing`, `merchant_initiated`, `previous_payment_id`), `data.js` (`SUITE_*` test-card constants), `main.html`, `loader.js`, `index.html`.
+
+### Backend Routes (each needs a manual API Gateway method)
+
+`POST /standalone/sessions`, `GET /standalone/session?id=`, `POST /standalone/network-tokens`, `GET /standalone/network-token?id=`, `POST /standalone/network-token-cryptogram?id=`, `POST /standalone/network-token-delete?id=`, `POST /standalone/account-updater`, `POST /standalone/instruments`, `GET /standalone/webhook-events`, `GET /standalone/config`. Reuses existing `/payments`, `/card-metadata`, `/payment-sessions`, `/get-payment-details`.
+
+### Key Patterns Established
+
+- **Auth mode**: sessions default to OAuth, everything else to the secret key; the `x-auth-mode: oauth|secret` header (UI dropdown) overrides per request.
+- **Webhooks**: the existing `/webhook-event` store is one-event-per-`data.id` and delete-on-read, so it can't hold `network_token_update` / `card_updated` (no `data.id`). `/standalone/webhook-events?since=&types=&match=` reads a separate non-consuming 200-event buffer. `match` is comma-separated OR substrings. Per warm Lambda container only.
+- **localStorage keys**: `cko-suite-instruments` (src_ ids grouped by customer email / cus_ id; same-email cards reuse the known `cus_` id; same fingerprint+customer de-duplicates), `cko-suite-network-tokens`. `sessionStorage` `cko-suite-3ds-pending` survives the hosted redirect.
+- Hosted 3DS returns to `index.html?suite=3ds&cko-session-id=…`; `standalone.js` handles it on `window.load` (after script.js's first-tab click).
+- **Sessions redirect link is `_links.redirect_url.href`** in the real sandbox (docs say `_links.redirect`), returned on both POST and GET /sessions. The code accepts either.
+- **Hosted-3DS round trip (state restore)**: the app has no routes, so the hosted redirect returns to `index.html?suite=3ds&outcome=…&cko-session-id=…`. `saveSnapshot()` stores the whole tab (every `#sa-*` field, mode, selected `src_`, session, results HTML, webhook list) in `localStorage['cko-suite-3ds-snapshots'][sid]` (newest 10) — on session creation, on every status change, on edits (debounced), after payments, and just before redirecting. `handleReturn()` (on `window.load`, after script.js's first-tab click) re-opens the tab, calls `restoreSnapshot()`, re-fetches the session and resumes polling. No `cko-session-id` in the URL → falls back to `cko-suite-3ds-last-sid`. A `BroadcastChannel('cko-suite')` message makes the original tab refresh instantly when the return happened in another tab. Fields the user edited (e.g. a tampered eci) are never overwritten by a session refresh. The same `collectFields()/restoreSnapshot()` approach can be reused for any future redirect flow.
+- Snapshots hold raw test-card data and `session_secret` in localStorage — sandbox test data only. "Reset 3DS state" clears the current session's snapshot (saved cards/network tokens are kept).
+- No CKO-published test cards exist for RTAU / Standalone Account Updater; both need enablement from the account manager. The UI says so.
+
+### Pending Manual Steps
+
+- [ ] Set `CKO_ACCESS_KEY_ID`, `CKO_ACCESS_KEY_SECRET`, `CKO_ACCESS_URL` in `.env` and on the Lambda. OAuth client scopes: `sessions:browser sessions:app vault:network-tokens vault:instruments vault:real-time-account-updater`
+- [ ] Deploy Lambda zip (new `standalone/` folder + controller changes)
+- [ ] Add the 10 routes above in API Gateway → Lambda proxy → `flowDemoLambdaSyed`, redeploy to `staging`
+- [ ] CKO Dashboard → Webhooks workflow: subscribe the existing webhook URL to `authentication_*`, `network_token_update`, `card_updated`
+- [ ] Real end-to-end run (only mock-tested so far)

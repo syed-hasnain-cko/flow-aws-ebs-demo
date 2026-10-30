@@ -513,6 +513,11 @@ router.post("/submit-payment-session", async (req, res) => {
         console.log(`Webhook stored: type=${event.type}, paymentId=${paymentId}`);
     }
 
+    // Additive: also copy the event into the Standalone Suite tab's non-consuming
+    // buffer (covers events with no data.id, e.g. network_token_update, card_updated).
+    // recordWebhook never throws, so this can't affect the 200 CKO needs.
+    standaloneRoutes.recordWebhook(event);
+
     res.sendStatus(200);
 });
 
@@ -702,7 +707,14 @@ router.post("/payments", async (req, res) => {
       // needs exact card numbers/amounts to trigger partial-auth/enhanced-auth
       // scenarios — same reasoning as the Disputes tab's raw-card route).
       const src = req.body.source || {};
-      const source = src.token
+      // Additive source types for the Standalone Suite tab: a stored instrument
+      // (src_…, optionally opting out of RTAU via allow_update:false) and a
+      // network token. Any caller that sends neither behaves exactly as before.
+      const source = src.type === "network_token"
+          ? src
+          : src.id
+          ? { type: "id", id: src.id, cvv: src.cvv, allow_update: src.allow_update }
+          : src.token
           ? { type: "token", token: src.token }
           : {
               type: "card",
@@ -711,6 +723,7 @@ router.post("/payments", async (req, res) => {
               expiry_year: src.expiry_year,
               cvv: src.cvv,
               name: src.name,
+              allow_update: src.allow_update,
             };
 
       const payment = await cko.payments.request({
@@ -739,6 +752,14 @@ router.post("/payments", async (req, res) => {
           payment_ip:              req.body.payment_ip,
           items:                   req.body.items,
           description:             req.body.description,
+          // Optional — Standalone Suite tab. 3ds carries authentication_id (a
+          // Standalone Sessions sid_…) or third-party eci/cryptogram/xid/version;
+          // processing carries provision_network_token; the rest drive RTAU
+          // (MIT/COF) and 3RI scenarios. All undefined for every other caller.
+          "3ds":                   req.body["3ds"],
+          processing:              req.body.processing,
+          merchant_initiated:      req.body.merchant_initiated,
+          previous_payment_id:     req.body.previous_payment_id,
       });
       res.send({ payment });
   } catch (error) {
@@ -754,6 +775,8 @@ router.post("/payments", async (req, res) => {
 router.use('/competitors/stripe', require('./competitors/stripe-routes'));
 router.use('/competitors/adyen', require('./competitors/adyen-routes'));
 router.use('/disputes', require('./disputes/disputes-routes'));
+const standaloneRoutes = require('./standalone/standalone-routes');
+router.use('/standalone', standaloneRoutes);
 
 
 module.exports = router;
