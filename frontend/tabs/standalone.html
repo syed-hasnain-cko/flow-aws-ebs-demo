@@ -195,18 +195,24 @@
                 <option value="account_funding">account_funding</option><option value="quasi_card_transaction">quasi_card_transaction</option>
                 <option value="prepaid_activation_and_load">prepaid_activation_and_load</option>
             </select></div>
-        <div style="grid-column: span 3;"><label for="sa-3ds-challenge">challenge_indicator <em style="font-style:normal; opacity:.6">(exemptions: low_value, trusted_listing(_prompt), transaction_risk_assessment, data_share)</em></label>
+        <div style="grid-column: span 3;"><label for="sa-3ds-challenge">challenge_indicator — your challenge preference <em style="font-style:normal; opacity:.6">or an SCA exemption request (the issuer decides whether it is applied)</em></label>
             <select id="sa-3ds-challenge" class="select-input">
-                <option value="no_preference" selected>no_preference</option>
-                <option value="no_challenge_requested">no_challenge_requested</option>
-                <option value="challenge_requested">challenge_requested</option>
-                <option value="challenge_requested_mandate">challenge_requested_mandate</option>
-                <option value="low_value">low_value (exemption, ≤ €30)</option>
-                <option value="transaction_risk_assessment">transaction_risk_assessment (exemption, ≤ €250)</option>
-                <option value="trusted_listing">trusted_listing (exemption)</option>
-                <option value="trusted_listing_prompt">trusted_listing_prompt (exemption)</option>
-                <option value="data_share">data_share (exemption)</option>
-            </select></div>
+                <optgroup label="Challenge preference">
+                    <option value="no_preference" selected>no_preference</option>
+                    <option value="no_challenge_requested">no_challenge_requested</option>
+                    <option value="challenge_requested">challenge_requested</option>
+                    <option value="challenge_requested_mandate">challenge_requested_mandate</option>
+                </optgroup>
+                <optgroup label="SCA exemptions (aim: frictionless instead of a challenge)">
+                    <option value="low_value">low_value (exemption, ≤ €30)</option>
+                    <option value="transaction_risk_assessment">transaction_risk_assessment (exemption, TRA ≤ €250)</option>
+                    <option value="trusted_listing">trusted_listing (exemption)</option>
+                    <option value="trusted_listing_prompt">trusted_listing_prompt (exemption)</option>
+                    <option value="secure_corporate_payment">secure_corporate_payment (exemption)</option>
+                    <option value="data_share">data_share (Data Sharing)</option>
+                </optgroup>
+            </select>
+            <div id="sa-3ds-challenge-help" class="sa-note" style="margin-top:6px;"></div></div>
     </div>
 
     <!-- Recurring / installment -->
@@ -215,6 +221,42 @@
         <div><label for="sa-3ds-days">days_between_payments</label><input type="number" id="sa-3ds-days" class="text-input" value="28" min="1"></div>
         <div><label for="sa-3ds-expiry">expiry (YYYYMMDD)</label><input type="text" id="sa-3ds-expiry" class="text-input" value="20301231"></div>
     </div>
+
+    <details class="sa-details" id="sa-3ds-fric" open>
+        <summary>Frictionless &amp; exemptions — redirectless (HTTP 201) flow, completion type and presets</summary>
+        <div class="sa-note" style="margin-bottom:10px;">Normally <code>POST /sessions</code> returns <strong>202 pending</strong> and the cardholder is redirected so Checkout.com can collect their browser data. If you already hold that data and send it as <code>channel_data</code>, a frictionless result comes back immediately as <strong>201 approved</strong> — no redirect, with the <code>eci</code> and cryptogram. A card that needs a challenge still returns 201 (<code>challenged</code>) and, for hosted sessions, a redirect link for the challenge only.</div>
+        <div class="sa-sub" style="margin:4px 0 8px;">Quick presets</div>
+        <div id="sa-3ds-presets"></div>
+        <div class="sa-grid" style="margin-top:14px;">
+            <div class="sa-toggle"><span><strong>Redirectless frictionless</strong> — send <code>channel_data</code> with the session</span><label class="switch"><input type="checkbox" id="sa-3ds-redirectless"><span class="slider round"></span></label></div>
+            <div><label for="sa-3ds-completion-type">completion.type</label>
+                <select id="sa-3ds-completion-type" class="select-input">
+                    <option value="hosted" selected>hosted — Checkout.com handles any challenge</option>
+                    <option value="non_hosted">non_hosted — you build the challenge UI (frictionless only here)</option>
+                </select></div>
+        </div>
+        <div id="sa-3ds-redirectless-fields" style="display:none; margin-top:12px;">
+            <div class="sa-note" style="margin-bottom:8px;">Detected from this browser — edit anything to test other values. Required by the API for <code>channel_data.channel = browser</code>.</div>
+            <div class="sa-grid three">
+                <div><label for="sa-cd-ua">user_agent</label><input type="text" id="sa-cd-ua" class="text-input"></div>
+                <div><label for="sa-cd-accept">accept_header</label><input type="text" id="sa-cd-accept" class="text-input"></div>
+                <div><label for="sa-cd-ip">ip_address <em style="font-style:normal; opacity:.6">(the cardholder's real IP in production)</em></label><input type="text" id="sa-cd-ip" class="text-input" value="203.0.113.10"></div>
+                <div><label for="sa-cd-language">language</label><input type="text" id="sa-cd-language" class="text-input"></div>
+                <div><label for="sa-cd-timezone">timezone (minutes from UTC)</label><input type="text" id="sa-cd-timezone" class="text-input"></div>
+                <div><label for="sa-cd-color">color_depth</label><input type="text" id="sa-cd-color" class="text-input"></div>
+                <div><label for="sa-cd-width">screen_width</label><input type="text" id="sa-cd-width" class="text-input"></div>
+                <div><label for="sa-cd-height">screen_height</label><input type="text" id="sa-cd-height" class="text-input"></div>
+                <div><label for="sa-cd-method">three_ds_method_completion</label>
+                    <select id="sa-cd-method" class="select-input"><option value="U" selected>U — unavailable</option><option value="Y">Y — completed</option><option value="N">N — did not complete</option></select></div>
+                <div><label for="sa-cd-java">java_enabled</label><select id="sa-cd-java" class="select-input"><option value="false" selected>false</option><option value="true">true</option></select></div>
+                <div><label for="sa-cd-js">javascript_enabled</label><select id="sa-cd-js" class="select-input"><option value="true" selected>true</option><option value="false">false</option></select></div>
+                <div><label for="sa-cd-iframe">iframe_payment_allowed</label><select id="sa-cd-iframe" class="select-input"><option value="true" selected>true</option><option value="false">false</option></select></div>
+                <div style="grid-column: span 2;"><label for="sa-cd-hint">user_agent_client_hint <em style="font-style:normal; opacity:.6">(optional)</em></label><input type="text" id="sa-cd-hint" class="text-input"></div>
+            </div>
+            <div class="button-group" style="justify-content:flex-start;"><button id="sa-3ds-detect-btn" class="copy-btn" type="button">Re-detect from this browser</button></div>
+        </div>
+        <div id="sa-3ds-nonhosted-note" class="sa-banner warn" style="margin-top:12px;"><span>⚠️</span><div><strong>non_hosted:</strong> a frictionless result completes right here. If the issuer wants a challenge (<code>challenge_cardholder</code>) you would have to render the challenge yourself — this tester cannot, so use <strong>hosted</strong> for challenge cards.</div></div>
+    </details>
 
     <details class="sa-details">
         <summary>Additional authentication data — improves the odds of a frictionless result</summary>
@@ -293,6 +335,13 @@
         <div><label for="sa-pay-version">3ds.version</label><input type="text" id="sa-pay-version" class="text-input"></div>
         <div><label for="sa-pay-cryptogram">3ds.cryptogram</label><input type="text" id="sa-pay-cryptogram" class="text-input"></div>
         <div><label for="sa-pay-xid">3ds.xid</label><input type="text" id="sa-pay-xid" class="text-input"></div>
+        <div><label for="sa-pay-exemption">3ds.exemption <em style="font-style:normal; opacity:.6">(flag the exemption applied during authentication)</em></label>
+            <select id="sa-pay-exemption" class="select-input">
+                <option value="" selected>— none —</option>
+                <option value="low_value">low_value</option><option value="transaction_risk_assessment">transaction_risk_assessment</option>
+                <option value="trusted_listing">trusted_listing</option><option value="trusted_listing_prompt">trusted_listing_prompt</option>
+                <option value="secure_corporate_payment">secure_corporate_payment</option>
+            </select></div>
         <div class="sa-note" style="grid-column: span 2;">Prefilled from the session once it is approved/attempted. Edit any value to test tampering — the issuer should reject mismatched data.</div>
     </div>
     <details class="sa-details" open>
@@ -428,7 +477,7 @@
         <button class="copy-btn" id="sa-wh-toggle" type="button" style="margin-left:auto;">Pause</button>
         <button class="copy-btn" id="sa-wh-clear" type="button">Clear</button>
     </div>
-    <div class="sa-note" style="margin-top:6px;">Events are received by your existing <code>POST /webhook</code> endpoint and read from a non-consuming buffer here (polled every 3s). Each one is also written to the API log sidebar. In the Dashboard, subscribe your workflow to the event types below.</div>
+    <div class="sa-note" style="margin-top:6px;">Events are received by your existing <code>POST /webhook</code> endpoint and read from a non-consuming buffer here (polled every 3s). Every event shown here is also written to the API log sidebar — once. In the Dashboard, subscribe your workflow to the event types below.</div>
     <div class="sa-pills" id="sa-wh-filters" style="margin-top:12px;">
         <div class="sa-pill active" data-sa-whf="authentication_*">authentication_*</div>
         <div class="sa-pill active" data-sa-whf="network_token_update">network_token_update</div>
@@ -440,5 +489,6 @@
             <input type="text" id="sa-wh-match" class="text-input" placeholder="e.g. sid_abc…"></div>
         <div class="sa-toggle" style="align-self:end;"><span>Follow the id I'm currently testing</span><label class="switch"><input type="checkbox" id="sa-wh-follow" checked><span class="slider round"></span></label></div>
     </div>
+    <div id="sa-wh-count" class="sa-note" style="margin-top:10px;"></div>
     <div id="sa-wh-list" style="margin-top:12px;"><div class="sa-note">No events yet.</div></div>
 </div>
