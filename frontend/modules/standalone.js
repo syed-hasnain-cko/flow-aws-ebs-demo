@@ -2068,6 +2068,14 @@
     function selectProduct(p) {
         state.product = p;
         document.querySelectorAll('[data-sa-product]').forEach(o => o.classList.toggle('active', o.dataset.saProduct === p));
+        // Vault (modules/vault.js) is self-contained: no shared card source, no webhook panel.
+        (p === 'vault' ? show : hide)('sa-panel-vault');
+        if (p === 'vault') {
+            ['3ds', 'nt', 'au', 'meta'].forEach(x => hide(`sa-panel-${x}`));
+            hide('sa-card-source'); hide('sa-webhooks');
+            window.SuiteVault?.onShow();
+            return;
+        }
         show('sa-card-source');
         ['3ds', 'nt', 'au', 'meta'].forEach(x => (x === p ? show : hide)(`sa-panel-${x}`));
         (p === 'meta' ? hide : show)('sa-webhooks');

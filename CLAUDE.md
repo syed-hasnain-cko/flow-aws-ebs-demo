@@ -750,3 +750,16 @@ Theme work is uncommitted. Deploy `stripe-routes.js` to Lambda for embedded bran
 - Theming: `PartnerTheme.stripeFormAppearance()` = Payment Element appearance **without `rules`** (unsupported by the form). Appearance is fixed at init, so `mountCheckoutForm()` re-inits with the SAME client secret on `themechange` (no new session).
 - Backend: `POST /competitors/stripe/checkout/session` accepts `mode: 'form'`. **Lambda redeploy of `stripe-routes.js` needed**; no new API Gateway route.
 - Unlike the older embedded Checkout (`embedded_page`, white inner panel), the whole form follows the theme.
+
+---
+
+## Session Summary (2026-11-02) — Vault: Customers & Instruments (Standalone Suite product)
+
+New 5th product in the Standalone Suite selector ("Vault: Customers & Instruments"). Self-contained: own module `frontend/modules/vault.js` + panel `#sa-panel-vault` appended to `tabs/standalone.html`; `selectProduct('vault')` in `standalone.js` hides the shared card source + webhook panel and calls `window.SuiteVault.onShow()`.
+
+- **No list endpoints exist** (only GET by `cus_` id/email or `src_` id), so the tab keeps a local directory (`localStorage['cko-vault-directory']`, seeded once from `cko-suite-instruments`); **Refresh all** re-fetches each id (404 → removed). Lookup box loads any `cus_` / email / `src_`.
+- **Backend**: ONE new route `POST /standalone/vault { method, path, body }` in `standalone-routes.js` — allowlisted proxy (`POST /customers|/instruments`, `GET|PATCH|DELETE /customers|/instruments/{id}`, `GET /validation/bank-accounts/{c}/{cur}`), secret key by default. **Needs an API Gateway method + Lambda redeploy.** Instrument *creation* reuses the existing `POST /standalone/instruments`; Flow tokenizer reuses `/payment-sessions`.
+- **Create**: Flow tokenize (`type: token`), raw card (`type: card` + `processing_channel_id`), SEPA, bank_account; optional `customer: { id | email, default }`; "Extra JSON" is deep-merged into any create body.
+- **Sandbox facts (verified live)**: "Make default" works via `PATCH /customers/{id} {default: src_}` (204); `PATCH /instruments` with `customer.default: true` returns 200 but does NOT change the default. A customer created via `POST /customers` has no default until set. Deleting the default instrument drops the `default` key. `PATCH /instruments` (expiry/name) changes the fingerprint. SEPA create responses omit `customer` — the UI falls back to the requested customer id. Customer GET instrument items omit `name` (use instrument GET → "Details"). Deleting a customer deletes all its instruments (404 afterwards). Card `number` must be 16 digits (no Amex in this API).
+- All requests go to the API log sidebar; IDs are click-to-copy chips.
+- **Stored cards in Flow (Vault tab)**: block "Stored cards in Flow" → **Render Flow** creates a payment session via the existing `/payment-sessions` with `customer {id,email}` + `payment_method_configuration.stored_card.customer_id` (+ `card.store_payment_details: collect_consent`) and mounts `checkout.create('flow')`. Defaults to `cus_xhsalsrfvkjuxhsxcab2eo4m2y` / `sm_hasnain96@hotmail.com` (also seeded into the directory); selecting another customer in the list fills the fields. Optional "Always capture CVV" (`componentOptions.stored_card.captureCardCvv`). Pays through `success.html` like Flow tab. No backend change.
