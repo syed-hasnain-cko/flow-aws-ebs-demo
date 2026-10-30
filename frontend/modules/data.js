@@ -561,20 +561,244 @@ const SUITE_METADATA_CARDS = [
     { number: '5356860600000133', scheme: 'Mastercard', nmt: ['standard', 'standard'],           mt: ['standard', 'standard'],           gam: ['fast_funds', 'fast_funds'] },
 ];
 
-// Network token provisioning — CKO documents no failure-trigger cards; every 3DS test card
-// is stated to work as a valid network token, plus the card used in the provisioning docs.
+// Network token test cards. Verified against the sandbox on 2026-10-30. The sandbox maps every Visa test card to one DPAN
+// (4895379992221661, type vts) and every Mastercard test card to another (5165037735018279, type mdes, exp 09/2050).
 const SUITE_NT_CARDS = [
-    { scheme: 'Visa',       number: '4539467987109256', note: 'Card used in the "Provision a network token" docs example.' },
-    { scheme: 'Visa',       number: '4242424242424242', note: 'Default sandbox Visa — also the payment-time provisioning example.' },
-    { scheme: 'Mastercard', number: '5436031030606378', note: 'Default sandbox Mastercard (MDES) — returns token type mdes.' },
-    { scheme: 'Visa',       number: '4485040371536584', note: 'Frictionless 3DS card — use to chain NT → 3DS test.' },
-    { scheme: 'Mastercard', number: '5588686116426417', note: 'Frictionless 3DS card (MDES).' },
+    { scheme: 'Visa',       number: '4242424242424242', note: 'Provisions a VTS token (DPAN 4895379992221661). Visa NT payments need merchant_initiated = true on this account.' },
+    { scheme: 'Mastercard', number: '5436031030606378', note: 'Provisions an MDES token (DPAN 5165037735018279, exp 09/2050). Its cryptograms carry NO eci.' },
+    { scheme: 'Mastercard', number: '5588686116426417', note: 'A 3DS frictionless card — also a valid NT source (same MDES token).' },
+    { scheme: 'Visa',       number: '4485040371536584', note: 'A 3DS frictionless card — also a valid NT source (same VTS token).' },
+    { scheme: 'Amex',       number: '345678901234564', note: 'Not supported: 422 scheme_not_supported.' },
+    { scheme: 'Discover',   number: '6011111111111117', note: 'Not supported: 422 scheme_not_supported.' },
+    { scheme: 'Diners',     number: '36160940933914',  note: 'Not supported: 422 scheme_not_supported.' },
+    { scheme: 'JCB',        number: '3530111333300000', note: 'Odd sandbox behaviour: an empty 404 instead of scheme_not_supported.' },
+    { scheme: 'Visa',       number: '4242424242424241', note: 'Fails the Luhn check: 422 card_number_invalid.' },
 ];
 
 // What each product's test cards will do, shown above the cards.
 const SUITE_PRODUCT_NOTES = {
     '3ds': 'Hosted Standalone 3DS: the session decides the result, so the card you pick sets the authentication outcome (frictionless vs challenge, approved vs declined…). Any future expiry and any CVV.',
-    nt: 'Network token provisioning has no documented failure-trigger cards. Per CKO docs, every card on the 3DS test-card list is also a valid network token source.',
-    au: 'CKO publishes no sandbox test cards for the Standalone Account Updater or Real-Time Account Updater, and both need to be enabled on your account by your account manager. Use any card numbers your team has been given; the UI decodes whatever comes back.',
+    nt: 'Provisioning has no documented failure-trigger cards, so the list below comes from running each card against the sandbox: Visa → VTS token, Mastercard → MDES token, Amex / Discover / Diners → scheme_not_supported. Section D runs every verified scenario for you.',
+    au: 'Public docs list no Account Updater test cards. The simulator cases from CKO\'s internal "Account Updater Sandbox Simulator Test Cases" document are built in (section C): one Visa RTAU card (amount selects the outcome), two Mastercard Update & Retry cards (…73 / …65) and ten Mastercard Store & Update numbers (trailing digits select the outcome). Both updaters need to be enabled on the account.',
     meta: 'Each card returns a fixed eligibility result per payout type (non-money-transfer, money-transfer, gambling), domestic and cross-border. Use format = card_payouts to see them.',
 };
+
+
+// =============================================
+// RTAU / Account Updater test cases
+// Source: "CKO Account Updater Sandbox Simulator Test Cases" (Google Doc, incl. its comment threads).
+// `sandbox` is what was OBSERVED running each case against the sandbox on 2026-10-30 — the doc colour-codes
+// working / not-working cases but that key does not survive in text form, so these badges come from live runs:
+//   works    — behaves as the doc says
+//   flaky    — result changes between runs
+//   deviates — runs, but the outcome differs from the doc's table
+//   broken   — documented as unsupported (doc comment: declines 20059)
+// `expect` is the document's expectation; the runner scores the actual response against it.
+//   update   — source.account_update_status ('none' = field absent)
+//   webhook  — 'card_updated' (async, sandbox may be slow), 'delayed' (deliberately delayed), 'none' (documented: no webhook)
+// =============================================
+
+const RTAU_NT_NOTE = 'For merchants with network tokens, set processing.pan_preference = fpan, otherwise a DPAN (network token) is used and RTAU is skipped.';
+
+const RTAU_GROUPS = [
+    // ─────────────────────────── Visa RTAU ───────────────────────────
+    {
+        id: 'visa', title: 'Visa RTAU', cardLabel: 'Visa',
+        blurb: 'One dedicated test card, used via a Source ID (src_…) with merchant_initiated = true. The amount (and, for two cases, the expiry) selects the outcome — any deviation from the listed amount/expiry declines with 20059 Suspected Fraud. ' + RTAU_NT_NOTE
+            + ' Card updates (bin, last4, expiry) are returned in the synchronous response, in payment_approved / payment_declined and in the card_updated webhook.',
+        cards: [{ scheme: 'Visa', number: '4539361261984692', note: 'The dedicated Visa RTAU simulator card. Create an instrument from it, then pay with the Source ID.' }],
+        cases: [
+            { id: 'v100', n: '100', title: 'No card update', doc: 'amount:100 — No card update', card: '4539361261984692', exp: ['12', '2030'], amount: 100, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'none', webhook: 'none' },
+              sandbox: { s: 'works', note: 'Approved, no account_update_status. No card_updated webhook is sent when nothing changed (confirmed in the doc comments).' } },
+            { id: 'v200', n: '200', title: 'No update — account status (VAU014)', doc: 'amount:200 — No update due to account status (VAU014)', card: '4539361261984692', exp: ['12', '2030'], amount: 200, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'contact_cardholder', failure: 'VAU014', webhook: 'none' },
+              sandbox: { s: 'works', note: 'Approved with account_update_status = contact_cardholder and account_update_failure_code = VAU014. No webhook (no card update).' } },
+            { id: 'v300', n: '300', title: 'PAN update', doc: 'amount:300 — PAN update (webhook)', card: '4539361261984692', exp: ['12', '2030'], amount: 300, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'card_updated', newBin: '424242', newLast4: '4242', webhook: 'card_updated' },
+              sandbox: { s: 'works', note: 'Sync response returns the new PAN (424242 ••4242). The card_updated webhook is delivered, but the sandbox can delay it by hours/days or drop it (doc comments).' } },
+            { id: 'v400', n: '400', title: 'Expiry update (expiry 12/2025)', doc: 'amount:400 & expiry:12/2025 — Expiry update, returns 12/2026 (webhook)', card: '4539361261984692', exp: ['12', '2025'], amount: 400, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'card_expiry_updated', newExp: '12/2026', webhook: 'card_updated' },
+              sandbox: { s: 'flaky', note: 'Observed: the first run was Authorized with NO update (processed with a network token), later runs Declined 20059. 12/2025 is now in the past. A doc comment also reports 12/2023 being returned instead of 12/2026.' } },
+            { id: 'v500', n: '500', title: 'PAN + expiry update (expiry 12/2022)', doc: 'amount:500 & expiry:12/2022 — PAN + expiry update, returns 12/2026 (webhook)', card: '4539361261984692', exp: ['12', '2022'], amount: 500, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'card_updated', newBin: '424242', newLast4: '4242', newExp: '12/2026', webhook: 'card_updated' },
+              sandbox: { s: 'works', note: 'Sync response: 424242 ••4242, expiry 12/2026. Webhook can be delayed or dropped.' } },
+            { id: 'v600', n: '600', title: 'PAN stop advice (VAU016)', doc: 'amount:600 — PAN stop advice setup (VAU016)', card: '4539361261984692', exp: ['12', '2030'], amount: 600, mit: true, via: 'id',
+              expect: { approved: true, failure: 'VAU016', webhook: 'none' },
+              sandbox: { s: 'broken', note: 'Known issue (still OPEN in the doc comments): declined 20059 Suspected Fraud — the case is not supported in sandbox.' } },
+            { id: 'v700', n: '700', title: 'Not configured for VAU (VAU008)', doc: 'amount:700 — Not configured for VAU (VAU008)', card: '4539361261984692', exp: ['12', '2030'], amount: 700, mit: true, via: 'id',
+              expect: { approved: true, failure: 'VAU008', webhook: 'none' },
+              sandbox: { s: 'broken', note: 'Known issue (OPEN in the doc comments): declined 20059 Suspected Fraud — not supported in sandbox.' } },
+            // The document states this rule explicitly; two cases make it testable.
+            { id: 'vdev-amount', n: 'dev-1', title: 'Deviation: amount not in the list', doc: 'any deviation from the amount declines the payment with 20059', card: '4539361261984692', exp: ['12', '2030'], amount: 150, mit: true, via: 'id',
+              expect: { approved: false, codes: ['20059'], webhook: 'none' }, sandbox: { s: 'works', note: 'Declined 20059 Suspected Fraud, exactly as documented.' } },
+            { id: 'vdev-expiry', n: 'dev-2', title: 'Deviation: wrong expiry for amount 400', doc: 'any deviation from the expiration date declines the payment with 20059', card: '4539361261984692', exp: ['12', '2030'], amount: 400, mit: true, via: 'id',
+              expect: { approved: false, codes: ['20059'], webhook: 'none' }, sandbox: { s: 'works', note: 'Declined 20059 Suspected Fraud, as documented.' } },
+            // Not in the document — observed while verifying it. Kept separate so the doc cases stay clean.
+            { id: 'vx-nomit', n: 'extra', title: 'merchant_initiated = false', doc: 'Not in the document — what happens if the MIT flag is left out', card: '4539361261984692', exp: ['12', '2030'], amount: 300, mit: false, via: 'id', extra: true,
+              expect: { approved: false, codes: ['43102'], webhook: 'none' }, sandbox: { s: 'works', note: 'Observed: Declined 43102 (Risk decline — Visa AFT mandate compliance). merchant_initiated = true is required.' } },
+            { id: 'vx-card', n: 'extra', title: 'Raw card instead of a Source ID', doc: 'Not in the document body (a doc comment sends a raw card) — Source ID is required', card: '4539361261984692', exp: ['12', '2022'], amount: 500, mit: true, via: 'card', extra: true,
+              expect: { approved: true, update: 'card_updated', webhook: 'card_updated' }, sandbox: { s: 'deviates', note: 'Observed: Declined 20059 with no update — only a Source ID triggers the Visa RTAU simulator.' } },
+        ],
+    },
+
+    // ─────────────────────────── Mastercard Update & Retry ───────────────────────────
+    {
+        id: 'mc-ur', title: 'Mastercard Update & Retry', cardLabel: 'Mastercard',
+        blurb: 'Update & Retry fires when a stored card is declined with a lifecycle reason: it fetches the updated card details and retries the authorization once. Use two Mastercard test cards — ending …73 (card number updates) and …65 (expiry updates). The amount picks the decline; merchant_initiated and the source type change the path. ' + RTAU_NT_NOTE
+            + ' The “IA merchant” column of the doc is an account property (Intelligent Acceptance), not a request field.',
+        cards: [
+            { scheme: 'Mastercard', number: '5100000000000073', note: 'Ends …3 → “card number updated” (replacement PAN, BIN 531789).' },
+            { scheme: 'Mastercard', number: '5100000000000065', note: 'Ends …5 → “expiry update”.' },
+        ],
+        cases: [
+            { id: 'u1', n: '1', title: 'Authorized, no retry', doc: '…73 · id · any amount · MIT → authorized, no retry', card: '5100000000000073', exp: ['12', '2030'], amount: 1000, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'none', webhook: 'none' }, sandbox: { s: 'works', note: 'Approved first time, no account update.' } },
+            { id: 'u2', n: '2', title: 'Declined 79, no retry', doc: '…65 · id · 9779 · MIT → declined 79 MAC 01, no retry', card: '5100000000000065', exp: ['12', '2030'], amount: 9779, mit: true, via: 'id',
+              expect: { approved: false, codes: ['20179'], webhook: 'none' }, sandbox: { s: 'works', note: 'Declined 20179 (Lifecycle). The response still carries a card_expiry_updated status, but no retry happens.' } },
+            { id: 'u3', n: '3', title: 'Declined 82, no retry', doc: '…65 · id · 9782 · MIT → declined 82 MAC 01, no retry', card: '5100000000000065', exp: ['12', '2030'], amount: 9782, mit: true, via: 'id',
+              expect: { approved: false, codes: ['20182'], webhook: 'none' }, sandbox: { s: 'works', note: 'Declined 20182 (Policy), no retry.' } },
+            { id: 'u4', n: '4', title: 'Declined 79 → retry succeeds', doc: '…73 · id · 7779 · MIT → declined 79 MAC 01, retry success with updated details (sync response + card_updated webhook)', card: '5100000000000073', exp: ['12', '2030'], amount: 7779, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'card_updated', changed: true, webhook: 'card_updated' }, sandbox: { s: 'works', note: 'Final response: Authorized with new card details (BIN 531789, new last4/expiry). Needs pan_preference = fpan on this account.' } },
+            { id: 'u5', n: '5', title: 'Declined 82 → retry succeeds', doc: '…65 · id · 7782 · MIT → declined 82 MAC 01, retry success with updated details', card: '5100000000000065', exp: ['12', '2030'], amount: 7782, mit: true, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'card_expiry_updated', changed: true, webhook: 'card_updated' }, sandbox: { s: 'deviates', note: 'Observed: Declined 20182 (Policy) with card_expiry_updated — the retry did not succeed, unlike the doc table.' } },
+            { id: 'u6', n: '6', title: 'Declined 200179 (CIT) → retry succeeds', doc: '…73 · id · 7779 · MIT = false → declined 200179 MAC 01, retry success with updated details', card: '5100000000000073', exp: ['12', '2030'], amount: 7779, mit: false, via: 'id',
+              expect: { approved: true, codes: ['10000'], update: 'card_updated', changed: true, webhook: 'card_updated' }, sandbox: { s: 'works', note: 'Only the final (retried) response is visible: Authorized with updated card details.' } },
+            { id: 'u7', n: '7', title: 'Raw card · declined 79 → retry succeeds', doc: '…73 · card · 7779 · MIT → declined 79 MAC 01, retry success with updated details', card: '5100000000000073', exp: ['12', '2030'], amount: 7779, mit: true, via: 'card',
+              expect: { approved: true, codes: ['10000'], update: 'card_updated', changed: true, webhook: 'card_updated' }, sandbox: { s: 'deviates', note: 'Observed: Declined 20179 with no update — a raw card is not retried; use a Source ID. (The doc lists this row twice; it is shown once.)' } },
+            { id: 'u9', n: '9', title: 'IA merchant · raw card · retry succeeds', doc: '…73 · card · 7779 · MIT · IA merchant = yes → declined 79 MAC 01, retry success with updated details', card: '5100000000000073', exp: ['12', '2030'], amount: 7779, mit: true, via: 'card', needsIA: true,
+              expect: { approved: true, codes: ['10000'], update: 'card_updated', changed: true, webhook: 'card_updated' }, sandbox: { s: 'deviates', note: 'Needs a processing channel whose merchant is Intelligent-Acceptance enabled; the request is identical to case 7. On a non-IA account it behaves like case 7.' } },
+            { id: 'ux-dpan', n: 'extra', title: 'Why fpan matters (pan_preference omitted)', doc: 'Not in the document — same as case 4 but without processing.pan_preference', card: '5100000000000073', exp: ['12', '2030'], amount: 7779, mit: true, via: 'id', pan: 'omit', extra: true,
+              expect: { approved: true, codes: ['10000'], update: 'none', webhook: 'none' }, sandbox: { s: 'works', note: 'Observed on a network-token merchant: Authorized via DPAN and RTAU never runs. This is the doc comment’s “NT-enabled merchant” caveat.' } },
+        ],
+    },
+
+    // ─────────────────────────── Mastercard Store & Update ───────────────────────────
+    {
+        id: 'mc-su', title: 'Mastercard Store & Update', cardLabel: 'Mastercard',
+        blurb: 'Create a Source ID from any Mastercard number whose trailing digit(s) pick the case. Updates are communicated asynchronously via the card_updated webhook. The tester also runs the Standalone Account Updater against the new instrument, which returns the same outcome synchronously — useful when the webhook is slow.',
+        cards: [],  // filled below from `cases`
+        cases: [
+            { id: 's1', n: '1', title: 'Non-participating BIN / issuer', doc: 'xxxxxxxxxxxxxxx1 — non-participating BIN/issuer', card: '5100000000000081', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'none', sync: { http: 200, status: 'UPDATE_FAILED', failure: 'NON_PARTICIPATING_BIN' } }, sandbox: { s: 'works', note: 'Standalone check → UPDATE_FAILED / NON_PARTICIPATING_BIN. No card_updated webhook (nothing changed).' } },
+            { id: 's2', n: '2', title: 'Valid, no change', doc: 'xxxxxxxxxxxxxxx2 — valid no change response', card: '5100000000000172', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'none', sync: { http: 200, status: 'UPDATE_FAILED', failure: 'UP_TO_DATE' } }, sandbox: { s: 'works', note: 'Standalone check → UPDATE_FAILED / UP_TO_DATE. (…172 is used instead of …32/…22/…12 because those two-digit suffixes are other cases.)' } },
+            { id: 's3', n: '3', title: 'Card number updated', doc: 'xxxxxxxxxxxxxxx3 — card number updated', card: '5100000000000073', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'card_updated', reason: 'card_updated', sync: { http: 200, status: 'CARD_UPDATED', changed: true } }, sandbox: { s: 'works', note: 'Standalone check → CARD_UPDATED with a new PAN (BIN 531789).' } },
+            { id: 's4', n: '4', title: 'Card closed', doc: 'xxxxxxxxxxxxxxx4 — card closed', card: '5100000000000024', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'card_updated', reason: 'card_closed', sync: { http: 200, status: 'CARD_CLOSED' } }, sandbox: { s: 'works', note: 'Standalone check → CARD_CLOSED.' } },
+            { id: 's5', n: '5', title: 'Expiry update', doc: 'xxxxxxxxxxxxxxx5 — expiry update', card: '5100000000000065', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'card_updated', reason: 'card_expiry_updated', sync: { http: 200, status: 'CARD_EXPIRY_UPDATED', changed: true } }, sandbox: { s: 'works', note: 'Standalone check → CARD_EXPIRY_UPDATED with a new expiry.' } },
+            { id: 's6', n: '6', title: 'Error response', doc: 'xxxxxxxxxxxxxxx6 — error response', card: '5100000000000016', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'none', sync: { http: 502 } }, sandbox: { s: 'works', note: 'Standalone check → HTTP 502 with an empty body (the simulated scheme error).' } },
+            { id: 's7', n: '7', title: 'Unknown', doc: 'xxxxxxxxxxxxxxx7 — unknown', card: '5100000000000057', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'none', sync: { http: 200, status: 'UPDATE_FAILED', failure: 'UNKNOWN' } }, sandbox: { s: 'works', note: 'Standalone check → UPDATE_FAILED / UNKNOWN.' } },
+            { id: 's12', n: '12', title: 'Delayed expiry update', doc: 'xxxxxxxxxxxxxx12 — delayed expiry update', card: '5100000000000412', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'delayed', reason: 'card_expiry_updated', sync: { http: 200, status: 'UPDATE_FAILED', failure: 'UP_TO_DATE' } }, sandbox: { s: 'works', note: 'Deliberately delayed: the standalone check still reports UP_TO_DATE; the update arrives later through the card_updated webhook (minutes or more).' } },
+            { id: 's22', n: '22', title: 'Delayed card number update', doc: 'xxxxxxxxxxxxxx22 — delayed card number update', card: '5100000000000222', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'delayed', reason: 'card_updated', sync: { http: 200, status: 'UPDATE_FAILED', failure: 'UP_TO_DATE' } }, sandbox: { s: 'works', note: 'Deliberately delayed — watch for the card_updated webhook.' } },
+            { id: 's32', n: '32', title: 'Delayed card closed update', doc: 'xxxxxxxxxxxxxx32 — delayed card closed update', card: '5100000000000032', exp: ['12', '2030'], store: true,
+              expect: { webhook: 'delayed', reason: 'card_closed', sync: { http: 200, status: 'UPDATE_FAILED', failure: 'UP_TO_DATE' } }, sandbox: { s: 'works', note: 'Deliberately delayed — watch for the card_updated webhook.' } },
+        ],
+    },
+];
+RTAU_GROUPS.find(g => g.id === 'mc-su').cards = RTAU_GROUPS.find(g => g.id === 'mc-su').cases
+    .map(c => ({ scheme: 'Mastercard', number: c.card, note: `Rule …${c.n}: ${c.title}.` }));
+
+
+// =============================================
+// Network token test scenarios (Network Tokens tab, section D)
+// There is no CKO test-case document for network tokens, so every expectation here was observed by running the step
+// against the sandbox on 2026-10-30 (and cross-checked with the public docs: provisioning 200 = existing token,
+// 201 = new token; cryptogram transaction types; delete reasons; payment-time provisioning; pan_preference).
+// Steps run in order and share a context (the Source ID, the token, the last cryptogram).
+//   op: instrument | provision | get | cryptogram | delete | pay
+//   expect keys: http, error, type, state, hasCryptogram, hasEci, sameNt, approved, code, pan, ntAvail, ntId, respEci
+// =============================================
+const NT_CARD = { visa: '4242424242424242', mc: '5436031030606378', amex: '345678901234564', discover: '6011111111111117', diners: '36160940933914', jcb: '3530111333300000', badLuhn: '4242424242424241' };
+
+const NT_GROUPS = [
+    {
+        id: 'prov', title: 'Provisioning',
+        blurb: 'POST /network-tokens with full card details or a Source ID. 201 = a new token was provisioned, 200 = Checkout.com already had one and returned it. Only Visa (VTS) and Mastercard (MDES) are supported.',
+        cases: [
+            { id: 'p-mc', n: '1', title: 'Provision a Mastercard (MDES)', doc: 'Full card details → network token', sandbox: { s: 'works', note: 'Token type mdes, state active, DPAN 5165037735018279, expiry 09/2050.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201], type: 'mdes', state: 'active' } }] },
+            { id: 'p-visa', n: '2', title: 'Provision a Visa (VTS)', doc: 'Full card details → network token', sandbox: { s: 'works', note: 'Token type vts, state active, DPAN 4895379992221661.' },
+              steps: [{ op: 'provision', card: NT_CARD.visa, expect: { http: [200, 201], type: 'vts', state: 'active' } }] },
+            { id: 'p-twice', n: '3', title: 'Provisioning the same card twice returns the same token', doc: '200 — Responding with existing network token', sandbox: { s: 'works', note: 'The second call returns 200 with the same nt_ id.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'provision', card: NT_CARD.mc, expect: { http: 200, sameNt: true } }] },
+            { id: 'p-instrument', n: '4', title: 'Provision from a stored Source ID', doc: 'If the card is stored with Checkout.com, a source ID can be used', sandbox: { s: 'works', note: 'Same token as the card; repeating the call returns the same nt_ id.' },
+              steps: [{ op: 'instrument', card: NT_CARD.mc, expect: { http: 201 } }, { op: 'provision', via: 'id', expect: { http: [200, 201], type: 'mdes' } }, { op: 'provision', via: 'id', expect: { http: 200, sameNt: true } }] },
+            { id: 'p-amex', n: '5', title: 'American Express is not supported', doc: 'Visa and Mastercard only', sandbox: { s: 'works', note: '422 scheme_not_supported.' },
+              steps: [{ op: 'provision', card: NT_CARD.amex, expect: { http: 422, error: 'scheme_not_supported' } }] },
+            { id: 'p-discover', n: '6', title: 'Discover is not supported', doc: 'Visa and Mastercard only', sandbox: { s: 'works', note: '422 scheme_not_supported.' },
+              steps: [{ op: 'provision', card: NT_CARD.discover, expect: { http: 422, error: 'scheme_not_supported' } }] },
+            { id: 'p-diners', n: '7', title: 'Diners is not supported', doc: 'Visa and Mastercard only', sandbox: { s: 'works', note: '422 scheme_not_supported.' },
+              steps: [{ op: 'provision', card: NT_CARD.diners, expect: { http: 422, error: 'scheme_not_supported' } }] },
+            { id: 'p-jcb', n: '8', title: 'JCB', doc: 'Unsupported schemes should be rejected with scheme_not_supported', sandbox: { s: 'deviates', note: 'Observed: an empty 404 response instead of a 422 scheme_not_supported like the other unsupported schemes.' },
+              steps: [{ op: 'provision', card: NT_CARD.jcb, expect: { http: 422, error: 'scheme_not_supported' } }] },
+            { id: 'p-luhn', n: '9', title: 'Invalid card number (Luhn)', doc: 'Request validation', sandbox: { s: 'works', note: '422 card_number_invalid.' },
+              steps: [{ op: 'provision', card: NT_CARD.badLuhn, expect: { http: 422, error: 'card_number_invalid' } }] },
+            { id: 'p-expired', n: '10', title: 'Expired card (12/2020)', doc: 'Not validated by the sandbox', extra: true, sandbox: { s: 'works', note: 'Observed: provisioning succeeds for an expired card — the sandbox does not validate the expiry.' },
+              steps: [{ op: 'provision', card: NT_CARD.visa, exp: '2020', expect: { http: [200, 201] } }] },
+        ],
+    },
+    {
+        id: 'life', title: 'Cryptograms & lifecycle',
+        blurb: 'GET the token, request a cryptogram per transaction type (ecom, recurring, pos, aft) and delete it. Lifecycle changes are sent as network_token_update webhooks.',
+        cases: [
+            { id: 'l-get', n: '1', title: 'Get a token', doc: 'Get network token — DPAN, expiry, state, card details', sandbox: { s: 'works', note: 'state active, with the DPAN and the underlying card’s last4 / expiry.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'get', expect: { http: 200, state: 'active' } }] },
+            { id: 'l-types', n: '2', title: 'A cryptogram for every transaction type', doc: 'Request a cryptogram — ecom, recurring, pos, aft', sandbox: { s: 'works', note: 'All four types return a cryptogram. Visa responses include an eci (07).' },
+              steps: [{ op: 'provision', card: NT_CARD.visa, expect: { http: [200, 201] } },
+                  ...['ecom', 'recurring', 'pos', 'aft'].map(t => ({ op: 'cryptogram', type: t, expect: { http: 201, hasCryptogram: true, hasEci: true } }))] },
+            { id: 'l-mc-eci', n: '3', title: 'Mastercard cryptograms carry no eci', doc: 'eci is required to pay with a token unless previous_payment_id is given', sandbox: { s: 'works', note: 'MDES cryptogram responses contain only the cryptogram — omit eci (or send 02) when paying. Sending 05 is rejected (20012).' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201, hasCryptogram: true, hasEci: false } }] },
+            { id: 'l-badtype', n: '4', title: 'Invalid transaction_type', doc: 'Request validation', sandbox: { s: 'works', note: '422 transaction_type_invalid.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'nope', expect: { http: 422, error: 'transaction_type_invalid' } }] },
+            { id: 'l-badid', n: '5', title: 'Malformed token id', doc: 'Request validation', sandbox: { s: 'works', note: '422 — the id must match ^nt_[a-z2-7]{26}$ (a src_ id is rejected).' },
+              steps: [{ op: 'get', id: 'src_notatoken', expect: { http: 422, error: 'must match' } }] },
+            { id: 'l-delete', n: '6', title: 'Delete a token, then try to use it', doc: 'Permanently deletes a network token (initiated_by, reason)', webhook: 'network_token_update',
+              sandbox: { s: 'works', note: 'Delete → 204; GET shows state inactive; a cryptogram is refused (token_not_active); deleting again → 404; provisioning the card again revives the same nt_ id (201).' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } },
+                  { op: 'delete', by: 'cardholder', reason: 'fraud', expect: { http: 204 } },
+                  { op: 'get', expect: { http: 200, state: 'inactive' } },
+                  { op: 'cryptogram', type: 'ecom', expect: { http: 422, error: 'token_not_active' } },
+                  { op: 'delete', by: 'token_requestor', reason: 'other', expect: { http: 404 } },
+                  { op: 'provision', card: NT_CARD.mc, expect: { http: 201, state: 'active', sameNt: true } }] },
+        ],
+    },
+    {
+        id: 'pay', title: 'Paying & PAN type',
+        blurb: 'POST /payments with source.type = network_token (token + cryptogram + eci), and the automatic use of a stored token. processing.pan_type_processed tells you whether the DPAN or the full PAN went to the scheme. On this account Visa payments that are not merchant-initiated decline 43102 (Visa AFT mandate compliance) — that is an account rule, not a token problem.',
+        cases: [
+            { id: 'y-mc-omit', n: '1', title: 'Mastercard token, eci omitted', doc: 'source.type = network_token, no eci', sandbox: { s: 'works', note: 'Authorized; processed with the DPAN.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201 } },
+                  { op: 'pay', mode: 'nt', eci: 'omit', expect: { approved: true, code: '10000', pan: 'dpan' } }] },
+            { id: 'y-mc-02', n: '2', title: 'Mastercard token, eci 02', doc: 'source.type = network_token with eci', sandbox: { s: 'works', note: 'Authorized.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201 } },
+                  { op: 'pay', mode: 'nt', eci: '02', expect: { approved: true, code: '10000', pan: 'dpan' } }] },
+            { id: 'y-mc-05', n: '3', title: 'Mastercard token, eci 05 (a Visa value)', doc: 'eci must match the scheme', sandbox: { s: 'works', note: 'Declined 20012 Invalid Transaction.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201 } },
+                  { op: 'pay', mode: 'nt', eci: '05', expect: { approved: false, code: '20012' } }] },
+            { id: 'y-mc-badcrypto', n: '4', title: 'Mastercard token, wrong cryptogram', doc: 'The scheme validates the cryptogram', sandbox: { s: 'works', note: 'Observed: the sandbox does NOT validate the cryptogram — still Authorized.' },
+              steps: [{ op: 'provision', card: NT_CARD.mc, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201 } },
+                  { op: 'pay', mode: 'nt', eci: 'omit', badCrypto: true, expect: { approved: true, code: '10000' } }] },
+            { id: 'y-visa-cit', n: '5', title: 'Visa token, customer-initiated', doc: 'source.type = network_token (Visa)', sandbox: { s: 'works', note: 'Declined 43102 (Risk decline — Visa AFT mandate compliance): an account rule that applies to every Visa CIT payment here.' },
+              steps: [{ op: 'provision', card: NT_CARD.visa, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201 } },
+                  { op: 'pay', mode: 'nt', eci: 'cryptogram', mit: false, expect: { approved: false, code: '43102' } }] },
+            { id: 'y-visa-mit', n: '6', title: 'Visa token, merchant-initiated', doc: 'source.type = network_token (Visa) with merchant_initiated', sandbox: { s: 'works', note: 'Authorized, eci 07, processed with the DPAN.' },
+              steps: [{ op: 'provision', card: NT_CARD.visa, expect: { http: [200, 201] } }, { op: 'cryptogram', type: 'ecom', expect: { http: 201, hasEci: true } },
+                  { op: 'pay', mode: 'nt', eci: 'cryptogram', mit: true, expect: { approved: true, code: '10000', pan: 'dpan', respEci: '07' } }] },
+            { id: 'y-card-prov', n: '7', title: 'Payment-time provisioning (full card)', doc: 'processing.provision_network_token = true', sandbox: { s: 'works', note: 'Authorized; cko_network_token_available = true. (The sandbox already holds a token for this card, so the DPAN is used straight away.)' },
+              steps: [{ op: 'pay', mode: 'card', card: NT_CARD.mc, provision: true, expect: { approved: true, code: '10000', ntAvail: true } }] },
+            { id: 'y-instr', n: '8', title: 'Stored card uses its token automatically', doc: 'If a token is available it is sent instead of the card details', sandbox: { s: 'works', note: 'processing.pan_type_processed = dpan with no token details in the request.' },
+              steps: [{ op: 'instrument', card: NT_CARD.mc, expect: { http: 201 } }, { op: 'pay', mode: 'instrument', expect: { approved: true, code: '10000', pan: 'dpan', ntAvail: true } }] },
+            { id: 'y-fpan', n: '9', title: 'Opt out with pan_preference = fpan', doc: 'processing.pan_preference', sandbox: { s: 'works', note: 'pan_type_processed = fpan (and eci 00) — the full PAN was sent even though a token exists. This is also how RTAU is kept working for token merchants.' },
+              steps: [{ op: 'instrument', card: NT_CARD.mc, expect: { http: 201 } }, { op: 'pay', mode: 'instrument', pan: 'fpan', expect: { approved: true, code: '10000', pan: 'fpan' } }] },
+            { id: 'y-instr-prov', n: '10', title: 'Provision while creating the instrument', doc: 'POST /instruments with network_token.provision = true', sandbox: { s: 'works', note: 'The instrument response includes network_token { id, state: active }.' },
+              steps: [{ op: 'instrument', card: NT_CARD.mc, provision: true, expect: { http: 201, ntId: true, state: 'active' } }] },
+        ],
+    },
+];

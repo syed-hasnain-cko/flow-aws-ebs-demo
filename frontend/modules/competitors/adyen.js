@@ -61,9 +61,29 @@
         return cfg;
     }
 
+    // ─── Theme bridge (partner-theme.js) ────────────────────────────────────
+    // Everything Adyen draws outside the card iframes follows --adyen-sdk-* CSS variables, which PartnerTheme keeps
+    // on :root — so a theme change restyles Drop-in / Components instantly. The card number / expiry / CVC fields are
+    // secured iframes; only the `styles` option reaches them, and it is read at mount time, hence the re-mount below.
+    // Every use is guarded so a theming problem can never stop a payment flow.
+    const themed = (fn, fallback) => { try { return window.PartnerTheme ? fn(window.PartnerTheme) : fallback; } catch (e) { console.warn('[adyen theme]', e); return fallback; } };
+    let activeRemount = null;        // re-mounts the live component with fresh field styles
+    let paymentSubmitted = false;    // advanced flow: once the shopper has submitted, never replace the component
+
     function destroyActive() {
         if (activeInstance && activeInstance.unmount) activeInstance.unmount();
         activeInstance = null;
+        activeRemount = null;
+        paymentSubmitted = false;
+    }
+
+    if (window.PartnerTheme) {
+        window.PartnerTheme.onChange(() => {
+            if (!activeRemount || paymentSubmitted) return;
+            // A 3DS / challenge frame means a payment is mid-action — leave it alone.
+            if (document.querySelector('[id^="adyen-"][id$="-container"] iframe[name*="threeDS" i], [id^="adyen-"][id$="-container"] iframe[src*="3ds" i]')) return;
+            try { activeRemount(); } catch (e) { console.warn('[adyen theme] re-mount failed', e); }
+        });
     }
 
     function goToResult(ok, params) {
@@ -118,9 +138,15 @@
             },
         });
 
-        activeInstance = mode === 'component'
-            ? new Card(checkout, {}).mount(container)
-            : new Dropin(checkout, {}).mount(container);
+        const mountSession = () => {
+            const styles = themed(t => t.adyenFieldStyles(), undefined);
+            container.innerHTML = '';
+            return mode === 'component'
+                ? new Card(checkout, styles ? { styles } : {}).mount(container)
+                : new Dropin(checkout, styles ? { paymentMethodsConfiguration: { card: { styles } } } : {}).mount(container);
+        };
+        activeInstance = mountSession();
+        activeRemount = () => { if (activeInstance && activeInstance.unmount) activeInstance.unmount(); activeInstance = mountSession(); };
 
         setStatus(statusEl, 'ready', `${mode === 'component' ? 'Card component' : 'Drop-in'} mounted (session ${session.id}). Watching for webhook...`);
         startWebhookPolling(session.reference);
@@ -187,6 +213,7 @@
             locale: 'en-US',
             paymentMethodsResponse: pm.data,
             onSubmit: async (state, component, actions) => {
+                paymentSubmitted = true;
                 const { ok, data } = await call('POST', 'payments', {
                     ...common,
                     return_base: window.location.origin,
@@ -221,7 +248,14 @@
             },
         });
 
-        activeInstance = new Dropin(checkout, {}).mount(container);
+        const mountAdvanced = () => {
+            const styles = themed(t => t.adyenFieldStyles(), undefined);
+            container.innerHTML = '';
+            return new Dropin(checkout, styles ? { paymentMethodsConfiguration: { card: { styles } } } : {}).mount(container);
+        };
+        paymentSubmitted = false;
+        activeInstance = mountAdvanced();
+        activeRemount = () => { if (activeInstance && activeInstance.unmount) activeInstance.unmount(); activeInstance = mountAdvanced(); };
         setStatus(statusEl, 'ready', 'Drop-in mounted using your own /paymentMethods, /payments and /payments/details calls.');
     }
 
