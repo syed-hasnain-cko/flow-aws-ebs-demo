@@ -294,6 +294,8 @@
     let embeddedCheckoutInstance = null;
     let embeddedCompleted = false;      // true once the buyer finished paying — a theme change must not replace a finished checkout
     let embeddedCreating = false;
+    let formClientSecret = null;        // embedded form: appearance is fixed at init, so a theme change re-inits with the SAME session
+    let formElement = null;
 
     async function onCreateCheckoutSession() {
         const statusEl = document.getElementById('stripe-checkout-status');
@@ -337,7 +339,11 @@
 
         renderResult('stripe-checkout-result-container', 'stripe-checkout-result', session);
 
-        if (checkoutUiMode === 'embedded') {
+        if (checkoutUiMode === 'form') {
+            setStatus(statusEl, 'ready', 'Embedded form mounted below.');
+            formClientSecret = session.client_secret;
+            await mountCheckoutForm();
+        } else if (checkoutUiMode === 'embedded') {
             setStatus(statusEl, 'ready', 'Embedded Checkout mounted below.');
             if (embeddedCheckoutInstance) embeddedCheckoutInstance.destroy();
             // Renamed in the dahlia release: initEmbeddedCheckout() → createEmbeddedCheckoutPage().
@@ -429,6 +435,25 @@
         pePaymentElement.mount('#stripe-pe-payment-element');
     }
 
+    // Embedded form (ui_mode: 'form'): fully themeable through the Appearance API. A confirmed payment redirects to
+    // the session's return_url (success.html) on its own.
+    async function mountCheckoutForm() {
+        const container = document.getElementById('stripe-checkout-embedded-container');
+        if (formElement) { try { formElement.destroy(); } catch (e) { /* already gone */ } formElement = null; }
+        container.innerHTML = '';
+        const appearance = themed(t => t.stripeFormAppearance(), undefined);
+        const checkout = stripeClient.initCheckoutFormSdk({ clientSecret: formClientSecret, ...(appearance ? { appearance } : {}) });
+        formElement = checkout.createForm({ layout: 'expanded' });
+        formElement.mount('#stripe-checkout-embedded-container');
+        const loaded = await checkout.loadActions();
+        if (loaded.type === 'success') {
+            formElement.on('confirm', async (event) => {
+                try { await loaded.actions.confirm({ formConfirmEvent: event }); }
+                catch (err) { setStatus(document.getElementById('stripe-checkout-status'), 'error', err.message); }
+            });
+        }
+    }
+
     // ─── Theme changes ────────────────────────────────────────────────────
     // Split card fields update in place (nothing typed is lost). The Payment Element and embedded Checkout cannot be
     // restyled after creation, so they are re-created — but only while the buyer is still in the form.
@@ -439,6 +464,9 @@
         const peForm = document.getElementById('stripe-pe-form-container');
         if (pePaymentElement && peClientSecret && peForm && peForm.style.display !== 'none') {
             try { mountPaymentElement(); } catch (e) { console.warn('[stripe theme] Payment Element re-mount failed', e); }
+        }
+        if (checkoutUiMode === 'form' && formElement && formClientSecret && document.getElementById('stripe-checkout-embedded-container')?.childElementCount) {
+            mountCheckoutForm().catch(e => console.warn('[stripe theme] embedded form re-mount failed', e));
         }
         if (embeddedCheckoutInstance && !embeddedCompleted && !embeddedCreating && checkoutUiMode === 'embedded'
             && document.getElementById('stripe-checkout-embedded-container')?.childElementCount) {

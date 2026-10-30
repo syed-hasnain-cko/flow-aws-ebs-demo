@@ -167,7 +167,7 @@
 <div id="stripe-mode-panel-checkout" style="display:none;">
     <h2 class="section-header">Checkout — Hosted / Embedded</h2>
     <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin-top:-8px;">
-        Stripe renders the entire payment UI via the Checkout Sessions API — hosted redirects to a Stripe-hosted page, embedded mounts in-page. Both omit <code>payment_method_types</code> so Stripe's dynamic method list applies.
+        Stripe renders the entire payment UI via the Checkout Sessions API — hosted redirects to a Stripe-hosted page, embedded mounts in-page, and the embedded form (<code>ui_mode: form</code>) mounts in-page and follows the app theme fully via Stripe's Appearance API. Both omit <code>payment_method_types</code> so Stripe's dynamic method list applies.
     </p>
 
     <div class="wallet-selector-section" style="margin-top:12px;">
@@ -177,6 +177,9 @@
             </div>
             <div class="wallet-option" id="stripe-checkout-ui-embedded" data-checkout-ui="embedded">
                 <span>Embedded</span>
+            </div>
+            <div class="wallet-option" id="stripe-checkout-ui-form" data-checkout-ui="form">
+                <span>Embedded form (themeable)</span>
             </div>
         </div>
     </div>

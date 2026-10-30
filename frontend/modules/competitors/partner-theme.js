@@ -93,6 +93,12 @@
         };
     }
 
+    // Embedded form (initCheckoutFormSdk): same Appearance API as the Payment Element, except `rules` is not supported.
+    function stripeFormAppearance() {
+        const { rules, ...rest } = stripeAppearance();
+        return rest;
+    }
+
     // Embedded Checkout lives in a Stripe-owned iframe — host CSS cannot reach it. The one per-session lever is
     // `branding_settings`. Stripe requires 6-digit hex colours; font_family / border_style are fixed enums.
     function stripeBranding() {
@@ -166,5 +172,5 @@
     });
     applyAdyenVars();
 
-    window.PartnerTheme = { tokens, isDark, toHex, stripeCardStyle, stripeAppearance, stripeBranding, adyenVars, adyenFieldStyles, applyAdyenVars, onChange };
+    window.PartnerTheme = { tokens, isDark, toHex, stripeCardStyle, stripeAppearance, stripeFormAppearance, stripeBranding, adyenVars, adyenFieldStyles, applyAdyenVars, onChange };
 })();

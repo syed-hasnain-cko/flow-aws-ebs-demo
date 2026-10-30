@@ -735,3 +735,18 @@ Stripe embedded Checkout's inner form panel stays white — `branding_settings` 
 ### Resume Here Next Session
 
 Theme work is uncommitted. Deploy `stripe-routes.js` to Lambda for embedded branding to take effect; frontend goes live on push to `main` (cache-bust `?v=20261101a` already set in `index.html`).
+
+---
+
+## Working Preferences (standing instructions)
+
+- **Be careful not to break working features, but do NOT run full end-to-end / integration regression suites after every change.** It takes too long. Verify only what the change touches (a targeted check, or none if trivial); skip broad regression runs unless the user asks.
+
+---
+
+## Session Summary (2026-11-02) — Stripe embedded form (fully themeable)
+
+- New 3rd option in Stripe → Checkout: **Embedded form (themeable)** — `ui_mode: 'form'` session + `stripeClient.initCheckoutFormSdk({ clientSecret, appearance })` → `checkout.createForm({ layout: 'expanded' }).mount()`; confirm via `checkout.loadActions()` + `form.on('confirm')`; a confirmed payment redirects to `return_url` (success.html). Available in the already-loaded `dahlia/stripe.js`; no script change.
+- Theming: `PartnerTheme.stripeFormAppearance()` = Payment Element appearance **without `rules`** (unsupported by the form). Appearance is fixed at init, so `mountCheckoutForm()` re-inits with the SAME client secret on `themechange` (no new session).
+- Backend: `POST /competitors/stripe/checkout/session` accepts `mode: 'form'`. **Lambda redeploy of `stripe-routes.js` needed**; no new API Gateway route.
+- Unlike the older embedded Checkout (`embedded_page`, white inner panel), the whole form follows the theme.
