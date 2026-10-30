@@ -1,0 +1,436 @@
+<style>
+    /* Standalone Checkout Suite — scoped helpers (.sa-*). Colours use theme tokens only. */
+    .sa-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .sa-banner { display:none; align-items:flex-start; gap:10px; padding:10px 14px; margin:14px 0 0; border-radius:10px;
+        font-size:12px; line-height:1.6; color:var(--text-secondary); border:1px solid var(--border); background:var(--bg-subtle); }
+    .sa-banner.warn  { border-color:#f59e0b; background:rgba(245,158,11,0.08); }
+    .sa-banner.info  { border-color:rgba(59,130,246,0.4); background:rgba(59,130,246,0.07); }
+    .sa-banner.error { border-color:var(--error); background:rgba(239,68,68,0.07); }
+    .sa-sub { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); margin:20px 0 10px; }
+    .sa-pills { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .sa-pill { padding:7px 14px; border-radius:20px; border:1px solid var(--border); background:var(--bg-subtle); font-size:12px;
+        font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; transition:all .15s; }
+    .sa-pill:hover { border-color:var(--primary); color:var(--text-primary); }
+    .sa-pill.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .sa-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:12px 16px; }
+    .sa-grid.three { grid-template-columns:repeat(3, 1fr); }
+    .sa-grid label, .sa-lbl { display:block; font-size:12px; color:var(--text-secondary); margin-bottom:5px; white-space:normal; overflow-wrap:anywhere; line-height:1.5; }
+    .sa-grid .text-input, .sa-grid .select-input, .sa-textarea { width:100%; box-sizing:border-box; }
+    .sa-textarea { min-height:70px; font-family:'JetBrains Mono', monospace; font-size:12px; padding:10px; border-radius:8px;
+        border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); resize:vertical; }
+    .sa-toggle { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; font-size:12px; color:var(--text-secondary); }
+    details.sa-details { border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin:12px 0; background:var(--bg-subtle); }
+    details.sa-details > summary { cursor:pointer; font-size:12px; font-weight:600; color:var(--text-secondary); }
+    details.sa-details[open] > summary { margin-bottom:12px; }
+    .sa-preview { margin:0; max-height:260px; overflow:auto; font-size:11px; line-height:1.55; white-space:pre-wrap; word-break:break-all;
+        font-family:'JetBrains Mono', monospace; color:var(--text-primary); }
+    .sa-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:6px; font-size:12px; font-family:monospace;
+        cursor:pointer; user-select:none; background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-primary);
+        transition:background .12s, color .12s; margin:2px 4px 2px 0; }
+    .sa-chip:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .sa-chip small { opacity:.6; font-family:inherit; }
+    .sa-tc-group { border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-bottom:8px; background:var(--bg-card); }
+    .sa-tc-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+    .sa-tc-title { font-size:13px; font-weight:700; color:var(--text-primary); }
+    .sa-tc-tag { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-secondary); }
+    .sa-tc-sum { font-size:12px; color:var(--text-secondary); line-height:1.5; margin:4px 0 6px; }
+    .sa-res { margin-top:14px; display:none; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg-card); }
+    .sa-res-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:9px 14px; background:var(--bg-subtle); border-bottom:1px solid var(--border); font-size:12px; }
+    .sa-res-badge { font-weight:700; padding:2px 9px; border-radius:20px; color:#fff; }
+    .sa-res-badge.ok { background:var(--success); } .sa-res-badge.bad { background:var(--error); }
+    .sa-res-meta { color:var(--text-secondary); font-family:monospace; font-size:11px; overflow-wrap:anywhere; }
+    .sa-res-body { padding:12px 14px; }
+    .sa-kv { display:grid; grid-template-columns:minmax(120px, 190px) 1fr; gap:4px 14px; font-size:12px; margin-bottom:12px; }
+    .sa-kv .k { color:var(--text-secondary); overflow-wrap:anywhere; }
+    .sa-kv .v { color:var(--text-primary); font-family:'JetBrains Mono', monospace; overflow-wrap:anywhere; }
+    .sa-kv .v.good { color:var(--success); font-weight:700; } .sa-kv .v.bad { color:var(--error); font-weight:700; } .sa-kv .v.warn { color:#f59e0b; font-weight:700; }
+    .sa-elig { display:grid; grid-template-columns:minmax(140px, 1.4fr) 1fr 1fr; gap:6px 12px; font-size:12px; margin-bottom:12px; }
+    .sa-elig .h { font-weight:700; color:var(--text-secondary); }
+    .sa-wh-item { border:1px solid var(--border); border-radius:8px; margin-bottom:6px; background:var(--bg-card); }
+    .sa-wh-item > summary { cursor:pointer; padding:8px 12px; font-size:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .sa-wh-type { font-weight:700; font-family:monospace; color:#fb923c; }
+    .sa-wh-time { color:var(--text-secondary); font-size:11px; }
+    .sa-wh-sum { color:var(--text-secondary); font-size:11px; }
+    .sa-dot { width:8px; height:8px; border-radius:50%; background:var(--text-secondary); display:inline-block; }
+    .sa-dot.live { background:var(--success); box-shadow:0 0 0 3px rgba(16,185,129,.25); animation:sa-pulse 1.6s infinite; }
+    @keyframes sa-pulse { 50% { box-shadow:0 0 0 6px rgba(16,185,129,0); } }
+    .sa-step-lock { opacity:.55; pointer-events:none; }
+    #sa-flow-host { min-height:60px; }
+    @media (max-width: 760px) { .sa-grid, .sa-grid.three { grid-template-columns:1fr; } }
+</style>
+
+<div class="context-area">
+
+    <!-- ─── 1. Product selector ─────────────────────────────────────── -->
+    <h2 class="section-header">1. Select Product</h2>
+    <div class="wallet-selector-section">
+        <p class="wallet-selector-label">Choose the standalone product to test</p>
+        <div class="wallet-selector">
+            <div class="wallet-option" data-sa-product="3ds"><span>Standalone 3DS</span></div>
+            <div class="wallet-option" data-sa-product="nt"><span>Network Tokens</span></div>
+            <div class="wallet-option" data-sa-product="au"><span>Account Updater &amp; RTAU</span></div>
+            <div class="wallet-option" data-sa-product="meta"><span>Card Metadata</span></div>
+        </div>
+    </div>
+
+    <div class="inline-form" style="margin-top:14px; align-items:flex-end;">
+        <div class="form-group">
+            <label for="sa-auth-mode" class="select-label" style="color:var(--text-secondary)">Auth mode (all Suite calls)</label>
+            <select id="sa-auth-mode" class="select-input">
+                <option value="">Per-call default (3DS = OAuth, others = secret key)</option>
+                <option value="oauth">Force OAuth access token</option>
+                <option value="secret">Force secret key</option>
+            </select>
+        </div>
+        <div class="sa-note" style="flex:1; min-width:220px;">Sessions (3DS) only accepts an OAuth access token. The other endpoints accept the secret key — force OAuth to test your client's scopes, or force the secret key to see what a key without Sessions access gets back.</div>
+    </div>
+    <div id="sa-auth-banner" class="sa-banner"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 2. Shared card source (used by every product)                       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="context-area" id="sa-card-source" style="display:none">
+    <h2 class="section-header">2. Card Source</h2>
+    <div class="sa-pills" id="sa-mode-pills">
+        <div class="sa-pill" data-sa-mode="saved">Saved card (COF CIT)</div>
+        <div class="sa-pill" data-sa-mode="new">New card (Flow tokenize)</div>
+        <div class="sa-pill" data-sa-mode="raw">Raw test card (PAN)</div>
+    </div>
+
+    <div class="sa-grid">
+        <div>
+            <label for="sa-cust-email">customer.email <em style="font-style:normal; opacity:.6">(instruments are grouped by this)</em></label>
+            <input type="email" id="sa-cust-email" class="text-input" placeholder="test.user@example.com">
+        </div>
+        <div>
+            <label for="sa-cust-id">customer.id <em style="font-style:normal; opacity:.6">(optional — cus_…)</em></label>
+            <input type="text" id="sa-cust-id" class="text-input" placeholder="cus_…">
+        </div>
+    </div>
+
+    <!-- Saved -->
+    <div id="sa-mode-saved" style="display:none; margin-top:14px;">
+        <div class="sa-grid">
+            <div>
+                <label for="sa-instrument-select">Saved instrument (src_…)</label>
+                <select id="sa-instrument-select" class="select-input"></select>
+            </div>
+            <div>
+                <label for="sa-instrument-manual">Add an existing src_ id</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="sa-instrument-manual" class="text-input" placeholder="src_…" style="flex:1;">
+                    <button class="main-button" id="sa-instrument-add-btn" type="button" style="padding:8px 14px;">Add</button>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+            <label class="sa-note" style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="sa-show-all"> Show every customer's cards</label>
+            <button class="copy-btn" id="sa-instrument-remove-btn" type="button">Remove selected</button>
+            <button class="copy-btn" id="sa-instrument-clear-btn" type="button">Clear all</button>
+        </div>
+        <div id="sa-instrument-detail" class="sa-note" style="margin-top:8px;"></div>
+        <div class="sa-note" style="margin-top:6px;">Instruments are kept in this browser's localStorage only (key <code>cko-suite-instruments</code>), so you can re-test without re-entering a card. A src_ is a COF credential: use it for CIT-with-stored-card, 3DS, network tokens, account updates and MITs.</div>
+    </div>
+
+    <!-- New card -->
+    <div id="sa-mode-new" style="display:none; margin-top:14px;">
+        <div class="sa-note" style="margin-bottom:8px;">Enter the card in Flow's secure field. Click <strong>Tokenize &amp; save card</strong> — the token becomes a reusable <code>src_…</code> instrument (<code>POST /instruments</code>) saved against the customer above, then selected automatically.</div>
+        <div id="sa-flow-loading" class="sa-note" style="display:none;">⏳ Loading card field…</div>
+        <div id="sa-flow-host" style="padding:20px 20px 16px; border:1px solid var(--border); border-radius:10px;"></div>
+        <div class="button-group">
+            <button id="sa-tokenize-btn" class="main-button" disabled>Tokenize &amp; save card</button>
+            <span id="sa-tokenize-hint" class="sa-note" style="margin-left:8px;"></span>
+        </div>
+        <div id="sa-token-badge" class="sa-note" style="display:none; margin-top:8px;">Last token: <code id="sa-token-value"></code> <button class="copy-btn" type="button" data-sa-copy="sa-token-value">Copy</button> <em>(single-use except for Card Metadata)</em></div>
+    </div>
+
+    <!-- Raw -->
+    <div id="sa-mode-raw" style="display:none; margin-top:14px;">
+        <div class="sa-grid three">
+            <div><label for="sa-raw-number">card.number</label><input type="text" id="sa-raw-number" class="text-input" value="4485040371536584" inputmode="numeric"></div>
+            <div><label for="sa-raw-month">expiry_month</label><input type="number" id="sa-raw-month" class="text-input" value="12" min="1" max="12"></div>
+            <div><label for="sa-raw-year">expiry_year</label><input type="number" id="sa-raw-year" class="text-input" value="2030"></div>
+            <div><label for="sa-raw-cvv">cvv</label><input type="text" id="sa-raw-cvv" class="text-input" value="100" inputmode="numeric"></div>
+            <div><label for="sa-raw-name">name</label><input type="text" id="sa-raw-name" class="text-input" value="Test Cardholder"></div>
+        </div>
+        <div class="sa-note" style="margin-top:8px;">Pick a test card below to fill this form. Raw PANs are fine for fixed public sandbox test cards only.</div>
+    </div>
+
+    <!-- Active source summary -->
+    <div id="sa-active-source" class="sa-banner info" style="display:flex; margin-top:14px;"></div>
+
+    <!-- Test cards (rendered per product by standalone.js) -->
+    <div id="sa-test-cards" style="margin-top:14px;"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- STANDALONE 3DS                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="context-area" id="sa-panel-3ds" style="display:none">
+    <h2 class="section-header">3. Standalone 3DS — Hosted Session</h2>
+    <div class="sa-note">Create a session, send the cardholder to Checkout.com's hosted authentication page, read the result, then authorize the payment with the session id — or with the raw 3DS data (as you would with a third-party PSP). Needs <strong>sessions:browser</strong> scope on your OAuth client.</div>
+
+    <div class="sa-sub">Step 1 · Request a session <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /sessions</span></div>
+    <div class="sa-grid three">
+        <div><label for="sa-3ds-amount">amount (minor units)</label><input type="number" id="sa-3ds-amount" class="text-input" value="100"></div>
+        <div><label for="sa-3ds-currency">currency</label><select id="sa-3ds-currency" class="select-input"></select></div>
+        <div><label for="sa-3ds-reference">reference</label><input type="text" id="sa-3ds-reference" class="text-input" placeholder="auto-generated if empty"></div>
+        <div><label for="sa-3ds-auth-type">authentication_type</label>
+            <select id="sa-3ds-auth-type" class="select-input">
+                <option value="regular" selected>regular</option><option value="recurring">recurring</option><option value="installment">installment</option>
+                <option value="maintain_card">maintain_card</option><option value="add_card">add_card</option>
+            </select></div>
+        <div><label for="sa-3ds-category">authentication_category</label>
+            <select id="sa-3ds-category" class="select-input"><option value="payment" selected>payment</option><option value="non_payment">non_payment</option></select></div>
+        <div><label for="sa-3ds-transaction-type">transaction_type</label>
+            <select id="sa-3ds-transaction-type" class="select-input">
+                <option value="goods_service" selected>goods_service</option><option value="check_acceptance">check_acceptance</option>
+                <option value="account_funding">account_funding</option><option value="quasi_card_transaction">quasi_card_transaction</option>
+                <option value="prepaid_activation_and_load">prepaid_activation_and_load</option>
+            </select></div>
+        <div style="grid-column: span 3;"><label for="sa-3ds-challenge">challenge_indicator <em style="font-style:normal; opacity:.6">(exemptions: low_value, trusted_listing(_prompt), transaction_risk_assessment, data_share)</em></label>
+            <select id="sa-3ds-challenge" class="select-input">
+                <option value="no_preference" selected>no_preference</option>
+                <option value="no_challenge_requested">no_challenge_requested</option>
+                <option value="challenge_requested">challenge_requested</option>
+                <option value="challenge_requested_mandate">challenge_requested_mandate</option>
+                <option value="low_value">low_value (exemption, ≤ €30)</option>
+                <option value="transaction_risk_assessment">transaction_risk_assessment (exemption, ≤ €250)</option>
+                <option value="trusted_listing">trusted_listing (exemption)</option>
+                <option value="trusted_listing_prompt">trusted_listing_prompt (exemption)</option>
+                <option value="data_share">data_share (exemption)</option>
+            </select></div>
+    </div>
+
+    <!-- Recurring / installment -->
+    <div id="sa-3ds-recurring-fields" class="sa-grid three" style="display:none; margin-top:12px;">
+        <div id="sa-3ds-installments-group"><label for="sa-3ds-inst-count">installment.number_of_payments</label><input type="number" id="sa-3ds-inst-count" class="text-input" value="12" min="1"></div>
+        <div><label for="sa-3ds-days">days_between_payments</label><input type="number" id="sa-3ds-days" class="text-input" value="28" min="1"></div>
+        <div><label for="sa-3ds-expiry">expiry (YYYYMMDD)</label><input type="text" id="sa-3ds-expiry" class="text-input" value="20301231"></div>
+    </div>
+
+    <details class="sa-details">
+        <summary>Additional authentication data — improves the odds of a frictionless result</summary>
+        <div class="sa-grid">
+            <div><label for="sa-3ds-email">source.email</label><input type="email" id="sa-3ds-email" class="text-input"></div>
+            <div><label for="sa-3ds-bill-line1">source.billing_address.address_line1</label><input type="text" id="sa-3ds-bill-line1" class="text-input" value="123 Anywhere St."></div>
+            <div><label for="sa-3ds-bill-city">source.billing_address.city</label><input type="text" id="sa-3ds-bill-city" class="text-input" value="Anytown"></div>
+            <div><label for="sa-3ds-bill-zip">source.billing_address.zip</label><input type="text" id="sa-3ds-bill-zip" class="text-input" value="123456"></div>
+            <div><label for="sa-3ds-bill-country">source.billing_address.country</label><select id="sa-3ds-bill-country" class="select-input"></select></div>
+            <div class="sa-toggle"><span>shipping_address_matches_billing</span><label class="switch"><input type="checkbox" id="sa-3ds-ship-matches" checked><span class="slider round"></span></label></div>
+        </div>
+        <div id="sa-3ds-ship-fields" class="sa-grid" style="display:none; margin-top:10px;">
+            <div><label for="sa-3ds-ship-line1">shipping_address.address_line1</label><input type="text" id="sa-3ds-ship-line1" class="text-input" value="Checkout.com"></div>
+            <div><label for="sa-3ds-ship-city">shipping_address.city</label><input type="text" id="sa-3ds-ship-city" class="text-input" value="London"></div>
+            <div><label for="sa-3ds-ship-zip">shipping_address.zip</label><input type="text" id="sa-3ds-ship-zip" class="text-input" value="W1T 4TJ"></div>
+            <div><label for="sa-3ds-ship-country">shipping_address.country</label><select id="sa-3ds-ship-country" class="select-input"></select></div>
+        </div>
+    </details>
+
+    <details class="sa-details">
+        <summary>Completion URLs &amp; advanced body override</summary>
+        <div class="sa-grid">
+            <div><label for="sa-3ds-success-url">completion.success_url</label><input type="text" id="sa-3ds-success-url" class="text-input"></div>
+            <div><label for="sa-3ds-failure-url">completion.failure_url</label><input type="text" id="sa-3ds-failure-url" class="text-input"></div>
+        </div>
+        <label class="sa-lbl" for="sa-3ds-extra" style="margin-top:12px;">Extra JSON deep-merged into the request (e.g. account_info, merchant_risk_info, channel_data, initial_transaction for 3RI)</label>
+        <textarea id="sa-3ds-extra" class="sa-textarea" placeholder='{ "merchant_risk_info": { "delivery_email": "x@y.com" } }'></textarea>
+    </details>
+
+    <details class="sa-details" open>
+        <summary>Request preview — exactly what the backend forwards to POST /sessions</summary>
+        <pre id="sa-3ds-preview" class="sa-preview"></pre>
+    </details>
+
+    <div class="button-group">
+        <button id="sa-3ds-create-btn" class="main-button">Create session</button>
+        <span id="sa-3ds-create-hint" class="sa-note" style="margin-left:8px;"></span>
+    </div>
+    <div id="sa-3ds-create-res" class="sa-res"></div>
+
+    <!-- Step 2 -->
+    <div class="sa-sub">Step 2 · Redirect the cardholder / look up a session <span style="text-transform:none; letter-spacing:0; font-weight:400;">— GET /sessions/{id}</span></div>
+    <div class="sa-grid">
+        <div><label for="sa-3ds-sid">session id</label><input type="text" id="sa-3ds-sid" class="text-input" placeholder="sid_…"></div>
+        <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+            <button id="sa-3ds-redirect-btn" class="main-button" disabled>Redirect in this tab</button>
+            <button id="sa-3ds-newtab-btn" class="main-button" disabled>Open in new tab</button>
+            <button id="sa-3ds-get-btn" class="main-button">Get session</button>
+            <button id="sa-3ds-reset-btn" class="copy-btn" type="button">Reset 3DS state</button>
+        </div>
+    </div>
+    <div class="sa-note" style="margin-top:8px;">“Open in new tab” keeps this page polling the session while you complete the challenge (password <code>Checkout1!</code>). “Redirect in this tab” returns here with <code>cko-session-id</code> and restores your state. Status is polled every 3s until it leaves pending / processing / challenged.</div>
+    <div id="sa-3ds-redirect-link" class="sa-note" style="margin-top:6px; overflow-wrap:anywhere;"></div>
+    <div id="sa-3ds-poll" class="sa-note" style="margin-top:6px;"></div>
+    <div id="sa-3ds-session-res" class="sa-res"></div>
+    <div id="sa-3ds-next" class="sa-banner"></div>
+
+    <!-- Step 3 -->
+    <div class="sa-sub">Step 3 · Authorize the payment <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /payments</span></div>
+    <div class="sa-pills" id="sa-3ds-auth-mode-pills">
+        <div class="sa-pill active" data-sa-auth="sid">Via session id (3ds.authentication_id)</div>
+        <div class="sa-pill" data-sa-auth="data">Via full 3DS data (eci / cryptogram / xid / version)</div>
+    </div>
+    <div class="sa-grid three">
+        <div><label for="sa-pay-amount">amount</label><input type="number" id="sa-pay-amount" class="text-input" value="100"></div>
+        <div><label for="sa-pay-currency">currency</label><select id="sa-pay-currency" class="select-input"></select></div>
+        <div><label for="sa-pay-reference">reference</label><input type="text" id="sa-pay-reference" class="text-input" placeholder="auto-generated if empty"></div>
+        <div class="sa-toggle"><span>capture</span><label class="switch"><input type="checkbox" id="sa-pay-capture" checked><span class="slider round"></span></label></div>
+        <div><label for="sa-pay-cvv">source.cvv <em style="font-style:normal; opacity:.6">(optional, saved cards)</em></label><input type="text" id="sa-pay-cvv" class="text-input" inputmode="numeric"></div>
+    </div>
+    <div id="sa-pay-data-fields" class="sa-grid" style="display:none; margin-top:12px;">
+        <div><label for="sa-pay-eci">3ds.eci</label><input type="text" id="sa-pay-eci" class="text-input"></div>
+        <div><label for="sa-pay-version">3ds.version</label><input type="text" id="sa-pay-version" class="text-input"></div>
+        <div><label for="sa-pay-cryptogram">3ds.cryptogram</label><input type="text" id="sa-pay-cryptogram" class="text-input"></div>
+        <div><label for="sa-pay-xid">3ds.xid</label><input type="text" id="sa-pay-xid" class="text-input"></div>
+        <div class="sa-note" style="grid-column: span 2;">Prefilled from the session once it is approved/attempted. Edit any value to test tampering — the issuer should reject mismatched data.</div>
+    </div>
+    <details class="sa-details" open>
+        <summary>Payment request preview</summary>
+        <pre id="sa-pay-preview" class="sa-preview"></pre>
+    </details>
+    <div class="button-group">
+        <button id="sa-pay-btn" class="main-button">Authorize payment</button>
+        <button id="sa-pay-details-btn" class="main-button" style="display:none;">Get payment details</button>
+    </div>
+    <div id="sa-pay-res" class="sa-res"></div>
+    <div id="sa-pay-details-res" class="sa-res"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- NETWORK TOKENS                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="context-area" id="sa-panel-nt" style="display:none">
+    <h2 class="section-header">3. Network Tokens</h2>
+    <div class="sa-note">Provision a Visa (VTS) or Mastercard (MDES) network token, read it back, request cryptograms and delete it. Lifecycle changes arrive as <code>network_token_update</code> webhooks (live panel below). Needs <strong>vault:network-tokens</strong>.</div>
+
+    <div class="sa-sub">A · Provision <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /network-tokens (uses the card source above)</span></div>
+    <details class="sa-details">
+        <summary>Advanced body override</summary>
+        <textarea id="sa-nt-extra" class="sa-textarea" placeholder='{ "source": { ... } } — deep-merged into the request'></textarea>
+    </details>
+    <details class="sa-details" open><summary>Request preview</summary><pre id="sa-nt-preview" class="sa-preview"></pre></details>
+    <div class="button-group"><button id="sa-nt-provision-btn" class="main-button">Provision network token</button></div>
+    <div id="sa-nt-provision-res" class="sa-res"></div>
+
+    <div class="sa-sub">B · Manage a token <span style="text-transform:none; letter-spacing:0; font-weight:400;">— GET / cryptograms / delete</span></div>
+    <div class="sa-grid">
+        <div><label for="sa-nt-select">Saved network tokens</label><select id="sa-nt-select" class="select-input"></select></div>
+        <div><label for="sa-nt-id">network token id (nt_…)</label><input type="text" id="sa-nt-id" class="text-input" placeholder="nt_…"></div>
+        <div><label for="sa-nt-crypto-type">cryptogram transaction_type</label>
+            <select id="sa-nt-crypto-type" class="select-input"><option value="ecom" selected>ecom</option><option value="recurring">recurring</option><option value="pos">pos</option><option value="aft">aft</option></select></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div><label for="sa-nt-del-by">delete.initiated_by</label>
+                <select id="sa-nt-del-by" class="select-input"><option value="token_requestor" selected>token_requestor</option><option value="cardholder">cardholder</option></select></div>
+            <div><label for="sa-nt-del-reason">delete.reason</label>
+                <select id="sa-nt-del-reason" class="select-input"><option value="other" selected>other</option><option value="fraud">fraud</option></select></div>
+        </div>
+    </div>
+    <div class="button-group" style="flex-wrap:wrap;">
+        <button id="sa-nt-get-btn" class="main-button">Get token</button>
+        <button id="sa-nt-crypto-btn" class="main-button">Request cryptogram</button>
+        <button id="sa-nt-delete-btn" class="main-button" style="background:var(--error);">Delete token</button>
+        <button id="sa-nt-forget-btn" class="copy-btn" type="button">Forget locally</button>
+    </div>
+    <div id="sa-nt-manage-res" class="sa-res"></div>
+
+    <div class="sa-sub">C · Pay <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /payments</span></div>
+    <div class="sa-grid three">
+        <div><label for="sa-nt-pay-amount">amount</label><input type="number" id="sa-nt-pay-amount" class="text-input" value="100"></div>
+        <div><label for="sa-nt-pay-currency">currency</label><select id="sa-nt-pay-currency" class="select-input"></select></div>
+        <div class="sa-toggle"><span>processing.provision_network_token</span><label class="switch"><input type="checkbox" id="sa-nt-pay-provision" checked><span class="slider round"></span></label></div>
+    </div>
+    <div class="button-group" style="flex-wrap:wrap;">
+        <button id="sa-nt-pay-provision-btn" class="main-button">Pay with card source (provisions at payment time)</button>
+        <button id="sa-nt-pay-token-btn" class="main-button">Pay with the selected network token (+ fresh cryptogram)</button>
+    </div>
+    <div class="sa-note" style="margin-top:6px;">First button: asynchronous provisioning — read <code>processing.pan_type_processed</code> and <code>cko_network_token_available</code> in the result. Second: requests a cryptogram, then sends <code>source.type = network_token</code> with the DPAN, expiry, token_type and cryptogram.</div>
+    <div id="sa-nt-pay-res" class="sa-res"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ACCOUNT UPDATER + RTAU                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="context-area" id="sa-panel-au" style="display:none">
+    <h2 class="section-header">3. Account Updater &amp; Real-Time Account Updater</h2>
+    <div class="sa-banner warn" style="display:flex;"><span>⚠️</span><div><strong>Requires enablement, and CKO publishes no sandbox test cards.</strong> Ask your account manager to enable the Standalone Account Updater / RTAU (Mastercard Store &amp; Update, Update &amp; Retry; Visa Account Updater). Without it you will see 401/403/422 — the UI shows exactly what came back. Use any card numbers your team has been given.</div></div>
+
+    <div class="sa-sub">A · Standalone Account Updater <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /account-updater/cards (Visa, Mastercard, Amex)</span></div>
+    <div class="sa-note">Uses the card source above: a saved instrument sends <code>source_options.instrument.id</code>; a raw card sends <code>source_options.card</code>. Amex updates run in batch — request at least 24h before use.</div>
+    <details class="sa-details" open><summary>Request preview</summary><pre id="sa-au-preview" class="sa-preview"></pre></details>
+    <div class="button-group"><button id="sa-au-btn" class="main-button">Request card update</button></div>
+    <div id="sa-au-res" class="sa-res"></div>
+
+    <div class="sa-sub">B · Real-Time Account Updater <span style="text-transform:none; letter-spacing:0; font-weight:400;">— triggers inside POST /payments</span></div>
+    <div class="sa-note">RTAU fires automatically on eligible payments: a <strong>MIT</strong> or <strong>card-on-file CIT</strong>, using a stored instrument or full card details (not network tokens), amount &gt; 0. The outcome is in the payment's <code>source.account_update_status</code>, and the <code>card_updated</code> webhook carries the original and replacement card.</div>
+    <div class="sa-grid three">
+        <div><label for="sa-rt-amount">amount</label><input type="number" id="sa-rt-amount" class="text-input" value="100"></div>
+        <div><label for="sa-rt-currency">currency</label><select id="sa-rt-currency" class="select-input"></select></div>
+        <div><label for="sa-rt-type">payment_type</label>
+            <select id="sa-rt-type" class="select-input"><option value="Regular" selected>Regular</option><option value="Recurring">Recurring</option><option value="Unscheduled">Unscheduled</option></select></div>
+        <div class="sa-toggle"><span>merchant_initiated (MIT)</span><label class="switch"><input type="checkbox" id="sa-rt-mit"><span class="slider round"></span></label></div>
+        <div><label for="sa-rt-prev">previous_payment_id <em style="font-style:normal; opacity:.6">(MITs)</em></label><input type="text" id="sa-rt-prev" class="text-input" placeholder="pay_…"></div>
+        <div class="sa-toggle"><span>source.allow_update (uncheck to decline RTAU)</span><label class="switch"><input type="checkbox" id="sa-rt-allow" checked><span class="slider round"></span></label></div>
+    </div>
+    <details class="sa-details" open><summary>Payment request preview</summary><pre id="sa-rt-preview" class="sa-preview"></pre></details>
+    <div class="button-group"><button id="sa-rt-btn" class="main-button">Request payment</button></div>
+    <div id="sa-rt-res" class="sa-res"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- CARD METADATA                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="context-area" id="sa-panel-meta" style="display:none">
+    <h2 class="section-header">3. Card Metadata</h2>
+    <div class="sa-note">Issuer, scheme, card type/category and payout eligibility for a card — POST /metadata/card (Beta, needs <strong>vault:card-metadata</strong>). BIN is the least accurate source.</div>
+    <div class="sa-grid" style="margin-top:12px;">
+        <div><label for="sa-meta-source">source type</label>
+            <select id="sa-meta-source" class="select-input">
+                <option value="shared" selected>Card source above (saved instrument → id, raw/new → card)</option>
+                <option value="bin">BIN (6 or 8 digits)</option>
+                <option value="token">Token (tok_…, expires after 15 min, reusable here)</option>
+                <option value="dpan">Network token DPAN (as card.number)</option>
+            </select></div>
+        <div><label for="sa-meta-format">format</label>
+            <select id="sa-meta-format" class="select-input"><option value="card_payouts" selected>card_payouts (basic + payout eligibility)</option><option value="basic">basic</option></select></div>
+        <div id="sa-meta-bin-group" style="display:none;"><label for="sa-meta-bin">source.bin</label><input type="text" id="sa-meta-bin" class="text-input" value="45394679"></div>
+        <div id="sa-meta-token-group" style="display:none;"><label for="sa-meta-token">source.token</label><input type="text" id="sa-meta-token" class="text-input" placeholder="tok_…"></div>
+        <div id="sa-meta-dpan-group" style="display:none;"><label for="sa-meta-dpan">DPAN</label><input type="text" id="sa-meta-dpan" class="text-input" placeholder="from a provisioned network token"></div>
+        <div><label for="sa-meta-reference">reference <em style="font-style:normal; opacity:.6">(optional)</em></label><input type="text" id="sa-meta-reference" class="text-input"></div>
+    </div>
+    <details class="sa-details" open><summary>Request preview</summary><pre id="sa-meta-preview" class="sa-preview"></pre></details>
+    <div class="button-group"><button id="sa-meta-btn" class="main-button">Get card metadata</button></div>
+    <div id="sa-meta-res" class="sa-res"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- LIVE WEBHOOKS (shared)                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="context-area" id="sa-webhooks" style="display:none">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <h2 class="section-header" style="margin:0;">Live Webhooks</h2>
+        <span class="sa-dot" id="sa-wh-dot"></span><span class="sa-note" id="sa-wh-state">paused</span>
+        <button class="copy-btn" id="sa-wh-toggle" type="button" style="margin-left:auto;">Pause</button>
+        <button class="copy-btn" id="sa-wh-clear" type="button">Clear</button>
+    </div>
+    <div class="sa-note" style="margin-top:6px;">Events are received by your existing <code>POST /webhook</code> endpoint and read from a non-consuming buffer here (polled every 3s). Each one is also written to the API log sidebar. In the Dashboard, subscribe your workflow to the event types below.</div>
+    <div class="sa-pills" id="sa-wh-filters" style="margin-top:12px;">
+        <div class="sa-pill active" data-sa-whf="authentication_*">authentication_*</div>
+        <div class="sa-pill active" data-sa-whf="network_token_update">network_token_update</div>
+        <div class="sa-pill active" data-sa-whf="card_updated">card_updated</div>
+        <div class="sa-pill active" data-sa-whf="payment_*">payment_*</div>
+    </div>
+    <div class="sa-grid">
+        <div><label for="sa-wh-match">only events whose payload contains <em style="font-style:normal; opacity:.6">(sid_…, pay_…, nt_…, src_… — leave empty for all)</em></label>
+            <input type="text" id="sa-wh-match" class="text-input" placeholder="e.g. sid_abc…"></div>
+        <div class="sa-toggle" style="align-self:end;"><span>Follow the id I'm currently testing</span><label class="switch"><input type="checkbox" id="sa-wh-follow" checked><span class="slider round"></span></label></div>
+    </div>
+    <div id="sa-wh-list" style="margin-top:12px;"><div class="sa-note">No events yet.</div></div>
+</div>
