@@ -124,6 +124,7 @@ router.post('/checkout/session', async (req, res) => {
         return res.status(400).json({ error: 'amount, currency, and return_base are required' });
     }
     const isEmbedded = mode === 'embedded';
+    const isForm = mode === 'form';   // Stripe's embedded form (ui_mode: 'form') — themed client-side via the Appearance API
     // return_base is just the app's origin (e.g. https://xxx.amplifyapp.com) —
     // every Stripe flow lands on the SAME success.html/failure.html pages
     // every other payment method in this app redirects to, not back into the
@@ -135,7 +136,7 @@ router.post('/checkout/session', async (req, res) => {
         const params = {
             mode: 'payment',
             // Stripe renamed this value on API version 2025-xx+: 'embedded' → 'embedded_page'.
-            ui_mode: isEmbedded ? 'embedded_page' : undefined,
+            ui_mode: isForm ? 'form' : isEmbedded ? 'embedded_page' : undefined,
             line_items: [{
                 price_data: {
                     currency,
@@ -150,7 +151,7 @@ router.post('/checkout/session', async (req, res) => {
             // page instead of the in-page iframe). Completion itself is handled
             // by the embedded instance's onComplete callback on the frontend,
             // which navigates to successUrl manually.
-            ...(isEmbedded
+            ...(isEmbedded || isForm
                 ? { return_url: successUrl }
                 : { success_url: successUrl, cancel_url: cancelUrl }),
             integration_identifier: `competitorTest${randomSuffix()}`,
@@ -166,7 +167,7 @@ router.post('/checkout/session', async (req, res) => {
             log('warn', '/checkout/session', 'branding_rejected_retrying_without', { stripe_error: brandingError.message });   // not `message`: log() spreads data after its own message key
             session = await stripe().checkout.sessions.create(params);
         }
-        log('info', '/checkout/session', 'session_created', { id: session.id, mode: isEmbedded ? 'embedded' : 'hosted' });
+        log('info', '/checkout/session', 'session_created', { id: session.id, mode: isForm ? 'form' : isEmbedded ? 'embedded' : 'hosted' });
         res.json(session);
     } catch (error) {
         log('error', '/checkout/session', 'session_error', { message: error.message });
