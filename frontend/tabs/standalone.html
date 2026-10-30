@@ -58,6 +58,24 @@
     /* The app has no disabled-button look; scoped to this tab so no other tab changes. */
     #standalone-tab .main-button:disabled { opacity:.4; cursor:not-allowed; filter:grayscale(.7); box-shadow:none; transform:none; }
     #sa-pay-gate { margin:0 0 14px; }
+    /* RTAU case runner */
+    .sa-rt-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+    .sa-rt-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); padding:6px 8px; border-bottom:1px solid var(--border); }
+    .sa-rt-table td { padding:8px; border-bottom:1px solid var(--border); vertical-align:top; color:var(--text-primary); }
+    .sa-rt-table tr.sa-rt-active td { background:var(--bg-subtle); }
+    .sa-rt-table .sa-rt-sub { color:var(--text-secondary); font-size:11px; line-height:1.5; margin-top:2px; }
+    .sa-rt-table code { font-size:11px; }
+    .sa-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; border:1px solid var(--border); background:var(--bg-subtle); color:var(--text-secondary); }
+    .sa-badge.good { color:#fff; background:var(--success); border-color:var(--success); }
+    .sa-badge.bad  { color:#fff; background:var(--error);   border-color:var(--error); }
+    .sa-badge.warn { color:#fff; background:#f59e0b;        border-color:#f59e0b; }
+    .sa-badge.soft-good { color:var(--success); border-color:var(--success); background:transparent; }
+    .sa-badge.soft-warn { color:#b45309; border-color:#f59e0b; background:transparent; }
+    .sa-badge.soft-bad  { color:var(--error); border-color:var(--error); background:transparent; }
+    .sa-chk { display:grid; grid-template-columns:22px minmax(140px,1fr) minmax(120px,1fr) minmax(120px,1fr); gap:4px 12px; font-size:12px; margin:8px 0 12px; align-items:start; }
+    .sa-chk .h { font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.04em; }
+    .sa-chk .ok { color:var(--success); font-weight:700; } .sa-chk .no { color:var(--error); font-weight:700; } .sa-chk .wn { color:#b45309; font-weight:700; }
+    .sa-chk code { overflow-wrap:anywhere; }
     .sa-pill.disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
     #sa-flow-host { min-height:60px; }
     @media (max-width: 760px) { .sa-grid, .sa-grid.three { grid-template-columns:1fr; } }
@@ -160,6 +178,10 @@
             <div><label for="sa-raw-name">name</label><input type="text" id="sa-raw-name" class="text-input" value="Test Cardholder"></div>
         </div>
         <div class="sa-note" style="margin-top:8px;">Pick a test card below to fill this form. Raw PANs are fine for fixed public sandbox test cards only.</div>
+        <div class="button-group" style="justify-content:flex-start; margin-top:10px;">
+            <button id="sa-raw-save-btn" class="copy-btn" type="button">Save this card as an instrument (src_…)</button>
+            <span class="sa-note" style="margin-left:8px;">Needed for flows that only accept a Source ID, such as RTAU. Created with <code>POST /instruments</code> and added to your saved cards.</span>
+        </div>
     </div>
 
     <!-- Active source summary -->
@@ -399,14 +421,51 @@
     <div class="sa-grid three">
         <div><label for="sa-nt-pay-amount">amount</label><input type="number" id="sa-nt-pay-amount" class="text-input" value="100"></div>
         <div><label for="sa-nt-pay-currency">currency</label><select id="sa-nt-pay-currency" class="select-input"></select></div>
+        <div class="sa-toggle"><span>merchant_initiated <em style="font-style:normal; opacity:.6">(Visa CITs decline 43102 on this account)</em></span><label class="switch"><input type="checkbox" id="sa-nt-pay-mit"><span class="slider round"></span></label></div>
+    </div>
+
+    <div class="sa-sub" style="margin-top:14px;">C1 · Pay with a card source <span style="text-transform:none; letter-spacing:0; font-weight:400;">— the token is provisioned / used for you</span></div>
+    <div class="sa-grid">
         <div class="sa-toggle"><span>processing.provision_network_token</span><label class="switch"><input type="checkbox" id="sa-nt-pay-provision" checked><span class="slider round"></span></label></div>
+        <div><label for="sa-nt-pay-pan">processing.pan_preference <em style="font-style:normal; opacity:.6">(fpan = never send the token)</em></label>
+            <select id="sa-nt-pay-pan" class="select-input"><option value="" selected>— omit (token is used when available) —</option><option value="fpan">fpan</option></select></div>
     </div>
+    <div class="button-group"><button id="sa-nt-pay-provision-btn" class="main-button">Pay with card source</button></div>
+    <div class="sa-note">Read <code>processing.pan_type_processed</code> (dpan / fpan) and <code>cko_network_token_available</code> in the result. A stored card automatically uses its token when one exists.</div>
+
+    <div class="sa-sub" style="margin-top:14px;">C2 · Pay with a network token <span style="text-transform:none; letter-spacing:0; font-weight:400;">— source.type = network_token</span></div>
+    <div class="sa-note" style="margin-bottom:8px;">“Pay with the selected token” fetches a fresh cryptogram, fills these fields and pays. Edit any field and use “Pay with these details” to test variations (wrong cryptogram, other eci, wrong token_type…).</div>
+    <div class="sa-grid three">
+        <div><label for="sa-ntp-token">source.token (DPAN)</label><input type="text" id="sa-ntp-token" class="text-input" placeholder="filled from the selected token"></div>
+        <div><label for="sa-ntp-month">expiry_month</label><input type="number" id="sa-ntp-month" class="text-input" min="1" max="12"></div>
+        <div><label for="sa-ntp-year">expiry_year</label><input type="number" id="sa-ntp-year" class="text-input"></div>
+        <div><label for="sa-ntp-type">token_type</label>
+            <select id="sa-ntp-type" class="select-input"><option value="vts">vts (Visa)</option><option value="mdes">mdes (Mastercard)</option><option value="applepay">applepay</option><option value="googlepay">googlepay</option></select></div>
+        <div style="grid-column: span 2;"><label for="sa-ntp-cryptogram">source.cryptogram</label><input type="text" id="sa-ntp-cryptogram" class="text-input"></div>
+        <div><label for="sa-ntp-eci">source.eci <em style="font-style:normal; opacity:.6">(blank = omitted)</em></label><input type="text" id="sa-ntp-eci" class="text-input" maxlength="2" placeholder="blank"></div>
+        <div style="grid-column: span 2;" class="sa-note">Visa cryptogram responses return an eci (07). <strong>Mastercard (MDES) responses contain none</strong> — leaving it blank omits it, which is valid; <code>02</code> works, and <code>05</code> is rejected with 20012.</div>
+    </div>
+    <details class="sa-details" open><summary>Payment request preview</summary><pre id="sa-ntp-preview" class="sa-preview"></pre></details>
     <div class="button-group" style="flex-wrap:wrap;">
-        <button id="sa-nt-pay-provision-btn" class="main-button">Pay with card source (provisions at payment time)</button>
         <button id="sa-nt-pay-token-btn" class="main-button">Pay with the selected network token (+ fresh cryptogram)</button>
+        <button id="sa-ntp-pay-btn" class="main-button">Pay with these details</button>
     </div>
-    <div class="sa-note" style="margin-top:6px;">First button: asynchronous provisioning — read <code>processing.pan_type_processed</code> and <code>cko_network_token_available</code> in the result. Second: requests a cryptogram, then sends <code>source.type = network_token</code> with the DPAN, expiry, token_type and cryptogram.</div>
     <div id="sa-nt-pay-res" class="sa-res"></div>
+
+    <!-- D · scenarios -->
+    <div class="sa-sub" style="margin-top:22px;">D · Network token test scenarios <span style="text-transform:none; letter-spacing:0; font-weight:400;">— verified against the sandbox</span></div>
+    <div class="sa-note">There is no CKO test-case document for network tokens, so each scenario was run against the sandbox and its expectation recorded. A scenario is a short script — provision, get, cryptogram, delete, pay — and every step is checked. “Sandbox” says whether the observed behaviour matches the public docs.</div>
+    <div class="sa-pills" id="sa-ntc-groups" style="margin-top:12px;"></div>
+    <div id="sa-ntc-blurb" class="sa-note"></div>
+    <div class="sa-grid" style="margin-top:12px;">
+        <div class="sa-toggle"><span>Include the extra observations (not from the docs)</span><label class="switch"><input type="checkbox" id="sa-ntc-extras" checked><span class="slider round"></span></label></div>
+    </div>
+    <div id="sa-ntc-cases"></div>
+    <div class="button-group" style="justify-content:flex-start; margin-top:12px; flex-wrap:wrap;">
+        <button id="sa-ntc-runall-btn" class="main-button">Run all scenarios in this group</button>
+        <span id="sa-ntc-summary" class="sa-note" style="margin-left:8px;"></span>
+    </div>
+    <div id="sa-ntc-report" class="sa-res"></div>
 </div>
 
 
@@ -415,7 +474,7 @@
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div class="context-area" id="sa-panel-au" style="display:none">
     <h2 class="section-header">3. Account Updater &amp; Real-Time Account Updater</h2>
-    <div class="sa-banner warn" style="display:flex;"><span>⚠️</span><div><strong>Requires enablement, and CKO publishes no sandbox test cards.</strong> Ask your account manager to enable the Standalone Account Updater / RTAU (Mastercard Store &amp; Update, Update &amp; Retry; Visa Account Updater). Without it you will see 401/403/422 — the UI shows exactly what came back. Use any card numbers your team has been given.</div></div>
+    <div class="sa-banner warn" style="display:flex;"><span>⚠️</span><div><strong>Requires enablement on the merchant account</strong> (Standalone Account Updater, RTAU: Mastercard Store &amp; Update / Update &amp; Retry, Visa Account Updater). Without it you will see 401/403/422 — the UI shows exactly what came back. Public docs list no test cards; the <strong>simulator cases from CKO's internal “Account Updater Sandbox Simulator Test Cases” document are built in below (section C)</strong>, each with the card, amount and expected outcome. The standalone endpoint answered for Mastercard and returned <code>merchant_not_onboarded</code> for Visa on the account it was verified on.</div></div>
 
     <div class="sa-sub">A · Standalone Account Updater <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /account-updater/cards (Visa, Mastercard, Amex)</span></div>
     <div class="sa-note">Uses the card source above: a saved instrument sends <code>source_options.instrument.id</code>; a raw card sends <code>source_options.card</code>. Amex updates run in batch — request at least 24h before use.</div>
@@ -433,10 +492,28 @@
         <div class="sa-toggle"><span>merchant_initiated (MIT)</span><label class="switch"><input type="checkbox" id="sa-rt-mit"><span class="slider round"></span></label></div>
         <div><label for="sa-rt-prev">previous_payment_id <em style="font-style:normal; opacity:.6">(MITs)</em></label><input type="text" id="sa-rt-prev" class="text-input" placeholder="pay_…"></div>
         <div class="sa-toggle"><span>source.allow_update (uncheck to decline RTAU)</span><label class="switch"><input type="checkbox" id="sa-rt-allow" checked><span class="slider round"></span></label></div>
+        <div><label for="sa-rt-pan">processing.pan_preference <em style="font-style:normal; opacity:.6">(fpan for network-token merchants)</em></label>
+            <select id="sa-rt-pan" class="select-input"><option value="" selected>— omit —</option><option value="fpan">fpan — never use a DPAN</option></select></div>
     </div>
     <details class="sa-details" open><summary>Payment request preview</summary><pre id="sa-rt-preview" class="sa-preview"></pre></details>
     <div class="button-group"><button id="sa-rt-btn" class="main-button">Request payment</button></div>
     <div id="sa-rt-res" class="sa-res"></div>
+
+    <!-- C · simulator test cases -->
+    <div class="sa-sub">C · RTAU simulator test cases <span style="text-transform:none; letter-spacing:0; font-weight:400;">— from “CKO Account Updater Sandbox Simulator Test Cases”</span></div>
+    <div class="sa-note">Each case creates a fresh Source ID from the case's test card, sends the documented payment, then <strong>scores the real response against the document's expectation</strong> (response code, <code>account_update_status</code>, failure code, replacement card, webhook). “Sandbox” shows what was actually observed when these cases were run — the document colour-codes working / non-working cases and that key is not in its text.</div>
+    <div class="sa-pills" id="sa-rtau-groups" style="margin-top:12px;"></div>
+    <div id="sa-rtau-blurb" class="sa-note"></div>
+    <div class="sa-grid" style="margin-top:12px;">
+        <div class="sa-toggle"><span id="sa-rtau-fpan-label"><strong>NT-enabled merchant</strong> — send <code>processing.pan_preference = fpan</code> (doc step 3)</span><label class="switch"><input type="checkbox" id="sa-rtau-fpan" checked><span class="slider round"></span></label></div>
+        <div class="sa-toggle"><span>Include the “extra” cases observed while verifying (not in the document)</span><label class="switch"><input type="checkbox" id="sa-rtau-extras" checked><span class="slider round"></span></label></div>
+    </div>
+    <div id="sa-rtau-cases"></div>
+    <div class="button-group" style="justify-content:flex-start; margin-top:12px; flex-wrap:wrap;">
+        <button id="sa-rtau-runall-btn" class="main-button">Run all cases in this group</button>
+        <span id="sa-rtau-summary" class="sa-note" style="margin-left:8px;"></span>
+    </div>
+    <div id="sa-rtau-report" class="sa-res"></div>
 </div>
 
 

@@ -100,6 +100,23 @@ function randomSuffix(len = 8) {
     return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
+// ─── Embedded Checkout theming ──────────────────────────────────────────
+// Embedded Checkout renders in a Stripe-owned iframe, so the host page's CSS cannot touch it; the only per-session
+// control is `branding_settings` on the Checkout Session. The frontend sends its active theme colours; they are
+// validated here to the shapes Stripe accepts (6-digit hex colours, fixed border_style enum, lowercase font id) and
+// anything else is dropped rather than risk a 400. Purely cosmetic — see the retry in /checkout/session.
+function sanitizeBranding(input) {
+    if (!input || typeof input !== 'object') return undefined;
+    const out = {};
+    const hex = /^#[0-9a-fA-F]{6}$/;
+    if (hex.test(input.background_color)) out.background_color = input.background_color;
+    if (hex.test(input.button_color)) out.button_color = input.button_color;
+    if (['rounded', 'rectangular', 'pill'].includes(input.border_style)) out.border_style = input.border_style;
+    if (/^[a-z0-9_]{1,40}$/.test(input.font_family || '')) out.font_family = input.font_family;
+    if (typeof input.display_name === 'string' && input.display_name.trim() && input.display_name.length <= 100) out.display_name = input.display_name.trim();
+    return Object.keys(out).length ? out : undefined;
+}
+
 // ─── Checkout: hosted redirect or embedded, both via Checkout Sessions ──
 router.post('/checkout/session', async (req, res) => {
     const { amount, currency, product_name, mode, return_base, force_3ds } = req.body || {};
@@ -115,7 +132,7 @@ router.post('/checkout/session', async (req, res) => {
     const cancelUrl = `${return_base}/failure.html?stripe_cos_status=cancelled&partner=stripe`;
     try {
         setUpstream(res, 'POST', '/v1/checkout/sessions');
-        const session = await stripe().checkout.sessions.create({
+        const params = {
             mode: 'payment',
             // Stripe renamed this value on API version 2025-xx+: 'embedded' → 'embedded_page'.
             ui_mode: isEmbedded ? 'embedded_page' : undefined,
@@ -137,7 +154,18 @@ router.post('/checkout/session', async (req, res) => {
                 ? { return_url: successUrl }
                 : { success_url: successUrl, cancel_url: cancelUrl }),
             integration_identifier: `competitorTest${randomSuffix()}`,
-        });
+        };
+        // Theme the embedded iframe. If Stripe ever rejects a branding value, retry without it — styling must never
+        // be the reason a checkout cannot be created.
+        const branding = isEmbedded ? sanitizeBranding(req.body.branding_settings) : undefined;
+        let session;
+        try {
+            session = await stripe().checkout.sessions.create(branding ? { ...params, branding_settings: branding } : params);
+        } catch (brandingError) {
+            if (!branding || !/branding_settings/i.test(`${brandingError.param || ''} ${brandingError.message || ''}`)) throw brandingError;
+            log('warn', '/checkout/session', 'branding_rejected_retrying_without', { stripe_error: brandingError.message });   // not `message`: log() spreads data after its own message key
+            session = await stripe().checkout.sessions.create(params);
+        }
         log('info', '/checkout/session', 'session_created', { id: session.id, mode: isEmbedded ? 'embedded' : 'hosted' });
         res.json(session);
     } catch (error) {

@@ -22,6 +22,8 @@
     // One authentication buys one payment: once a payment has been created against a session id it is recorded
     // here ({ [sid]: { payment_id, approved, status, response_code, at } }) and Step 3 stays locked for that sid.
     const LS_CONSUMED  = 'cko-suite-3ds-consumed';
+    const SS_NTC       = 'cko-suite-ntc-results';       // Network Token scenario results + ids the webhook panel follows
+    const SS_RTAU      = 'cko-suite-rtau-results';     // RTAU case-runner results + the ids the webhook panel should follow
     const SS_WH_SEEN   = 'cko-suite-wh-seen';          // webhook events already shown + logged in THIS tab (same lifetime as the API log)
     // Step 3 may only open for a status that is explicitly terminal. Anything else — pending, processing,
     // challenged, or a status this tester has never seen — counts as "authentication not finished".
@@ -103,6 +105,8 @@
         sid: null, session: null, redirectHref: null, sessionSource: null, prefilled: {}, pollTimer: null, pollStatus: null, pollStarted: 0,
         payAuth: 'sid',
         lastPaymentId: null,
+        ntcGroup: 'prov', ntcResults: {}, ntcEnv: {}, ntcRunning: null, ntcBatch: false, ntcActive: null, ntIds: [],
+        rtauGroup: 'visa', rtauResults: {}, rtauEnv: {}, rtauIds: [], rtauRunning: null, rtauBatch: false, rtauActive: null,
         whTimer: null, whPaused: false, whAll: new Map(), whSeen: new Set(), whBaselined: false,
         resText: {},
     };
@@ -443,7 +447,7 @@
             html += `<details class="sa-details"><summary>${esc(n.title)} cards</summary><div class="sa-tc-group"><div class="sa-tc-sum">${esc(n.summary)}</div>
                 <div>${n.cards.map(c => chip(c.number, c.scheme)).join('')}</div></div></details>`;
         } else if (p === 'nt') {
-            html += `<div class="sa-tc-group"><div>${SUITE_NT_CARDS.map(c => chip(c.number, c.scheme, ` <small>— ${esc(c.note)}</small>`)).join('<br>')}</div>
+            html += `<div class="sa-tc-group"><div>${SUITE_NT_CARDS.map(c => chip(c.number, c.scheme, ` <small><code>${esc(c.number)}</code> — ${esc(c.note)}</small>`)).join('<br>')}</div>
                 <div class="sa-tc-sum" style="margin-top:8px;">Tip: provision with a saved instrument to test the “card stored with Checkout.com” path (<code>source.type = id</code>); use a raw card for the “merchant-stored card” path.</div></div>`;
         } else if (p === 'meta') {
             const rowTxt = (c) => {
@@ -453,7 +457,12 @@
             html += `<div class="sa-tc-group"><div class="sa-tc-sum">Values are <em>domestic / cross-border</em>. Click a card to load it (use format <code>card_payouts</code>); the result is checked against these expectations.</div>
                 ${SUITE_METADATA_CARDS.map(c => `<div style="margin:4px 0;">${chip(c.number, c.scheme)} <span class="sa-note">${esc(rowTxt(c))}</span></div>`).join('')}</div>`;
         } else if (p === 'au') {
-            html += `<div class="sa-tc-group"><div class="sa-tc-sum">No CKO-published test cards. Type any card number your team has been given into <strong>Raw test card</strong>, or save it as an instrument via <strong>New card</strong>.</div></div>`;
+            html += RTAU_GROUPS.map(g => `<div class="sa-tc-group"><div class="sa-tc-head"><span class="sa-tc-title">${esc(g.title)}</span><span class="sa-tc-tag">${g.cases.filter(c => !c.extra).length} doc cases · see section C</span></div>
+                <div class="sa-tc-sum">${esc(g.id === 'visa' ? 'One card; the amount (and for two cases the expiry) selects the outcome. Pay with a Source ID, merchant_initiated = true.'
+                    : g.id === 'mc-ur' ? 'Two cards: …73 updates the card number, …65 updates the expiry. The amount selects the decline.'
+                    : 'The trailing digit(s) of the number pick the case — every number below is Luhn-valid.')}</div>
+                <div>${g.cards.map(c => chip(c.number, c.scheme, ` <small><code>${esc(c.number)}</code> — ${esc(c.note)}</small>`)).join('<br>')}</div></div>`).join('')
+                + `<div class="sa-tc-sum">Click a card to load it into the raw card form, then <strong>Save this card as an instrument</strong> to pay with its Source ID — or just use the case runner in section C, which does both for you.</div>`;
         }
         const label = { '3ds': '3DS test cards by outcome', nt: 'Network token test cards', au: 'Account updater test data', meta: 'Card metadata test cards' }[p] || 'Test cards';
         box.innerHTML = `<details class="sa-details" id="sa-tc-details" style="margin:0;"><summary>${label} — click to expand</summary>${html}</details>`;
@@ -650,6 +659,7 @@
             processing_channel_id: projectChannel(),
         };
         if (checked('sa-rt-mit') && val('sa-rt-prev')) body.previous_payment_id = val('sa-rt-prev');
+        if (val('sa-rt-pan')) body.processing = { pan_preference: val('sa-rt-pan') };
         return body;
     }
 
@@ -675,7 +685,7 @@
                 set('sa-3ds-preview', () => buildSessionBody(true));
                 set('sa-pay-preview', () => buildAuthorizeBody(true));
                 break;
-            case 'nt': set('sa-nt-preview', () => buildProvisionBody(true)); break;
+            case 'nt': set('sa-nt-preview', () => buildProvisionBody(true)); set('sa-ntp-preview', buildNtPayBody); break;
             case 'au':
                 set('sa-au-preview', buildAuBody);
                 set('sa-rt-preview', buildRtauBody);
@@ -1230,7 +1240,8 @@
         const body = {
             source: paymentSource(src), amount: parseInt(val('sa-nt-pay-amount'), 10), currency: val('sa-nt-pay-currency'),
             capture: true, reference: `suite-nt-${Date.now().toString().slice(-8)}`, processing_channel_id: projectChannel(),
-            processing: { provision_network_token: checked('sa-nt-pay-provision') },
+            processing: { provision_network_token: checked('sa-nt-pay-provision'), ...(val('sa-nt-pay-pan') ? { pan_preference: val('sa-nt-pay-pan') } : {}) },
+            ...(checked('sa-nt-pay-mit') ? { merchant_initiated: true } : {}),
         };
         const env = await callLegacy('POST', '/payments', { body, label: 'POST /payments (Suite — payment-time NT provisioning)' });
         const p = env.data?.payment || env.data;
@@ -1241,30 +1252,306 @@
         ]) + `<div class="sa-note">${pan === 'fpan' ? 'Processed with the full PAN — provisioning (if requested) happens asynchronously; pay again with the same card to see the token used.' : ''}</div>`);
     }
 
-    async function payWithNt() {
+    // The cryptogram response only carries an eci for some schemes (Visa returns "07"; Mastercard/MDES returns none).
+    // A missing eci must stay missing — never the string "undefined" — so the field is left blank and omitted from the request.
+    const eciFromCryptogram = (c) => (c && c.eci !== undefined && c.eci !== null && String(c.eci) !== '') ? String(c.eci).padStart(2, '0') : '';
+
+    function fillNtPay(nt, crypto) {
+        const set = (id, v) => { const e = $(id); if (e) e.value = v; };
+        set('sa-ntp-token', String(nt.number || '')); set('sa-ntp-month', parseInt(nt.expiry_month, 10) || ''); set('sa-ntp-year', parseInt(nt.expiry_year, 10) || '');
+        set('sa-ntp-type', ['vts', 'mdes', 'applepay', 'googlepay'].includes(nt.type) ? nt.type : 'vts');
+        set('sa-ntp-cryptogram', crypto?.cryptogram || ''); set('sa-ntp-eci', eciFromCryptogram(crypto));
+    }
+
+    function buildNtPayBody() {
+        const eci = val('sa-ntp-eci').trim();
+        const source = { type: 'network_token', token: val('sa-ntp-token').trim(), expiry_month: parseInt(val('sa-ntp-month'), 10) || null, expiry_year: parseInt(val('sa-ntp-year'), 10) || null,
+            token_type: val('sa-ntp-type'), cryptogram: val('sa-ntp-cryptogram').trim() };
+        if (eci) source.eci = eci;                        // omitted entirely when blank
+        return { source, amount: parseInt(val('sa-nt-pay-amount'), 10), currency: val('sa-nt-pay-currency'), capture: true,
+            reference: `suite-nt-${Date.now().toString().slice(-8)}`, processing_channel_id: projectChannel(),
+            ...(checked('sa-nt-pay-mit') ? { merchant_initiated: true } : {}) };
+    }
+
+    // Always fetches a fresh cryptogram for the selected token and fills the fields.
+    async function refreshNtPayFields() {
         const id = currentNtId();
-        if (!id) return showToast('Select or enter a network token id', 'error');
+        if (!id) { showToast('Select or enter a network token id', 'error'); return null; }
         let nt = ntList().find(n => n.id === id);
         if (!nt?.number) {                                  // typed-in id — fetch DPAN + expiry first
             const g = await call('GET', 'network-token', { query: { id } });
-            if (!g.ok) { renderResponse('sa-nt-pay-res', g, ''); return; }
+            if (!g.ok) { renderResponse('sa-nt-pay-res', g, ''); return null; }
             saveNtFromResponse(g.data);
             nt = ntList().find(n => n.id === id);
         }
-        const c = await call('POST', 'network-token-cryptogram', { query: { id }, body: { transaction_type: 'ecom' } });
-        if (!c.ok) { renderResponse('sa-nt-pay-res', c, ''); return; }
-        const body = {
-            source: {
-                type: 'network_token', token: String(nt.number), expiry_month: parseInt(nt.expiry_month, 10), expiry_year: parseInt(nt.expiry_year, 10),
-                token_type: nt.type === 'mdes' ? 'mdes' : 'vts', cryptogram: c.data.cryptogram, eci: String(c.data.eci).padStart(2, '0'),
-            },
-            amount: parseInt(val('sa-nt-pay-amount'), 10), currency: val('sa-nt-pay-currency'), capture: true,
-            reference: `suite-nt-${Date.now().toString().slice(-8)}`, processing_channel_id: projectChannel(),
-        };
+        const c = await call('POST', 'network-token-cryptogram', { query: { id }, body: { transaction_type: val('sa-nt-crypto-type') || 'ecom' } });
+        if (!c.ok) { renderResponse('sa-nt-pay-res', c, ''); return null; }
+        fillNtPay(nt, c.data);
+        refreshPreviews();
+        return nt;
+    }
+
+    async function payNtFromFields() {
+        if (!val('sa-ntp-token').trim() || !val('sa-ntp-cryptogram').trim()) return showToast('Fill the token and cryptogram first (or use “Pay with the selected network token”)', 'error');
+        const body = buildNtPayBody();
         const env = await callLegacy('POST', '/payments', { body, label: 'POST /payments (Suite — pay with network token)' });
         const p = env.data?.payment || env.data;
         env.data = p; trackPayment(p);
-        renderResponse('sa-nt-pay-res', env, paymentSummary(p, [['source.type', 'network_token'], ['eci', p?.eci], ['scheme_id', p?.scheme_id]]));
+        const hint43102 = p?.response_code === '43102' ? `<div class="sa-note"><strong>43102 — Visa AFT mandate compliance.</strong> On this account every Visa customer-initiated payment declines with this code regardless of the token; switch on <code>merchant_initiated</code> above.</div>` : '';
+        const hint20012 = p?.response_code === '20012' ? `<div class="sa-note"><strong>20012 — Invalid Transaction.</strong> A common cause with Mastercard tokens is an eci that belongs to another scheme (for example 05, which is a Visa value). Leave the eci blank or use 02.</div>` : '';
+        renderResponse('sa-nt-pay-res', env, paymentSummary(p, [['source.type', 'network_token'], ['sent eci', body.source.eci || '(omitted)'], ['response eci', p?.eci],
+            ['processing.pan_type_processed', p?.processing?.pan_type_processed], ['scheme_id', p?.scheme_id]]) + hint43102 + hint20012);
+    }
+
+    async function payWithNt() {
+        const nt = await refreshNtPayFields();
+        if (nt) await payNtFromFields();
+    }
+
+    // =====================================================================
+    // Network token scenarios (data: NT_GROUPS in data.js) — each case is a short script of steps
+    // =====================================================================
+    const ntcGroup = () => NT_GROUPS.find(g => g.id === state.ntcGroup) || NT_GROUPS[0];
+    const ntcCases = () => ntcGroup().cases.filter(c => !c.extra || checked('sa-ntc-extras'));
+    const findNtcCase = (id) => NT_GROUPS.flatMap(g => g.cases).find(c => c.id === id);
+
+    function loadNtcState() {
+        try { const o = JSON.parse(sessionStorage.getItem(SS_NTC) || '{}'); state.ntcResults = o.results || {}; state.ntIds = o.ids || []; } catch (e) { /* ignore */ }
+    }
+    function persistNtc() {
+        try { sessionStorage.setItem(SS_NTC, JSON.stringify({ results: state.ntcResults, ids: state.ntIds.slice(-60) })); } catch (e) { /* storage full */ }
+    }
+
+    const last4 = (n) => String(n).slice(-4);
+    function ntcStepText(st) {
+        const e = st.expect || {}, bits = [];
+        if (e.http !== undefined) bits.push('HTTP ' + [].concat(e.http).join('/'));
+        if (e.error) bits.push(e.error);
+        if (e.type) bits.push(e.type);
+        if (e.state) bits.push('state ' + e.state);
+        if (e.hasCryptogram) bits.push('cryptogram');
+        if (e.hasEci === true) bits.push('eci'); else if (e.hasEci === false) bits.push('no eci');
+        if (e.sameNt) bits.push('same token');
+        if (e.ntId) bits.push('network_token.id');
+        if (e.approved !== undefined) bits.push(e.approved ? 'approved ' + (e.code || '') : 'declined ' + (e.code || ''));
+        if (e.pan) bits.push(e.pan);
+        if (e.ntAvail) bits.push('token available');
+        if (e.respEci) bits.push('eci ' + e.respEci);
+        const what = {
+            instrument: `create Source ID ••${last4(st.card || '')}${st.provision ? ' + provision' : ''}`,
+            provision: st.via === 'id' ? 'provision (Source ID)' : `provision ••${last4(st.card || '')}${st.exp ? ' exp ' + st.exp : ''}`,
+            get: st.id ? 'get ' + st.id : 'get token', cryptogram: `cryptogram ${st.type}`, delete: `delete (${st.by}/${st.reason})`,
+            pay: `pay (${st.mode === 'nt' ? 'token, eci ' + st.eci + (st.badCrypto ? ', bad cryptogram' : '') : st.mode}${st.mit ? ', MIT' : ''}${st.pan ? ', ' + st.pan : ''}${st.provision ? ', provision' : ''})`,
+        }[st.op];
+        return `${what} → ${bits.join(' · ')}`;
+    }
+
+    function ntcWebhookChip(c) {
+        const r = state.ntcResults[c.id];
+        if (!c.webhook || !r || !r.ntId) return '';
+        const ev = [...state.whAll.values()].find(e => e.type === c.webhook && JSON.stringify(e.data || {}).includes(r.ntId));
+        if (ev) return `<span class="sa-badge good" title="${esc(jsonOf(ev.data))}">webhook: ${esc(c.webhook)} (${esc(ev.data?.network_token?.state || '?')})</span>`;
+        const mins = Math.floor((Date.now() - r.at) / 60000);
+        return `<span class="sa-badge soft-warn" title="Lifecycle webhooks are asynchronous and can be slow in sandbox">webhook: waiting ${mins ? mins + ' min' : '…'}</span>`;
+    }
+
+    function ntcResultChip(c) {
+        const r = state.ntcResults[c.id];
+        if (state.ntcRunning === c.id) return '<span class="sa-badge">running…</span>';
+        if (!r) return '<span class="sa-badge">not run</span>';
+        const known = ['deviates', 'broken', 'flaky'].includes(c.sandbox.s);
+        if (r.verdict === 'PASS') return '<span class="sa-badge good">PASS</span>';
+        if (r.verdict === 'ERROR') return '<span class="sa-badge bad">ERROR</span>';
+        return `<span class="sa-badge ${known ? 'soft-warn' : 'warn'}">DEVIATES${known ? ' (known)' : ''}</span>`;
+    }
+
+    function renderNtcGroups() {
+        const box = $('sa-ntc-groups');
+        if (!box) return;
+        box.innerHTML = NT_GROUPS.map(g => `<div class="sa-pill ${g.id === state.ntcGroup ? 'active' : ''}" data-sa-ntgroup="${esc(g.id)}">${esc(g.title)}</div>`).join('');
+        $('sa-ntc-blurb').textContent = ntcGroup().blurb;
+    }
+
+    function renderNtcCases() {
+        const box = $('sa-ntc-cases');
+        if (!box) return;
+        const g = ntcGroup(), busy = !!state.ntcRunning || state.ntcBatch;
+        const rows = ntcCases().map(c => {
+            const [bcls, btxt] = SANDBOX_BADGE[c.sandbox.s];
+            return `<tr class="${state.ntcActive === c.id ? 'sa-rt-active' : ''}">
+                <td>${esc(c.n)}</td>
+                <td><strong>${esc(c.title)}</strong>${c.extra ? ' <span class="sa-badge">extra</span>' : ''}<div class="sa-rt-sub">${esc(c.doc)}</div></td>
+                <td><ol style="margin:0; padding-left:16px;">${c.steps.map(st => `<li class="sa-rt-sub" style="margin:0 0 3px;">${esc(ntcStepText(st))}</li>`).join('')}</ol></td>
+                <td><span class="sa-badge ${bcls}" title="${esc(c.sandbox.note)}">${btxt}</span></td>
+                <td>${ntcResultChip(c)}<div style="margin-top:4px;">${ntcWebhookChip(c)}</div></td>
+                <td style="white-space:nowrap;">
+                    <button class="copy-btn" type="button" data-sa-nt-run="${esc(c.id)}" ${busy ? 'disabled' : ''}>${state.ntcRunning === c.id ? 'Running…' : 'Run'}</button>
+                    ${state.ntcResults[c.id] ? `<button class="copy-btn" type="button" data-sa-nt-report="${esc(c.id)}">Report</button>` : ''}
+                </td></tr>`;
+        }).join('');
+        box.innerHTML = `<div style="overflow-x:auto;"><table class="sa-rt-table"><thead><tr><th>#</th><th>Scenario</th><th>Steps and expectations</th><th>Sandbox</th><th>Result</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        $('sa-ntc-runall-btn').disabled = busy;
+        const all = ntcCases(), n = (v) => all.filter(c => state.ntcResults[c.id]?.verdict === v).length;
+        $('sa-ntc-summary').textContent = `${g.title}: ${n('PASS')} pass · ${n('DEVIATES')} deviate · ${n('ERROR')} error · ${all.filter(c => !state.ntcResults[c.id]).length} not run (${all.length} scenarios)`;
+    }
+
+    // One scripted step. Returns { env, fatal } and appends its checks to `rec`.
+    async function execNtcStep(st, ctx, rec) {
+        const E = st.expect || {};
+        const add = (label, expected, actual, ok) => rec.checks.push({ label, expected: String(expected), actual: String(actual), state: ok ? 'ok' : 'no' });
+        const httpOk = (act) => [].concat(E.http).includes(act);
+        const errText = (env) => JSON.stringify(env.data?.error_codes ?? env.data ?? '');
+        const needNt = () => { if (!ctx.nt?.id) { add('prerequisite', 'a token from an earlier step', 'none', false); return false; } return true; };
+        const common = (env) => {
+            if (E.http !== undefined) add('HTTP status', [].concat(E.http).join(' / '), env.upstream_status, httpOk(env.upstream_status));
+            if (E.error) add('error code', E.error, errText(env).slice(0, 110), errText(env).includes(E.error));
+        };
+
+        if (st.op === 'instrument') {
+            const body = { type: 'card', number: st.card, expiry_month: '12', expiry_year: '2030', name: 'NT Test', cvv: '100', processing_channel_id: projectChannel(), ...(st.provision ? { network_token: { provision: true } } : {}) };
+            rec.label = `Create a Source ID from ••${last4(st.card)}${st.provision ? ' with network_token.provision = true' : ''}`;
+            const env = await call('POST', 'instruments', { body, label: `POST /instruments (NT scenario)` });
+            common(env);
+            if (env.ok) ctx.inst = env.data;
+            if (E.ntId) add('network_token.id in the response', 'nt_…', env.data?.network_token?.id || '—', /^nt_/.test(env.data?.network_token?.id || ''));
+            if (E.state) add('network_token.state', E.state, env.data?.network_token?.state || '—', env.data?.network_token?.state === E.state);
+            if (env.data?.network_token?.id) { ctx.nt = { id: env.data.network_token.id }; state.ntIds.push(env.data.network_token.id); }
+            return { env, fatal: !env.ok && !E.http?.toString().startsWith('4') };
+        }
+        if (st.op === 'provision') {
+            const viaId = st.via === 'id';
+            if (viaId && !ctx.inst?.id) { add('prerequisite', 'a Source ID from an earlier step', 'none', false); return { fatal: true }; }
+            const body = { source: viaId ? { type: 'id', id: ctx.inst.id } : { type: 'card', number: st.card, expiry_month: '12', expiry_year: st.exp || '2030' } };
+            rec.label = viaId ? 'Provision from the Source ID' : `Provision from card ••${last4(st.card)}${st.exp ? ' (expiry 12/' + st.exp + ')' : ''}`;
+            const env = await call('POST', 'network-tokens', { body, label: 'POST /network-tokens (NT scenario)' });
+            common(env);
+            const t = env.data?.network_token;
+            if (E.type) add('token type', E.type, t?.type || '—', t?.type === E.type);
+            if (E.state) add('token state', E.state, t?.state || '—', t?.state === E.state);
+            if (E.sameNt) add('same token as before', ctx.nt?.id || '—', t?.id || '—', !!t?.id && t.id === ctx.nt?.id);
+            if (env.ok && t?.id) { ctx.nt = { ...t }; state.ntIds.push(t.id); }
+            return { env };
+        }
+        if (st.op === 'get') {
+            const id = st.id || ctx.nt?.id;
+            if (!id) { needNt(); return { fatal: true }; }
+            rec.label = st.id ? `Get ${st.id}` : 'Get the token';
+            const env = await call('GET', 'network-token', { query: { id }, label: 'GET /network-tokens/{id} (NT scenario)' });
+            common(env);
+            if (E.state) add('token state', E.state, env.data?.network_token?.state || '—', env.data?.network_token?.state === E.state);
+            return { env };
+        }
+        if (st.op === 'cryptogram') {
+            if (!needNt()) return { fatal: true };
+            rec.label = `Request a cryptogram (${st.type})`;
+            const env = await call('POST', 'network-token-cryptogram', { query: { id: ctx.nt.id }, body: { transaction_type: st.type }, label: 'POST /network-tokens/{id}/cryptograms (NT scenario)' });
+            common(env);
+            if (E.hasCryptogram !== undefined) add('cryptogram returned', E.hasCryptogram ? 'yes' : 'no', env.data?.cryptogram ? 'yes' : 'no', !!env.data?.cryptogram === E.hasCryptogram);
+            if (E.hasEci !== undefined) add('eci in the response', E.hasEci ? 'yes' : 'no', env.data?.eci !== undefined ? 'yes (' + env.data.eci + ')' : 'no', (env.data?.eci !== undefined) === E.hasEci);
+            if (env.ok) ctx.crypto = env.data;
+            return { env };
+        }
+        if (st.op === 'delete') {
+            if (!needNt()) return { fatal: true };
+            rec.label = `Delete the token (${st.by} / ${st.reason})`;
+            const env = await call('POST', 'network-token-delete', { query: { id: ctx.nt.id }, body: { initiated_by: st.by, reason: st.reason }, label: 'PATCH /network-tokens/{id}/delete (NT scenario)' });
+            common(env);
+            return { env };
+        }
+        if (st.op === 'pay') {
+            const amount = 100;
+            let source;
+            if (st.mode === 'nt') {
+                if (!needNt() || !ctx.crypto?.cryptogram) { if (!ctx.crypto?.cryptogram) add('prerequisite', 'a cryptogram from an earlier step', 'none', false); return { fatal: true }; }
+                const eci = st.eci === 'omit' ? '' : st.eci === 'cryptogram' ? eciFromCryptogram(ctx.crypto) : st.eci;
+                source = { type: 'network_token', token: String(ctx.nt.number), expiry_month: parseInt(ctx.nt.expiry_month, 10), expiry_year: parseInt(ctx.nt.expiry_year, 10),
+                    token_type: st.tokenType || ctx.nt.type, cryptogram: st.badCrypto ? 'AAAAAAAAAAAAAAAAAAAAAAAAAAAA' : ctx.crypto.cryptogram, ...(eci ? { eci } : {}) };
+                rec.label = `Pay with the token — eci ${source.eci || 'omitted'}${st.badCrypto ? ', deliberately wrong cryptogram' : ''}${st.mit ? ', merchant-initiated' : ''}`;
+            } else if (st.mode === 'card') {
+                source = { number: st.card, expiry_month: '12', expiry_year: '2030', cvv: '100' };
+                rec.label = `Pay with the full card ••${last4(st.card)}${st.provision ? ' and ask for provisioning' : ''}`;
+            } else {
+                if (!ctx.inst?.id) { add('prerequisite', 'a Source ID from an earlier step', 'none', false); return { fatal: true }; }
+                source = { id: ctx.inst.id };
+                rec.label = `Pay with the stored Source ID${st.pan ? ' and pan_preference = ' + st.pan : ''}`;
+            }
+            const body = { source, amount, currency: 'GBP', capture: true, reference: `ntc-${String(Date.now()).slice(-7)}`, processing_channel_id: projectChannel(),
+                ...(st.mit ? { merchant_initiated: true } : {}),
+                ...(st.provision || st.pan ? { processing: { ...(st.provision ? { provision_network_token: true } : {}), ...(st.pan ? { pan_preference: st.pan } : {}) } } : {}) };
+            const env = await callLegacy('POST', '/payments', { body, label: 'POST /payments (NT scenario)' });
+            const p = env.data?.payment || env.data;
+            env.data = p;
+            if (!p?.id) { add('payment created', 'a payment', `HTTP ${env.upstream_status} ${p?.error_codes ? p.error_codes.join(', ') : ''}`, false); return { env, fatal: true }; }
+            rec.paymentId = p.id; state.ntIds.push(p.id);
+            if (E.approved !== undefined) add('payment outcome', E.approved ? 'approved' : 'declined', p.approved ? 'approved' : 'declined', !!p.approved === E.approved);
+            if (E.code) add('response_code', E.code, `${p.response_code}${p.response_summary ? ' (' + p.response_summary + ')' : ''}`, p.response_code === E.code);
+            if (E.pan) add('processing.pan_type_processed', E.pan, p.processing?.pan_type_processed || '—', p.processing?.pan_type_processed === E.pan);
+            if (E.ntAvail) add('cko_network_token_available', 'true', String(p.processing?.cko_network_token_available), p.processing?.cko_network_token_available === true);
+            if (E.respEci) add('eci in the payment response', E.respEci, p.eci || '—', p.eci === E.respEci);
+            return { env };
+        }
+        return { fatal: true };
+    }
+
+    async function runNtcCase(c) {
+        state.ntcRunning = c.id; state.ntcActive = c.id; renderNtcCases();
+        const ctx = { inst: null, nt: null, crypto: null }, steps = [];
+        let verdict = 'PASS', lastEnv = null;
+        try {
+            for (const [i, st] of c.steps.entries()) {
+                const rec = { n: i + 1, label: st.op, checks: [] };
+                steps.push(rec);
+                const out = await execNtcStep(st, ctx, rec);
+                if (out.env) lastEnv = out.env;
+                if (rec.checks.some(k => k.state === 'no')) verdict = 'DEVIATES';
+                if (out.fatal) { if (verdict === 'PASS') verdict = 'ERROR'; break; }
+            }
+        } catch (e) {
+            verdict = 'ERROR';
+            steps.push({ n: steps.length + 1, label: 'Unexpected error', checks: [{ label: 'error', expected: '—', actual: e.message, state: 'no' }] });
+        } finally {
+            state.ntcResults[c.id] = { verdict, steps, ntId: ctx.nt?.id || null, at: Date.now() };
+            state.ntcEnv[c.id] = lastEnv;
+            state.ntcRunning = null;
+            persistNtc();
+            syncWebhookFollow();
+            renderNtcCases();
+            renderNtcReport(c.id);
+        }
+    }
+
+    async function runAllNtc() {
+        const btn = $('sa-ntc-runall-btn');
+        if (state.ntcRunning || state.ntcBatch) return;
+        state.ntcBatch = true; btn.disabled = true;
+        const label = btn.textContent; btn.textContent = 'Running scenarios…';
+        renderNtcCases();
+        try {
+            for (const c of ntcCases()) { await runNtcCase(c); await new Promise(r => setTimeout(r, 250)); }
+            showToast(`${ntcGroup().title}: all scenarios run — see the table`);
+        } finally { state.ntcBatch = false; btn.textContent = label; renderNtcCases(); }
+    }
+
+    function renderNtcReport(id) {
+        const c = findNtcCase(id), r = state.ntcResults[id], box = $('sa-ntc-report');
+        if (!c || !r || !box) return;
+        state.ntcActive = id;
+        const [bcls, btxt] = SANDBOX_BADGE[c.sandbox.s];
+        const stepsHtml = r.steps.map(st => {
+            const rows = st.checks.map(k => `<div class="${k.state}">${k.state === 'ok' ? '✓' : '✗'}</div><div>${esc(k.label)}</div><div><code>${esc(k.expected)}</code></div><div><code>${esc(k.actual)}</code></div>`).join('');
+            return `<div class="sa-sub" style="margin:12px 0 2px;">Step ${st.n} · ${esc(st.label)}</div>${rows ? `<div class="sa-chk"><div class="h"></div><div class="h">Check</div><div class="h">Expected</div><div class="h">Actual</div>${rows}</div>` : ''}${st.paymentId ? `<div class="sa-note">payment <code>${esc(st.paymentId)}</code></div>` : ''}`;
+        }).join('');
+        const html = `
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;"><strong>Scenario ${esc(c.n)} — ${esc(c.title)}</strong> ${ntcResultChip(c)} <span class="sa-badge ${bcls}">sandbox: ${btxt}</span></div>
+            <div class="sa-note"><em>${esc(c.doc)}</em></div>
+            <div class="sa-note" style="margin-top:4px;"><strong>Observed in sandbox:</strong> ${esc(c.sandbox.note)}</div>
+            ${stepsHtml}
+            <div class="sa-note" style="margin-top:8px;">${r.ntId ? `Token <code>${esc(r.ntId)}</code>` : ''} ${ntcWebhookChip(c)}</div>
+            <div class="sa-note" style="margin-top:6px;">The raw response of the last step follows.</div>`;
+        const env = state.ntcEnv[id];
+        if (env) renderResponse('sa-ntc-report', env, html);
+        else { box.style.display = 'block'; box.innerHTML = `<div class="sa-res-body">${html}</div>`; }
+        renderNtcCases();
     }
 
     // =====================================================================
@@ -1316,6 +1603,278 @@
     }
 
     // =====================================================================
+    // RTAU simulator test cases (data: RTAU_GROUPS in data.js)
+    // =====================================================================
+    const rtauGroup = () => RTAU_GROUPS.find(g => g.id === state.rtauGroup) || RTAU_GROUPS[0];
+    const rtauCases = () => rtauGroup().cases.filter(c => !c.extra || checked('sa-rtau-extras'));
+    const findRtauCase = (id) => RTAU_GROUPS.flatMap(g => g.cases).find(c => c.id === id);
+    const expKey = (c) => `${+c.exp[0]}/${c.exp[1]}`;
+
+    function loadRtauState() {
+        try { const o = JSON.parse(sessionStorage.getItem(SS_RTAU) || '{}'); state.rtauResults = o.results || {}; state.rtauIds = o.ids || []; } catch (e) { /* ignore */ }
+    }
+    function persistRtau() {
+        try { sessionStorage.setItem(SS_RTAU, JSON.stringify({ results: state.rtauResults, ids: state.rtauIds.slice(-60) })); } catch (e) { /* storage full */ }
+    }
+
+    // What the document expects, in one line.
+    function rtauExpectText(c) {
+        const E = c.expect, bits = [];
+        if (c.store) {
+            const sy = E.sync;
+            bits.push(sy.http === 502 ? 'Standalone check: HTTP 502 (scheme error)' : `Standalone check: ${sy.status}${sy.failure ? ' / ' + sy.failure : ''}`);
+            bits.push(E.webhook === 'none' ? 'no webhook' : `webhook card_updated (${E.reason})${E.webhook === 'delayed' ? ', delayed' : ''}`);
+            return bits.join(' · ');
+        }
+        if (E.approved !== undefined) bits.push(E.approved ? 'Approved' + (E.codes ? ' ' + E.codes[0] : '') : 'Declined ' + (E.codes ? E.codes.join('/') : ''));
+        if (E.update === 'none') bits.push('no update');
+        else if (E.update) bits.push(E.update);
+        if (E.failure) bits.push(E.failure);
+        if (E.newBin) bits.push(`→ ${E.newBin} ••${E.newLast4}${E.newExp ? ' ' + E.newExp : ''}`);
+        else if (E.newExp) bits.push('→ ' + E.newExp);
+        if (E.changed && !E.newBin) bits.push('card details change');
+        bits.push(E.webhook === 'none' ? 'no webhook' : 'webhook card_updated');
+        return bits.join(' · ');
+    }
+
+    const SANDBOX_BADGE = { works: ['soft-good', 'works'], flaky: ['soft-warn', 'flaky'], deviates: ['soft-warn', 'deviates from doc'], broken: ['soft-bad', 'not supported'] };
+
+    function rtauWebhookChip(c) {
+        const r = state.rtauResults[c.id];
+        if (!r || !r.instrumentId || r.verdict === 'ERROR') return '';
+        const ev = [...state.whAll.values()].find(e => e.type === 'card_updated' && JSON.stringify(e.data || {}).includes(r.instrumentId));
+        const exp = c.expect.webhook;
+        if (ev) {
+            const reason = ev.data?.reason_type;
+            const ok = !c.expect.reason || reason === c.expect.reason || c.expect.reason === 'card_updated' && !!reason;
+            return `<span class="sa-badge ${ok ? 'good' : 'warn'}" title="${esc(jsonOf(ev.data))}">webhook: card_updated (${esc(reason || '?')})</span>`;
+        }
+        if (exp === 'none') return '<span class="sa-badge soft-good">webhook: none expected</span>';
+        const mins = Math.floor((Date.now() - r.at) / 60000);
+        return `<span class="sa-badge soft-warn" title="card_updated is asynchronous and can be slow or missing in sandbox">webhook: waiting ${mins ? mins + ' min' : '…'}${exp === 'delayed' ? ' (delayed case)' : ''}</span>`;
+    }
+
+    function rtauResultChip(c) {
+        const r = state.rtauResults[c.id];
+        if (state.rtauRunning === c.id) return '<span class="sa-badge">running…</span>';
+        if (!r) return '<span class="sa-badge">not run</span>';
+        const known = ['deviates', 'broken', 'flaky'].includes(c.sandbox.s);
+        if (r.verdict === 'PASS') return '<span class="sa-badge good">PASS</span>';
+        if (r.verdict === 'ERROR') return '<span class="sa-badge bad">ERROR</span>';
+        return `<span class="sa-badge ${known ? 'soft-warn' : 'warn'}">DEVIATES${known ? ' (known)' : ''}</span>`;
+    }
+
+    function renderRtauGroups() {
+        const box = $('sa-rtau-groups');
+        if (!box) return;
+        box.innerHTML = RTAU_GROUPS.map(g => `<div class="sa-pill ${g.id === state.rtauGroup ? 'active' : ''}" data-sa-rtgroup="${esc(g.id)}">${esc(g.title)}</div>`).join('');
+        const g = rtauGroup();
+        $('sa-rtau-blurb').textContent = g.blurb;
+        const fp = $('sa-rtau-fpan');
+        if (fp) fp.closest('.sa-toggle').style.display = g.id === 'mc-su' ? 'none' : '';
+    }
+
+    function renderRtauCases() {
+        const box = $('sa-rtau-cases');
+        if (!box) return;
+        const g = rtauGroup(), busy = !!state.rtauRunning || state.rtauBatch;      // a batch keeps everything locked between cases too
+        const rows = rtauCases().map(c => {
+            const [bcls, btxt] = SANDBOX_BADGE[c.sandbox.s];
+            const how = c.store ? `<code>${esc(c.card)}</code><div class="sa-rt-sub">create a Source ID · ${esc(c.exp.join('/'))}</div>`
+                : `<code>${esc(c.card)}</code> · exp ${esc(c.exp.join('/'))}<div class="sa-rt-sub">amount <strong>${c.amount}</strong> · MIT ${c.mit ? 'yes' : 'no'} · ${c.via === 'id' ? 'Source ID' : 'raw card'}${c.pan === 'omit' ? ' · no pan_preference' : ''}</div>`;
+            return `<tr class="${state.rtauActive === c.id ? 'sa-rt-active' : ''}">
+                <td>${esc(c.n)}</td>
+                <td><strong>${esc(c.title)}</strong>${c.extra ? ' <span class="sa-badge">extra</span>' : ''}${c.needsIA ? ' <span class="sa-badge soft-warn">IA merchant</span>' : ''}<div class="sa-rt-sub">${esc(c.doc)}</div></td>
+                <td>${how}</td>
+                <td>${esc(rtauExpectText(c))}</td>
+                <td><span class="sa-badge ${bcls}" title="${esc(c.sandbox.note)}">${btxt}</span></td>
+                <td>${rtauResultChip(c)}<div style="margin-top:4px;">${rtauWebhookChip(c)}</div></td>
+                <td style="white-space:nowrap;">
+                    <button class="copy-btn" type="button" data-sa-rt-run="${esc(c.id)}" ${busy ? 'disabled' : ''}>${state.rtauRunning === c.id ? 'Running…' : 'Run'}</button>
+                    <button class="copy-btn" type="button" data-sa-rt-load="${esc(c.id)}" ${busy ? 'disabled' : ''} title="Load this case into the card source and manual panels above">Load</button>
+                    ${state.rtauResults[c.id] ? `<button class="copy-btn" type="button" data-sa-rt-report="${esc(c.id)}">Report</button>` : ''}
+                </td></tr>`;
+        }).join('');
+        box.innerHTML = `<div style="overflow-x:auto;"><table class="sa-rt-table"><thead><tr><th>#</th><th>Case (as written in the doc)</th><th>Card · request</th><th>Expected</th><th>Sandbox</th><th>Result</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        $('sa-rtau-runall-btn').disabled = busy;
+        const all = rtauCases();
+        const n = (v) => all.filter(c => state.rtauResults[c.id]?.verdict === v).length;
+        const notRun = all.filter(c => !state.rtauResults[c.id]).length;
+        $('sa-rtau-summary').textContent = `${g.title}: ${n('PASS')} pass · ${n('DEVIATES')} deviate · ${n('ERROR')} error · ${notRun} not run (${all.length} cases)`;
+    }
+
+    // ----- scoring -----
+    function checksFor(c, p) {
+        const E = c.expect, src = p.source || {}, out = [];
+        const add = (label, expected, actual, ok, warn) => out.push({ label, expected: String(expected), actual: String(actual), state: ok ? 'ok' : warn ? 'wn' : 'no' });
+        if (E.approved !== undefined) add('Payment outcome', E.approved ? 'approved' : 'declined', p.approved ? 'approved' : 'declined', !!p.approved === E.approved);
+        if (E.codes) add('response_code', E.codes.join(' / '), p.response_code ?? '—', E.codes.includes(p.response_code));
+        if (E.update !== undefined) { const a = src.account_update_status || 'none'; add('source.account_update_status', E.update, a, a === E.update); }
+        if (E.failure) add('source.account_update_failure_code', E.failure, src.account_update_failure_code || '—', src.account_update_failure_code === E.failure);
+        if (E.newBin) add('replacement BIN', E.newBin + '…', src.bin || '—', String(src.bin || '').startsWith(E.newBin));
+        if (E.newLast4) add('replacement last4', E.newLast4, src.last4 || '—', src.last4 === E.newLast4);
+        if (E.newExp) { const a = src.expiry_month ? `${src.expiry_month}/${src.expiry_year}` : '—'; add('replacement expiry', E.newExp, a, a === E.newExp); }
+        if (E.changed) {
+            const exp = src.expiry_month ? `${src.expiry_month}/${src.expiry_year}` : expKey(c);
+            const changed = !String(src.bin || '').startsWith(c.card.slice(0, 6)) || src.last4 !== c.card.slice(-4) || exp !== expKey(c);
+            add('card details changed', 'yes', changed ? `yes (${src.bin} ••${src.last4} ${exp})` : 'no', changed);
+        }
+        const pan = p.processing?.pan_type_processed;
+        if (pan === 'dpan' && ((E.update && E.update !== 'none') || E.changed)) add('processed with the full PAN', 'fpan', 'dpan — a network token was used, so RTAU was skipped (turn on pan_preference = fpan)', false, true);
+        return out;
+    }
+
+    function checksForStore(c, instEnv, syncEnv) {
+        const sy = c.expect.sync, out = [];
+        const add = (label, expected, actual, ok) => out.push({ label, expected: String(expected), actual: String(actual), state: ok ? 'ok' : 'no' });
+        add('Source ID created', 'src_…', instEnv.data?.id || `HTTP ${instEnv.upstream_status}`, !!instEnv.data?.id);
+        if (syncEnv) {
+            add('Standalone check — HTTP status', sy.http, syncEnv.upstream_status, syncEnv.upstream_status === sy.http);
+            const d = syncEnv.data || {};
+            if (sy.status) add('account_update_status', sy.status, d.account_update_status || d.update_status || '—', (d.account_update_status || d.update_status) === sy.status);
+            if (sy.failure) add('account_update_failure_code', sy.failure, d.account_update_failure_code || '—', d.account_update_failure_code === sy.failure);
+            if (sy.changed) {
+                const k = d.card, exp = k ? `${k.expiry_month}/${k.expiry_year}` : '—';
+                const changed = !!k && (!String(k.bin || '').startsWith(c.card.slice(0, 6)) || k.last4 !== c.card.slice(-4) || exp !== expKey(c));
+                add('card details changed', 'yes', changed ? `yes (${k.bin} ••${k.last4} ${exp})` : 'no', changed);
+            }
+        }
+        return out;
+    }
+
+    // ----- running a case -----
+    async function createRtauInstrument(c) {
+        const body = { type: 'card', number: c.card, expiry_month: c.exp[0], expiry_year: c.exp[1], name: 'RTAU Test', cvv: '100', processing_channel_id: projectChannel() };
+        return call('POST', 'instruments', { body, label: `POST /instruments (RTAU case ${c.id})` });
+    }
+
+    async function runRtauCase(c) {
+        state.rtauRunning = c.id; state.rtauActive = c.id; renderRtauCases();
+        const result = { verdict: 'ERROR', checks: [], instrumentId: null, paymentId: null, at: Date.now(), headline: '' };
+        let shownEnv = null;
+        try {
+            let inst = null;
+            if (c.via !== 'card') {
+                inst = await createRtauInstrument(c);
+                shownEnv = inst;
+                if (!inst.ok || !inst.data?.id) { result.headline = `Could not create the Source ID (HTTP ${inst.upstream_status})`; throw new Error('stop'); }
+                result.instrumentId = inst.data.id;
+                state.rtauIds.push(inst.data.id);
+            }
+            if (c.store) {
+                let sync = null;
+                sync = await call('POST', 'account-updater', { body: { source_options: { instrument: { id: inst.data.id } } }, label: `POST /account-updater/cards (RTAU case ${c.id})` });
+                shownEnv = sync;
+                result.checks = checksForStore(c, inst, sync);
+            } else {
+                const src = c.via === 'id' ? { id: inst.data.id, allow_update: true } : { number: c.card, expiry_month: c.exp[0], expiry_year: c.exp[1], cvv: '100', name: 'RTAU Test', allow_update: true };
+                const body = { source: src, amount: c.amount, currency: 'USD', merchant_initiated: c.mit, capture: true,
+                    reference: `rtau-${c.id}-${String(Date.now()).slice(-6)}`, processing_channel_id: projectChannel() };
+                if (c.pan !== 'omit' && checked('sa-rtau-fpan')) body.processing = { pan_preference: 'fpan' };
+                const env = await callLegacy('POST', '/payments', { body, label: `POST /payments (RTAU case ${c.id})` });
+                const p = env.data?.payment || env.data;
+                env.data = p; shownEnv = env;
+                if (!p?.id) { result.headline = `Payment request failed (HTTP ${env.upstream_status}) ${p?.error_codes ? p.error_codes.join(', ') : ''}`; throw new Error('stop'); }
+                result.paymentId = p.id; state.rtauIds.push(p.id);
+                result.checks = checksFor(c, p);
+                const s2 = p.source || {};
+                result.headline = `${p.approved ? 'Approved' : 'Declined'} ${p.response_code}${p.response_summary ? ' (' + p.response_summary + ')' : ''}${s2.account_update_status ? ' · ' + s2.account_update_status + (s2.account_update_failure_code ? '/' + s2.account_update_failure_code : '') : ''} · ${s2.bin || ''} ••${s2.last4 || ''} ${s2.expiry_month || ''}/${s2.expiry_year || ''}`;
+            }
+            result.verdict = result.checks.some(k => k.state === 'no') ? 'DEVIATES' : 'PASS';
+            if (c.store) result.headline = result.headline || `Source ID ${result.instrumentId} · Standalone check: ${shownEnv?.data?.account_update_status || ('HTTP ' + shownEnv?.upstream_status)}${shownEnv?.data?.account_update_failure_code ? '/' + shownEnv.data.account_update_failure_code : ''}`;
+        } catch (e) {
+            if (e.message !== 'stop') { result.headline = e.message; }
+        } finally {
+            result.at = Date.now();
+            state.rtauResults[c.id] = result;
+            state.rtauEnv[c.id] = shownEnv;
+            state.rtauRunning = null;
+            persistRtau();
+            syncWebhookFollow();
+            renderRtauCases();
+            renderRtauReport(c.id);
+        }
+    }
+
+    async function runAllRtau() {
+        const btn = $('sa-rtau-runall-btn');
+        if (state.rtauRunning || state.rtauBatch) return;
+        state.rtauBatch = true;
+        btn.disabled = true;
+        const label = btn.textContent; btn.textContent = 'Running cases…';
+        renderRtauCases();
+        try {
+            for (const c of rtauCases()) { await runRtauCase(c); await new Promise(r => setTimeout(r, 250)); }
+            showToast(`${rtauGroup().title}: all cases run — see the table`);
+        } finally { state.rtauBatch = false; btn.textContent = label; renderRtauCases(); }
+    }
+
+    function renderRtauReport(id) {
+        const c = findRtauCase(id), r = state.rtauResults[id];
+        const box = $('sa-rtau-report');
+        if (!c || !r || !box) return;
+        state.rtauActive = id;
+        const [bcls, btxt] = SANDBOX_BADGE[c.sandbox.s];
+        const rows = r.checks.map(k => `<div class="${k.state}">${k.state === 'ok' ? '✓' : k.state === 'wn' ? '!' : '✗'}</div><div>${esc(k.label)}</div><div><code>${esc(k.expected)}</code></div><div><code>${esc(k.actual)}</code></div>`).join('');
+        const html = `
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+                <strong>Case ${esc(c.n)} — ${esc(c.title)}</strong> ${rtauResultChip(c)} <span class="sa-badge ${bcls}">sandbox: ${btxt}</span>
+            </div>
+            <div class="sa-note" style="margin-bottom:8px;"><em>${esc(c.doc)}</em></div>
+            <div class="sa-note"><strong>Observed in sandbox:</strong> ${esc(c.sandbox.note)}</div>
+            ${r.headline ? `<div class="sa-note" style="margin-top:6px;"><strong>Result:</strong> ${esc(r.headline)}</div>` : ''}
+            ${rows ? `<div class="sa-chk"><div class="h"></div><div class="h">Check</div><div class="h">Document expects</div><div class="h">Actual</div>${rows}</div>` : ''}
+            <div class="sa-note">${r.instrumentId ? `Source ID <code>${esc(r.instrumentId)}</code> ` : ''}${r.paymentId ? `· payment <code>${esc(r.paymentId)}</code>` : ''}</div>
+            <div style="margin-top:6px;">${rtauWebhookChip(c)} <span class="sa-note">card_updated is asynchronous; matching events appear in Live Webhooks below and in the API log.</span></div>`;
+        const env = state.rtauEnv[id];
+        if (env) renderResponse('sa-rtau-report', env, html);
+        else { box.style.display = 'block'; box.innerHTML = `<div class="sa-res-body">${html}</div>`; }
+        renderRtauCases();
+    }
+
+    // Loads a case into the shared card source and the manual panels above, for hands-on variations.
+    async function loadRtauCase(c) {
+        const set = (id, v) => { const e = $(id); if (e) e.value = v; };
+        set('sa-raw-number', c.card); set('sa-raw-month', +c.exp[0]); set('sa-raw-year', c.exp[1]); set('sa-raw-cvv', '100');
+        if (c.via === 'card') { setMode('raw'); }
+        else {
+            const env = await createRtauInstrument(c);
+            if (!env.ok || !env.data?.id) { showToast(`Could not create the Source ID (HTTP ${env.upstream_status})`, 'error'); return; }
+            const d = env.data;
+            upsertInstrument({ id: d.id, scheme: d.scheme, last4: d.last4, bin: d.bin, expiry_month: d.expiry_month, expiry_year: d.expiry_year, card_type: d.card_type,
+                issuer_country: d.issuer_country, fingerprint: d.fingerprint, email: '', customer_id: '', created_at: new Date().toISOString(), label: `RTAU case ${c.id}` });
+            $('sa-show-all').checked = true;
+            setMode('saved'); renderInstrumentSelect(d.id);
+        }
+        if (!c.store) {
+            set('sa-rt-amount', c.amount); set('sa-rt-prev', '');
+            $('sa-rt-mit').checked = !!c.mit; $('sa-rt-allow').checked = true;
+            set('sa-rt-pan', c.pan === 'omit' ? '' : (checked('sa-rtau-fpan') ? 'fpan' : ''));
+        }
+        updateActiveSource(); refreshPreviews();
+        showToast(`Case ${c.n} loaded — ${c.store ? 'run the standalone updater (A)' : 'the manual RTAU panel (B) is ready'}`);
+        $(c.store ? 'sa-au-btn' : 'sa-rt-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Raw card → reusable Source ID (RTAU and several other flows only accept an instrument).
+    async function saveRawAsInstrument() {
+        const c = rawCard();
+        if (!c.number || !c.expiry_month || !c.expiry_year) return showToast('Fill in the raw card number and expiry first', 'error');
+        const body = { type: 'card', number: c.number, expiry_month: String(c.expiry_month), expiry_year: String(c.expiry_year), processing_channel_id: projectChannel() };
+        if (c.cvv) body.cvv = c.cvv;
+        if (c.name) body.name = c.name;
+        const customer = resolveCustomer();
+        if (customer.body) body.customer = customer.body;
+        const env = await call('POST', 'instruments', { body, label: 'POST /instruments (Suite — raw card → src_)' });
+        if (!env.ok || !env.data?.id) return showToast(`Instrument creation failed (HTTP ${env.upstream_status}) ${env.data?.error_codes ? env.data.error_codes.join(', ') : ''}`, 'error');
+        const d = env.data, cust = currentCustomer();
+        upsertInstrument({ id: d.id, scheme: d.scheme, last4: d.last4, bin: d.bin, expiry_month: d.expiry_month, expiry_year: d.expiry_year, card_type: d.card_type,
+            issuer_country: d.issuer_country, fingerprint: d.fingerprint, email: cust.email || '', customer_id: d.customer?.id || customer.body?.id || cust.customer_id || '', created_at: new Date().toISOString() });
+        showToast(`Saved ${d.id} — selected as the active card`);
+        setMode('saved'); renderInstrumentSelect(d.id); updateActiveSource(); refreshPreviews();
+    }
+
+    // =====================================================================
     // Card Metadata
     // =====================================================================
     const ELIG_COLOUR = { fast_funds: 'var(--success)', standard: '#f59e0b', not_supported: 'var(--error)', unknown: 'var(--text-secondary)' };
@@ -1361,8 +1920,8 @@
     function followIds() {
         const ids = [];
         if (state.product === '3ds' && state.sid) ids.push(state.sid);
-        if (state.product === 'nt' && currentNtId()) ids.push(currentNtId());
-        if (state.product === 'au') { const i = selectedInstrument(); if (i) ids.push(i.id); }
+        if (state.product === 'nt') { if (currentNtId()) ids.push(currentNtId()); ids.push(...state.ntIds); }
+        if (state.product === 'au') { const i = selectedInstrument(); if (i) ids.push(i.id); ids.push(...state.rtauIds); }
         const pid = state.product === '3ds' ? sessionPaymentId() : state.lastPaymentId;
         if (pid) ids.push(pid);
         return ids;
@@ -1473,7 +2032,7 @@
             }
             let added = 0;
             events.slice().sort((a, b) => String(a.received_at).localeCompare(String(b.received_at))).forEach(e => { if (ingestWebhook(e)) added++; });
-            if (added) { persistSeen(); renderWebhooks(); if (state.sid) scheduleSave(); }
+            if (added) { persistSeen(); renderWebhooks(); if (state.sid) scheduleSave(); if (state.product === 'nt') { renderNtcCases(); if (state.ntcActive && state.ntcResults[state.ntcActive]) renderNtcReport(state.ntcActive); } if (state.product === 'au') { renderRtauCases(); if (state.rtauActive && state.rtauResults[state.rtauActive]) renderRtauReport(state.rtauActive); } }
         } catch (e) { /* transient */ }
     }
 
@@ -1596,6 +2155,8 @@
     function init() {
         if (!$('sa-card-source')) return;     // tab HTML not present
         state.whSeen = loadSeen();
+        loadRtauState();
+        loadNtcState();
 
         // Dropdowns
         const cur = (CURRENCIES || []).map(c => c.iso4217);
@@ -1690,8 +2251,35 @@
         $('sa-nt-delete-btn').addEventListener('click', () => runBusy(['sa-nt-delete-btn', 'sa-nt-get-btn', 'sa-nt-crypto-btn'], 'Deleting…', deleteNt));
         $('sa-nt-forget-btn').addEventListener('click', forgetNt);
         $('sa-nt-id').addEventListener('change', syncWebhookFollow);
-        $('sa-nt-pay-provision-btn').addEventListener('click', () => runBusy(['sa-nt-pay-provision-btn', 'sa-nt-pay-token-btn'], 'Paying…', payProvision));
-        $('sa-nt-pay-token-btn').addEventListener('click', () => runBusy(['sa-nt-pay-token-btn', 'sa-nt-pay-provision-btn'], 'Paying with token…', payWithNt));
+        $('sa-nt-pay-provision-btn').addEventListener('click', () => runBusy(['sa-nt-pay-provision-btn', 'sa-nt-pay-token-btn', 'sa-ntp-pay-btn'], 'Paying…', payProvision));
+        $('sa-nt-pay-token-btn').addEventListener('click', () => runBusy(['sa-nt-pay-token-btn', 'sa-nt-pay-provision-btn', 'sa-ntp-pay-btn'], 'Paying with token…', payWithNt));
+
+        // Network token scenarios + editable pay-with-token form
+        renderNtcGroups(); renderNtcCases();
+        $('sa-ntc-groups').addEventListener('click', (ev) => { const t = ev.target.closest('[data-sa-ntgroup]'); if (!t) return; state.ntcGroup = t.dataset.saNtgroup; renderNtcGroups(); renderNtcCases(); });
+        $('sa-ntc-extras').addEventListener('change', renderNtcCases);
+        $('sa-ntc-cases').addEventListener('click', (ev) => {
+            const t = ev.target.closest('[data-sa-nt-run], [data-sa-nt-report]');
+            if (!t || t.disabled) return;
+            if (t.dataset.saNtRun) return runNtcCase(findNtcCase(t.dataset.saNtRun));
+            if (t.dataset.saNtReport) { renderNtcReport(t.dataset.saNtReport); $('sa-ntc-report').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        });
+        $('sa-ntc-runall-btn').addEventListener('click', runAllNtc);
+        $('sa-ntp-pay-btn').addEventListener('click', () => runBusy(['sa-ntp-pay-btn', 'sa-nt-pay-token-btn', 'sa-nt-pay-provision-btn'], 'Paying…', payNtFromFields));
+
+        // RTAU simulator cases
+        renderRtauGroups(); renderRtauCases();
+        $('sa-rtau-groups').addEventListener('click', (ev) => { const t = ev.target.closest('[data-sa-rtgroup]'); if (!t) return; state.rtauGroup = t.dataset.saRtgroup; renderRtauGroups(); renderRtauCases(); });
+        ['sa-rtau-fpan', 'sa-rtau-extras'].forEach(id => $(id).addEventListener('change', renderRtauCases));
+        $('sa-rtau-cases').addEventListener('click', (ev) => {
+            const t = ev.target.closest('[data-sa-rt-run], [data-sa-rt-load], [data-sa-rt-report]');
+            if (!t || t.disabled) return;
+            if (t.dataset.saRtRun) return runRtauCase(findRtauCase(t.dataset.saRtRun));
+            if (t.dataset.saRtLoad) return runBusy([], '', () => loadRtauCase(findRtauCase(t.dataset.saRtLoad)));
+            if (t.dataset.saRtReport) { renderRtauReport(t.dataset.saRtReport); $('sa-rtau-report').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        });
+        $('sa-rtau-runall-btn').addEventListener('click', runAllRtau);
+        $('sa-raw-save-btn').addEventListener('click', () => runBusy(['sa-raw-save-btn'], 'Saving…', saveRawAsInstrument));
 
         // Account updater / RTAU
         $('sa-au-btn').addEventListener('click', () => runBusy(['sa-au-btn'], 'Requesting update…', requestCardUpdate));

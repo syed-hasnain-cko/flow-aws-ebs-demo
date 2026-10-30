@@ -10,7 +10,12 @@
 
     let stripeClient = null;
     let cardNumberElement = null;
+    let cardExpiryElement = null;
+    let cardCvcElement = null;
     let webhookPollTimer = null;
+
+    // Theme bridge (partner-theme.js). Every use is guarded: if it is missing or throws, the payment flow is unaffected.
+    const themed = (fn, fallback) => { try { return window.PartnerTheme ? fn(window.PartnerTheme) : fallback; } catch (e) { console.warn('[stripe theme]', e); return fallback; } };
 
     async function stripeConfigFetch() {
         const res = await fetch(`${STRIPE_BASE()}/config`);
@@ -30,13 +35,17 @@
         stripeClient = Stripe(publishableKey);
         const elements = stripeClient.elements();
 
-        cardNumberElement = elements.create('cardNumber');
+        // `style` is how the legacy split elements are themed (the Appearance API does not cover them).
+        const style = themed(t => t.stripeCardStyle(), undefined);
+        const opts = style ? { style } : {};
+
+        cardNumberElement = elements.create('cardNumber', opts);
         cardNumberElement.mount('#stripe-card-number');
 
-        const cardExpiryElement = elements.create('cardExpiry');
+        cardExpiryElement = elements.create('cardExpiry', opts);
         cardExpiryElement.mount('#stripe-card-expiry');
 
-        const cardCvcElement = elements.create('cardCvc');
+        cardCvcElement = elements.create('cardCvc', opts);
         cardCvcElement.mount('#stripe-card-cvc');
 
         const errorsEl = document.getElementById('stripe-card-errors');
@@ -283,6 +292,8 @@
     // ─── Checkout mode (hosted / embedded) ────────────────────────────────
     let checkoutUiMode = 'hosted';
     let embeddedCheckoutInstance = null;
+    let embeddedCompleted = false;      // true once the buyer finished paying — a theme change must not replace a finished checkout
+    let embeddedCreating = false;
 
     async function onCreateCheckoutSession() {
         const statusEl = document.getElementById('stripe-checkout-status');
@@ -306,6 +317,11 @@
             return_base: window.location.origin,
             force_3ds: document.getElementById('stripe-checkout-force-3ds').checked,
         };
+        // Embedded Checkout is an iframe the page CSS cannot reach — theme it per session via branding_settings.
+        if (checkoutUiMode === 'embedded') {
+            const branding = themed(t => t.stripeBranding(), undefined);
+            if (branding) body.branding_settings = branding;
+        }
         const res = await fetch(`${STRIPE_BASE()}/checkout/session`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -332,9 +348,11 @@
                 // completes — it fires this callback instead. We navigate manually
                 // so the result lands on the same success.html every other flow uses.
                 onComplete: () => {
+                    embeddedCompleted = true;
                     window.location.href = `success.html?stripe_cos_id=${session.id}&partner=stripe`;
                 },
             });
+            embeddedCompleted = false;
             embeddedCheckoutInstance.mount('#stripe-checkout-embedded-container');
         } else {
             setStatus(statusEl, 'action', 'Redirecting to Stripe-hosted Checkout...');
@@ -348,6 +366,8 @@
     // NOT stripe.elements({clientSecret}) — that's the older PaymentIntent-
     // only Elements API and doesn't understand Checkout Sessions.
     let peCheckoutInstance = null;
+    let peClientSecret = null;
+    let pePaymentElement = null;
 
     async function onLoadPaymentElement() {
         const statusEl = document.getElementById('stripe-pe-status');
@@ -383,7 +403,20 @@
         setStatus(statusEl, 'ready', 'Payment Element mounted below.');
         document.getElementById('stripe-pe-form-container').style.display = 'block';
 
-        peCheckoutInstance = stripeClient.initCheckoutElementsSdk({ clientSecret: data.clientSecret });
+        peClientSecret = data.clientSecret;
+        mountPaymentElement();
+    }
+
+    // Appearance can only be set when the Checkout Elements SDK is initialised, so (re)mounting always goes through
+    // here — the first mount and every theme change use the same code path.
+    function mountPaymentElement() {
+        if (pePaymentElement) { try { pePaymentElement.destroy(); } catch (e) { /* already gone */ } pePaymentElement = null; }
+        document.getElementById('stripe-pe-payment-element').innerHTML = '';
+        const appearance = themed(t => t.stripeAppearance(), undefined);
+        peCheckoutInstance = stripeClient.initCheckoutElementsSdk({
+            clientSecret: peClientSecret,
+            ...(appearance ? { elementsOptions: { appearance } } : {}),
+        });
         // Not gating the Pay button on session.canConfirm — with only the Payment
         // Element mounted (no Address/Contact Element), canConfirm can stay false
         // even with valid card details entered, permanently disabling the button
@@ -392,9 +425,29 @@
         peCheckoutInstance.on('change', (session) => {
             document.getElementById('stripe-pe-pay-btn').textContent = `Pay ${session.total?.total?.amount ?? ''}`.trim();
         });
-        const paymentElement = peCheckoutInstance.createPaymentElement();
-        paymentElement.mount('#stripe-pe-payment-element');
+        pePaymentElement = peCheckoutInstance.createPaymentElement();
+        pePaymentElement.mount('#stripe-pe-payment-element');
     }
+
+    // ─── Theme changes ────────────────────────────────────────────────────
+    // Split card fields update in place (nothing typed is lost). The Payment Element and embedded Checkout cannot be
+    // restyled after creation, so they are re-created — but only while the buyer is still in the form.
+    function onThemeChanged() {
+        const style = themed(t => t.stripeCardStyle(), undefined);
+        if (style) [cardNumberElement, cardExpiryElement, cardCvcElement].forEach(el => { if (el) { try { el.update({ style }); } catch (e) { console.warn('[stripe theme] update failed', e); } } });
+
+        const peForm = document.getElementById('stripe-pe-form-container');
+        if (pePaymentElement && peClientSecret && peForm && peForm.style.display !== 'none') {
+            try { mountPaymentElement(); } catch (e) { console.warn('[stripe theme] Payment Element re-mount failed', e); }
+        }
+        if (embeddedCheckoutInstance && !embeddedCompleted && !embeddedCreating && checkoutUiMode === 'embedded'
+            && document.getElementById('stripe-checkout-embedded-container')?.childElementCount) {
+            embeddedCreating = true;
+            setStatus(document.getElementById('stripe-checkout-status'), 'action', 'Theme changed — re-creating the embedded Checkout with matching branding…');
+            Promise.resolve(onCreateCheckoutSession()).catch(e => console.warn('[stripe theme] embedded re-create failed', e)).finally(() => { embeddedCreating = false; });
+        }
+    }
+    if (window.PartnerTheme) window.PartnerTheme.onChange(onThemeChanged);
 
     async function onPaymentElementSubmit() {
         const statusEl = document.getElementById('stripe-pe-status');
