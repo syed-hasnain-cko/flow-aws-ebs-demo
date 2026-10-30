@@ -58,6 +58,7 @@
     /* The app has no disabled-button look; scoped to this tab so no other tab changes. */
     #standalone-tab .main-button:disabled { opacity:.4; cursor:not-allowed; filter:grayscale(.7); box-shadow:none; transform:none; }
     #sa-pay-gate { margin:0 0 14px; }
+    .sa-pill.disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
     #sa-flow-host { min-height:60px; }
     @media (max-width: 760px) { .sa-grid, .sa-grid.three { grid-template-columns:1fr; } }
 </style>
@@ -279,6 +280,7 @@
         <div class="sa-pill active" data-sa-auth="sid">Via session id (3ds.authentication_id)</div>
         <div class="sa-pill" data-sa-auth="data">Via full 3DS data (eci / cryptogram / xid / version)</div>
     </div>
+    <div id="sa-pay-mode-hint" class="sa-note" style="margin:-4px 0 12px;"></div>
     <div class="sa-grid three">
         <div><label for="sa-pay-amount">amount</label><input type="number" id="sa-pay-amount" class="text-input" value="100"></div>
         <div><label for="sa-pay-currency">currency</label><select id="sa-pay-currency" class="select-input"></select></div>

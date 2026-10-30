@@ -613,9 +613,48 @@
         return { locked: false, kind: 'ready', status: st };
     }
 
+    // The payment that belongs to the session on screen — and ONLY that one. It comes from the one-payment record,
+    // never from state.lastPaymentId (a tab-wide value that any payment in any panel overwrites).
+    function sessionPaymentId() { return state.sid ? (readConsumed()[state.sid]?.payment_id || null) : null; }
+
+    function syncDetailsButton() {
+        const b = $('sa-pay-details-btn');
+        if (!b) return;
+        const id = sessionPaymentId();
+        b.style.display = id ? '' : 'none';
+        b.title = id ? `Fetch ${id} — the payment made with session ${state.sid}` : '';
+    }
+
+    // "Via full 3DS data" needs a cryptogram. Real sandbox sessions that were declined / rejected / unavailable
+    // return eci 07 + xid but NO cryptogram, so only approved / attempted sessions can be authorized that way.
+    // The check is the cryptogram itself, not the status, so it stays correct for any future status.
+    const sessionHas3dsData = (sess) => !!(sess && sess.cryptogram);
+
+    function syncAuthModeAvailability() {
+        const pill = document.querySelector('#sa-3ds-auth-mode-pills [data-sa-auth="data"]');
+        if (!pill) return;
+        const sess = state.session, has = sessionHas3dsData(sess);
+        pill.classList.toggle('disabled', !has);
+        const hint = $('sa-pay-mode-hint');
+        if (hint) {
+            hint.style.display = has ? 'none' : '';
+            hint.textContent = !sess || !isFinalStatus(sess.status)
+                ? 'Full 3DS data (eci / cryptogram / xid / version) becomes available once the authentication is approved or attempted.'
+                : `Full 3DS data is not available for a ${sess.status} authentication — Checkout.com returns no cryptogram for it. The only way to authorize is via the session id (3ds.authentication_id), which is how this outcome is tested.`;
+        }
+        if (!has && state.payAuth === 'data') {
+            state.payAuth = 'sid';
+            syncDependentUi();
+            refreshPreviews();
+            if (sess && isFinalStatus(sess.status)) showToast(`No 3DS cryptogram for a ${sess.status} session — switched to “via session id”`);
+        }
+    }
+
     function updatePayGate() {
         const btn = $('sa-pay-btn'), body = $('sa-pay-body'), box = $('sa-pay-gate');
         if (!btn) return;
+        syncAuthModeAvailability();
+        syncDetailsButton();
         const g = payGate();
         // Never fight an in-flight request: runBusy owns the disabled state while it is running.
         if (btn.textContent === 'Authorize payment') btn.disabled = g.locked;
@@ -713,7 +752,6 @@
             const b = $(id);
             if (b) { b.innerHTML = r.html; b.style.display = 'block'; state.resText[id] = r.text; }
         });
-        if (state.lastPaymentId) show('sa-pay-details-btn', '');
         syncRedirectButtons();
         renderNextStep(state.session);
         updatePayGate();
@@ -756,7 +794,6 @@
         syncDependentUi();
         ['sa-3ds-sid', 'sa-pay-eci', 'sa-pay-cryptogram', 'sa-pay-xid', 'sa-pay-version', 'sa-pay-reference', 'sa-pay-cvv'].forEach(id => { if ($(id)) $(id).value = ''; });
         RESULT_BOXES.forEach(id => { const b = $(id); if (b) { b.style.display = 'none'; b.innerHTML = ''; } });
-        hide('sa-pay-details-btn');
         $('sa-3ds-poll').textContent = '';
         renderNextStep(null);
         syncRedirectButtons();
@@ -806,7 +843,10 @@
     }
 
     function applySession(s) {
-        if (s.id && s.id !== state.sid) state.redirectHref = null;      // a different session — old link is stale
+        if (s.id && s.id !== state.sid) {                                // a different session — nothing of the old one may linger
+            state.redirectHref = null;
+            ['sa-pay-res', 'sa-pay-details-res'].forEach(id => { const b = $(id); if (b) { b.style.display = 'none'; b.innerHTML = ''; } delete state.resText[id]; });
+        }
         // Real sandbox responses use _links.redirect_url (the docs show _links.redirect) — accept both.
         const link = s._links?.redirect_url?.href || s._links?.redirect?.href;
         if (link) state.redirectHref = link;
@@ -922,6 +962,7 @@
 
     async function authorizePayment() {
         const gate = payGate();
+        if (state.payAuth === 'data' && !sessionHas3dsData(state.session)) { syncAuthModeAvailability(); return showToast('This session has no 3DS cryptogram — authorize via the session id', 'error'); }
         if (gate.locked) { updatePayGate(); return showToast(gate.kind === 'used' ? 'This authentication already has a payment — start a new session' : 'Step 3 is locked — finish the 3DS redirect first', 'error'); }
         if (!state.sessionSource && !getCardSource(false)) return;
         const body = buildAuthorizeBody(false);
@@ -931,10 +972,9 @@
         env.ok = !!p?.id && env.ok;
         if (p?.id) {
             state.lastPaymentId = p.id;
-            show('sa-pay-details-btn', '');
-            syncWebhookFollow();
             // The authentication is spent as soon as a payment exists — approved or declined.
             markConsumed(state.sid, { payment_id: p.id, approved: !!p.approved, status: p.status, response_code: p.response_code });
+            syncWebhookFollow();        // after markConsumed: the 3DS panel follows the payment recorded against this session
         }
         const threeDs = p?.['3ds'] || {};
         const summary = p ? kv([
@@ -950,10 +990,12 @@
     }
 
     async function getPaymentDetails() {
-        if (!state.lastPaymentId) return;
-        const env = await callLegacy('GET', '/get-payment-details', { query: { paymentId: state.lastPaymentId }, label: 'GET /payments/{id} (Suite)' });
+        const payId = sessionPaymentId();
+        if (!payId) { syncDetailsButton(); return showToast('No payment was created with this session', 'error'); }
+        const env = await callLegacy('GET', '/get-payment-details', { query: { paymentId: payId }, label: 'GET /payments/{id} (Suite)' });
         const p = env.data;
         renderResponse('sa-pay-details-res', env, p?.id ? kv([
+            ['payment id', p.id], ['made with session', state.sid],
             ['status', p.status], ['approved', p.approved], ['3ds.authentication_response', p['3ds']?.authentication_response],
             ['3ds.challenged', p['3ds']?.challenged], ['3ds.exemption_applied', p['3ds']?.exemption_applied],
             ['balances.available_to_capture', p.balances?.available_to_capture], ['source.account_update_status', p.source?.account_update_status],
@@ -1204,7 +1246,8 @@
         if (state.product === '3ds' && state.sid) ids.push(state.sid);
         if (state.product === 'nt' && currentNtId()) ids.push(currentNtId());
         if (state.product === 'au') { const i = selectedInstrument(); if (i) ids.push(i.id); }
-        if (state.lastPaymentId) ids.push(state.lastPaymentId);
+        const pid = state.product === '3ds' ? sessionPaymentId() : state.lastPaymentId;
+        if (pid) ids.push(pid);
         return ids;
     }
 
@@ -1451,6 +1494,7 @@
         $('sa-3ds-redirect-btn').addEventListener('click', () => redirectCardholder(false));
         $('sa-3ds-newtab-btn').addEventListener('click', () => redirectCardholder(true));
         document.querySelectorAll('#sa-3ds-auth-mode-pills .sa-pill').forEach(p => p.addEventListener('click', () => {
+            if (p.classList.contains('disabled')) return;
             state.payAuth = p.dataset.saAuth;
             syncDependentUi();
             refreshPreviews();
