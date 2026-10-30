@@ -19,6 +19,12 @@
     // snapshotted per session id. localStorage (not sessionStorage) so it also survives a return in a NEW tab.
     const LS_SNAPSHOTS = 'cko-suite-3ds-snapshots';   // { [sid]: snapshot } — newest 10 kept
     const LS_LAST_SID  = 'cko-suite-3ds-last-sid';    // fallback when the return URL carries no session id
+    // One authentication buys one payment: once a payment has been created against a session id it is recorded
+    // here ({ [sid]: { payment_id, approved, status, response_code, at } }) and Step 3 stays locked for that sid.
+    const LS_CONSUMED  = 'cko-suite-3ds-consumed';
+    // Step 3 may only open for a status that is explicitly terminal. Anything else — pending, processing,
+    // challenged, or a status this tester has never seen — counts as "authentication not finished".
+    const FINAL_STATUSES = ['approved', 'attempted', 'declined', 'rejected', 'unavailable', 'challenge_abandoned', 'expired'];
     const RESULT_BOXES = ['sa-3ds-create-res', 'sa-3ds-session-res', 'sa-pay-res', 'sa-pay-details-res'];
 
     // ----- DOM helpers -----
@@ -90,7 +96,7 @@
         }
     }
     // Some buttons are conditionally enabled (redirect buttons need a session) — restore that.
-    function afterBusy() { syncRedirectButtons(); }
+    function afterBusy() { syncRedirectButtons(); updatePayGate(); }   // runBusy re-enables buttons — re-apply the gate
 
     // =====================================================================
     // HTTP — /standalone/* (envelope) and legacy routes (raw)
@@ -586,6 +592,52 @@
     }
 
     // =====================================================================
+    // Step 3 gate — one payment per authentication
+    // =====================================================================
+    const readConsumed = () => { try { return JSON.parse(localStorage.getItem(LS_CONSUMED) || '{}'); } catch (e) { return {}; } };
+    function markConsumed(sid, info) {
+        const all = readConsumed();
+        all[sid] = { ...info, at: Date.now() };
+        try { localStorage.setItem(LS_CONSUMED, JSON.stringify(all)); } catch (e) { /* storage full */ }
+    }
+
+    // locked: Step 3 cannot be used right now; reason explains why and what to do.
+    function payGate() {
+        const sid = state.sid;
+        if (!sid) return { locked: true, kind: 'none' };
+        const used = readConsumed()[sid];
+        if (used) return { locked: true, kind: 'used', used };
+        const st = state.session?.status;
+        if (!st) return { locked: true, kind: 'unknown' };
+        if (!isFinalStatus(st)) return { locked: true, kind: 'waiting', status: st };
+        return { locked: false, kind: 'ready', status: st };
+    }
+
+    function updatePayGate() {
+        const btn = $('sa-pay-btn'), body = $('sa-pay-body'), box = $('sa-pay-gate');
+        if (!btn) return;
+        const g = payGate();
+        // Never fight an in-flight request: runBusy owns the disabled state while it is running.
+        if (btn.textContent === 'Authorize payment') btn.disabled = g.locked;
+        if (body) body.classList.toggle('sa-step-lock', g.locked);
+        btn.title = g.locked ? 'Locked — finish the 3DS redirect first (see the notice above)' : '';
+        if (!box) return;
+        let cls = 'info', icon = '🔒', msg;
+        if (g.kind === 'none') msg = '<strong>Step 3 is locked.</strong> Create a session in Step 1 and complete the redirect in Step 2 first.';
+        else if (g.kind === 'unknown') msg = '<strong>Step 3 is locked.</strong> Load the session result (Step 2 → Get session) to see whether authentication finished.';
+        else if (g.kind === 'waiting') msg = `<strong>Step 3 is locked — authentication is still ${esc(g.status)}.</strong> Complete the redirect in Step 2; this unlocks by itself when the session finishes.`;
+        else if (g.kind === 'used') {
+            cls = 'warn'; icon = '✔';
+            const u = g.used;
+            msg = `<strong>This authentication has been used.</strong> Payment <code>${esc(u.payment_id)}</code> was created with it (${u.approved ? 'approved' : 'declined'}${u.response_code ? `, ${esc(u.response_code)}` : ''}). `
+                + `A 3DS authentication covers a single payment — to test another, <a href="#" data-sa-newsession="1">start a new session ↑</a> and complete its redirect.`;
+        } else { cls = 'info'; icon = '🔓'; msg = `<strong>Ready — one payment is allowed for this authentication</strong> (session ${esc(state.sid)}, status ${esc(g.status)}). The button locks as soon as a payment is created.`; }
+        box.className = `sa-banner ${cls}`;
+        box.style.display = 'flex';
+        box.innerHTML = `<span>${icon}</span><div>${msg}</div>`;
+    }
+
+    // =====================================================================
     // 3DS workspace snapshots — survive the hosted redirect (same tab or a new one)
     // =====================================================================
     const readSnaps = () => { try { return JSON.parse(localStorage.getItem(LS_SNAPSHOTS) || '{}'); } catch (e) { return {}; } };
@@ -664,6 +716,7 @@
         if (state.lastPaymentId) show('sa-pay-details-btn', '');
         syncRedirectButtons();
         renderNextStep(state.session);
+        updatePayGate();
         renderWebhooks();
         updateActiveSource();
         refreshPreviews();
@@ -676,7 +729,7 @@
         if (!s || !s.status) { b.style.display = 'none'; return; }
         const st = s.status;
         let cls = 'info', icon = '⏳', msg, jump = false;
-        if (['pending', 'processing', 'challenged'].includes(st)) {
+        if (!isFinalStatus(st)) {
             msg = st === 'pending' ? 'Waiting for the cardholder — redirect them to the hosted page (Step 2). This page keeps polling and restores itself when they come back.'
                 : st === 'challenged' ? 'The issuer requires a challenge — the cardholder is on the 3DS page (password <code>Checkout1!</code>).'
                 : 'The issuer is evaluating the authentication…';
@@ -707,6 +760,7 @@
         $('sa-3ds-poll').textContent = '';
         renderNextStep(null);
         syncRedirectButtons();
+        updatePayGate();
         if ($('sa-wh-follow')) { $('sa-wh-follow').checked = true; syncWebhookFollow(); resetWebhookView(); }
         refreshPreviews();
         showToast('3DS state cleared — ready for a new session');
@@ -731,7 +785,7 @@
     function sessionSummary(s) {
         if (!s) return '';
         const st = s.status;
-        const cls = ['approved'].includes(st) ? 'good' : ['attempted'].includes(st) ? 'warn' : ['pending', 'processing', 'challenged'].includes(st) ? '' : 'bad';
+        const cls = ['approved'].includes(st) ? 'good' : ['attempted'].includes(st) ? 'warn' : !isFinalStatus(st) ? '' : 'bad';
         const hint = {
             pending: 'Waiting for the cardholder — redirect them to the hosted page.',
             challenged: 'Issuer requires a challenge — cardholder is on the 3DS page.',
@@ -775,6 +829,7 @@
         prefill('sa-pay-amount', s.amount); prefill('sa-pay-currency', s.currency);
         syncRedirectButtons();
         renderNextStep(s);
+        updatePayGate();
         refreshPreviews();
         syncWebhookFollow();
         scheduleSave();
@@ -837,7 +892,7 @@
                         renderResponse('sa-3ds-session-res', env, sessionSummary(s));
                     }
                     $('sa-3ds-poll').textContent = `⏳ Polling session — status: ${s.status}`;
-                    if (!['pending', 'processing', 'challenged'].includes(s.status)) stopPolling(`session reached final status “${s.status}”`);
+                    if (isFinalStatus(s.status)) stopPolling(`session reached final status “${s.status}”`);
                 }
             } catch (e) { /* transient — try again next tick */ }
         };
@@ -866,7 +921,8 @@
     }
 
     async function authorizePayment() {
-        if (!val('sa-3ds-sid') && state.payAuth === 'sid') return showToast('Create or load a session first', 'error');
+        const gate = payGate();
+        if (gate.locked) { updatePayGate(); return showToast(gate.kind === 'used' ? 'This authentication already has a payment — start a new session' : 'Step 3 is locked — finish the 3DS redirect first', 'error'); }
         if (!state.sessionSource && !getCardSource(false)) return;
         const body = buildAuthorizeBody(false);
         const env = await callLegacy('POST', '/payments', { body, label: 'POST /payments (Suite — authorize with 3DS)' });
@@ -877,6 +933,8 @@
             state.lastPaymentId = p.id;
             show('sa-pay-details-btn', '');
             syncWebhookFollow();
+            // The authentication is spent as soon as a payment exists — approved or declined.
+            markConsumed(state.sid, { payment_id: p.id, approved: !!p.approved, status: p.status, response_code: p.response_code });
         }
         const threeDs = p?.['3ds'] || {};
         const summary = p ? kv([
@@ -885,8 +943,10 @@
             ['3ds.version', threeDs.version], ['3ds.challenged', threeDs.challenged], ['3ds.exemption_applied', threeDs.exemption_applied],
             ['eci', p.eci], ['error_codes', p.error_codes],
         ]) : '';
-        renderResponse('sa-pay-res', env, summary);
+        const notSpent = !p?.id ? `<div class="sa-note"><strong>No payment was created</strong> (the request was rejected before authorization), so this authentication is still available — fix the request and try again.</div>` : '';
+        renderResponse('sa-pay-res', env, notSpent + summary);
         saveSnapshot();
+        updatePayGate();
     }
 
     async function getPaymentDetails() {
@@ -1262,7 +1322,7 @@
     // (there are no routes in this app, so everything is rebuilt from the snapshot saved before leaving).
     const channel = ('BroadcastChannel' in window) ? new BroadcastChannel('cko-suite') : null;
 
-    function isFinalStatus(status) { return !['pending', 'processing', 'challenged'].includes(status); }
+    function isFinalStatus(status) { return FINAL_STATUSES.includes(status); }
 
     async function refreshSessionAndMaybePoll(sid) {
         const env = await getSession(sid);
@@ -1360,8 +1420,9 @@
 
         // Delegated: test cards, copy buttons, filters
         $('standalone-tab').addEventListener('click', (ev) => {
-            const t = ev.target.closest('[data-sa-pan], [data-sa-more], [data-sa-copy], [data-sa-copyres], [data-sa-jump]');
+            const t = ev.target.closest('[data-sa-pan], [data-sa-more], [data-sa-copy], [data-sa-copyres], [data-sa-jump], [data-sa-newsession]');
             if (!t) return;
+            if (t.dataset.saNewsession) { ev.preventDefault(); resetSessionState(); $('sa-3ds-create-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
             if (t.dataset.saJump) { ev.preventDefault(); $(t.dataset.saJump)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
             if (t.dataset.saPan) return useTestCard(t.dataset.saPan, t.dataset.saScheme);
             if (t.dataset.saMore) {
@@ -1385,7 +1446,7 @@
         $('sa-3ds-create-btn').addEventListener('click', () => runBusy(['sa-3ds-create-btn'], 'Creating session…', createSession));
         $('sa-3ds-get-btn').addEventListener('click', () => runBusy(['sa-3ds-get-btn'], 'Fetching…', async () => {
             const env = await getSession(val('sa-3ds-sid').trim());
-            if (env?.ok && ['pending', 'processing', 'challenged'].includes(env.data?.status)) startPolling();
+            if (env?.ok && !isFinalStatus(env.data?.status)) startPolling();
         }));
         $('sa-3ds-redirect-btn').addEventListener('click', () => redirectCardholder(false));
         $('sa-3ds-newtab-btn').addEventListener('click', () => redirectCardholder(true));
@@ -1417,6 +1478,9 @@
         $('sa-meta-source').addEventListener('change', () => { syncDependentUi(); refreshPreviews(); });
         $('sa-meta-btn').addEventListener('click', () => runBusy(['sa-meta-btn'], 'Looking up…', getMetadata));
 
+        // Another tab may have spent this authentication — keep the gate truthful
+        window.addEventListener('storage', (e) => { if (e.key === LS_CONSUMED) updatePayGate(); });
+
         // Webhooks
         document.querySelectorAll('#sa-wh-filters .sa-pill').forEach(p => p.addEventListener('click', () => { p.classList.toggle('active'); resetWebhookView(); }));
         $('sa-wh-match').addEventListener('change', () => { $('sa-wh-follow').checked = false; resetWebhookView(); });
@@ -1436,6 +1500,7 @@
         renderNtSelect();
         renderWebhooks();
         setMode('saved');
+        updatePayGate();
         checkConfig();
 
         // script.js clicks the first tab on DOMContentLoaded — handle the 3DS return after that.

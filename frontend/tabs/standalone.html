@@ -54,7 +54,10 @@
     .sa-dot { width:8px; height:8px; border-radius:50%; background:var(--text-secondary); display:inline-block; }
     .sa-dot.live { background:var(--success); box-shadow:0 0 0 3px rgba(16,185,129,.25); animation:sa-pulse 1.6s infinite; }
     @keyframes sa-pulse { 50% { box-shadow:0 0 0 6px rgba(16,185,129,0); } }
-    .sa-step-lock { opacity:.55; pointer-events:none; }
+    .sa-step-lock { opacity:.5; pointer-events:none; filter:grayscale(.4); }
+    /* The app has no disabled-button look; scoped to this tab so no other tab changes. */
+    #standalone-tab .main-button:disabled { opacity:.4; cursor:not-allowed; filter:grayscale(.7); box-shadow:none; transform:none; }
+    #sa-pay-gate { margin:0 0 14px; }
     #sa-flow-host { min-height:60px; }
     @media (max-width: 760px) { .sa-grid, .sa-grid.three { grid-template-columns:1fr; } }
 </style>
@@ -270,6 +273,8 @@
 
     <!-- Step 3 -->
     <div class="sa-sub">Step 3 · Authorize the payment <span style="text-transform:none; letter-spacing:0; font-weight:400;">— POST /payments</span></div>
+    <div id="sa-pay-gate" class="sa-banner"></div>
+    <div id="sa-pay-body">
     <div class="sa-pills" id="sa-3ds-auth-mode-pills">
         <div class="sa-pill active" data-sa-auth="sid">Via session id (3ds.authentication_id)</div>
         <div class="sa-pill" data-sa-auth="data">Via full 3DS data (eci / cryptogram / xid / version)</div>
@@ -292,8 +297,9 @@
         <summary>Payment request preview</summary>
         <pre id="sa-pay-preview" class="sa-preview"></pre>
     </details>
+    </div><!-- /sa-pay-body -->
     <div class="button-group">
-        <button id="sa-pay-btn" class="main-button">Authorize payment</button>
+        <button id="sa-pay-btn" class="main-button" disabled>Authorize payment</button>
         <button id="sa-pay-details-btn" class="main-button" style="display:none;">Get payment details</button>
     </div>
     <div id="sa-pay-res" class="sa-res"></div>
