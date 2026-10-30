@@ -92,6 +92,7 @@
             <div class="wallet-option" data-sa-product="nt"><span>Network Tokens</span></div>
             <div class="wallet-option" data-sa-product="au"><span>Account Updater &amp; RTAU</span></div>
             <div class="wallet-option" data-sa-product="meta"><span>Card Metadata</span></div>
+            <div class="wallet-option" data-sa-product="vault"><span>Vault: Customers &amp; Instruments</span></div>
         </div>
     </div>
 
@@ -568,4 +569,169 @@
     </div>
     <div id="sa-wh-count" class="sa-note" style="margin-top:10px;"></div>
     <div id="sa-wh-list" style="margin-top:12px;"><div class="sa-note">No events yet.</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- VAULT — Customers & Instruments (logic: modules/vault.js)           -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<style>
+    .va-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+    .va-bar .text-input { flex:1; min-width:220px; }
+    .va-layout { display:grid; grid-template-columns:minmax(240px, 300px) 1fr; gap:16px; align-items:start; }
+    .va-list { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); max-height:560px; overflow:auto; }
+    .va-list-h { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); padding:10px 12px 4px; }
+    .va-row { padding:10px 12px; border-top:1px solid var(--border); cursor:pointer; }
+    .va-row:hover { background:var(--bg-subtle); }
+    .va-row.active { background:var(--bg-subtle); box-shadow:inset 3px 0 0 var(--primary); }
+    .va-row .t { font-size:13px; font-weight:600; color:var(--text-primary); overflow-wrap:anywhere; }
+    .va-row .s { font-size:11px; color:var(--text-secondary); margin-top:2px; overflow-wrap:anywhere; }
+    .va-detail { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); padding:16px; min-height:120px; }
+    .va-empty { color:var(--text-secondary); font-size:13px; padding:8px 0; }
+    .va-head { display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; justify-content:space-between; }
+    .va-head h3 { margin:0; font-size:16px; color:var(--text-primary); }
+    .va-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .va-chip { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:6px; font-size:11px; font-family:'JetBrains Mono', monospace;
+        cursor:pointer; background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-primary); user-select:all; margin:2px 6px 2px 0; }
+    .va-chip:hover { border-color:var(--primary); color:var(--primary); }
+    .va-chip::after { content:'⧉'; opacity:.5; font-size:10px; }
+    .va-chip.copied::after { content:'✓'; color:var(--success); opacity:1; }
+    .va-meta { font-size:12px; color:var(--text-secondary); margin-top:6px; }
+    .va-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px; margin-top:14px; }
+    .va-card { border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:var(--bg-subtle); }
+    .va-card.def { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary) inset; }
+    .va-card .top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .va-card .num { font-size:15px; font-weight:700; color:var(--text-primary); font-family:'JetBrains Mono', monospace; }
+    .va-card .sub { font-size:12px; color:var(--text-secondary); margin:4px 0 6px; }
+    .va-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; border:1px solid var(--border); color:var(--text-secondary); background:var(--bg-card); white-space:nowrap; }
+    .va-badge.def { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .va-card .btns { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .va-form { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); }
+    .va-busy button, .va-busy .va-chip { pointer-events:none; }
+    .va-busy button { opacity:.5; }
+    .va-add { margin-top:16px; border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:var(--bg-card); }
+    #va-flow-host { padding:20px 20px 16px; border:1px solid var(--border); border-radius:10px; min-height:60px; }
+    .va-actionbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
+    .va-add .button-group { margin-top:20px; padding-top:16px; border-top:1px solid var(--border); justify-content:flex-start; }
+    #va-sf-host:not(:empty) { margin-top:16px; }
+    .va-danger { color:var(--error) !important; border-color:var(--error) !important; }
+    @media (max-width: 760px) { .va-layout { grid-template-columns:1fr; } }
+</style>
+
+<div class="context-area" id="sa-panel-vault" style="display:none">
+    <h2 class="section-header">Vault: Customers &amp; Instruments</h2>
+
+    <div class="va-bar">
+        <input type="text" id="va-lookup" class="text-input" placeholder="Load by cus_… / email / src_…">
+        <button id="va-load-btn" class="main-button" type="button">Load</button>
+        <button id="va-refresh-btn" class="copy-btn" type="button">↻ Refresh all</button>
+        <button id="va-new-cust-btn" class="copy-btn" type="button">+ Customer</button>
+        <button id="va-forget-btn" class="copy-btn" type="button" title="Forget the saved list in this browser (nothing is deleted at Checkout.com)">Clear list</button>
+    </div>
+
+    <div class="va-layout">
+        <div id="va-list" class="va-list"></div>
+        <div id="va-detail" class="va-detail"></div>
+    </div>
+
+    <div class="va-add" id="va-add">
+        <div class="sa-sub" style="margin-top:0;">Add instrument</div>
+        <div class="sa-pills" id="va-add-pills">
+            <div class="sa-pill active" data-va-add="flow">Card · Flow tokenize</div>
+            <div class="sa-pill" data-va-add="raw">Card · Raw details</div>
+            <div class="sa-pill" data-va-add="sepa">SEPA</div>
+            <div class="sa-pill" data-va-add="bank">Bank account</div>
+        </div>
+
+        <div class="sa-grid">
+            <div>
+                <label for="va-target">Attach to</label>
+                <select id="va-target" class="select-input"></select>
+            </div>
+            <div style="display:flex; align-items:flex-end; padding-bottom:6px;">
+                <label class="sa-note" style="display:flex; gap:6px; align-items:center; margin:0;"><input type="checkbox" id="va-add-default"> Make default</label>
+            </div>
+        </div>
+        <div class="sa-grid" id="va-newcust-fields" style="display:none; margin-top:10px;">
+            <div><label for="va-nc-email">customer.email</label><input type="email" id="va-nc-email" class="text-input" placeholder="test.user@example.com"></div>
+            <div><label for="va-nc-name">customer.name</label><input type="text" id="va-nc-name" class="text-input" value="Test Customer"></div>
+        </div>
+
+        <!-- Flow -->
+        <div id="va-add-flow" style="margin-top:14px;">
+            <div id="va-flow-loading" class="sa-note" style="display:none;">⏳ Loading card field…</div>
+            <div id="va-flow-host"></div>
+            <div class="button-group"><button id="va-flow-btn" class="main-button" type="button" disabled>Tokenize &amp; add</button></div>
+        </div>
+
+        <!-- Raw -->
+        <div id="va-add-raw" style="display:none; margin-top:14px;">
+            <div class="sa-grid three">
+                <div><label for="va-raw-number">number</label><input type="text" id="va-raw-number" class="text-input" value="4242424242424242" inputmode="numeric"></div>
+                <div><label for="va-raw-month">expiry_month</label><input type="number" id="va-raw-month" class="text-input" value="12" min="1" max="12"></div>
+                <div><label for="va-raw-year">expiry_year</label><input type="number" id="va-raw-year" class="text-input" value="2030"></div>
+                <div><label for="va-raw-name">name</label><input type="text" id="va-raw-name" class="text-input" value="Test Cardholder"></div>
+            </div>
+            <div id="va-raw-cards" style="margin-top:8px;"></div>
+            <div class="button-group"><button id="va-raw-btn" class="main-button" type="button">Add card</button></div>
+        </div>
+
+        <!-- SEPA -->
+        <div id="va-add-sepa" style="display:none; margin-top:14px;">
+            <div class="sa-grid three">
+                <div><label for="va-sepa-iban">instrument_data.account_number (IBAN)</label><input type="text" id="va-sepa-iban" class="text-input" value="DE89370400440532013000"></div>
+                <div><label for="va-sepa-country">instrument_data.country</label><input type="text" id="va-sepa-country" class="text-input" value="DE" maxlength="2"></div>
+                <div><label for="va-sepa-currency">instrument_data.currency</label><input type="text" id="va-sepa-currency" class="text-input" value="EUR" maxlength="3"></div>
+                <div><label for="va-sepa-ptype">instrument_data.payment_type</label><select id="va-sepa-ptype" class="select-input"><option value="regular">regular</option><option value="recurring">recurring</option></select></div>
+                <div><label for="va-sepa-mtype">instrument_data.type</label><select id="va-sepa-mtype" class="select-input"><option value="Core">Core</option><option value="B2B">B2B</option></select></div>
+                <div><label for="va-sepa-first">account_holder.first_name</label><input type="text" id="va-sepa-first" class="text-input" value="John"></div>
+                <div><label for="va-sepa-last">account_holder.last_name</label><input type="text" id="va-sepa-last" class="text-input" value="Smith"></div>
+                <div><label for="va-sepa-line1">billing_address.address_line1</label><input type="text" id="va-sepa-line1" class="text-input" value="Cloverfield St."></div>
+                <div><label for="va-sepa-line2">billing_address.address_line2</label><input type="text" id="va-sepa-line2" class="text-input" value="23A" maxlength="10"></div>
+                <div><label for="va-sepa-city">billing_address.city</label><input type="text" id="va-sepa-city" class="text-input" value="Berlin"></div>
+                <div><label for="va-sepa-zip">billing_address.zip</label><input type="text" id="va-sepa-zip" class="text-input" value="10115"></div>
+                <div><label for="va-sepa-bcountry">billing_address.country</label><input type="text" id="va-sepa-bcountry" class="text-input" value="DE" maxlength="2"></div>
+            </div>
+            <div class="button-group"><button id="va-sepa-btn" class="main-button" type="button">Add SEPA instrument</button></div>
+        </div>
+
+        <!-- Bank account -->
+        <div id="va-add-bank" style="display:none; margin-top:14px;">
+            <div class="sa-grid three">
+                <div><label for="va-bank-country">country</label><input type="text" id="va-bank-country" class="text-input" value="DE" maxlength="2"></div>
+                <div><label for="va-bank-currency">currency</label><input type="text" id="va-bank-currency" class="text-input" value="EUR" maxlength="3"></div>
+                <div><label for="va-bank-iban">iban</label><input type="text" id="va-bank-iban" class="text-input" value="DE89370400440532013000"></div>
+                <div><label for="va-bank-bic">swift_bic</label><input type="text" id="va-bank-bic" class="text-input" value="COBADEFFXXX"></div>
+                <div><label for="va-bank-acct">account_number</label><input type="text" id="va-bank-acct" class="text-input" placeholder="optional"></div>
+                <div><label for="va-bank-code">bank_code</label><input type="text" id="va-bank-code" class="text-input" placeholder="optional"></div>
+                <div><label for="va-bank-htype">account_holder.type</label><select id="va-bank-htype" class="select-input"><option value="individual">individual</option><option value="corporate">corporate</option></select></div>
+                <div><label for="va-bank-first">account_holder.first_name</label><input type="text" id="va-bank-first" class="text-input" value="John"></div>
+                <div><label for="va-bank-last">account_holder.last_name</label><input type="text" id="va-bank-last" class="text-input" value="Smith"></div>
+                <div><label for="va-bank-company">account_holder.company_name</label><input type="text" id="va-bank-company" class="text-input" placeholder="corporate only"></div>
+            </div>
+            <div class="button-group"><button id="va-bank-btn" class="main-button" type="button">Add bank account</button></div>
+        </div>
+
+        <details class="sa-details" style="margin-bottom:0;">
+            <summary>Extra JSON merged into the request</summary>
+            <textarea id="va-add-extra" class="sa-textarea" placeholder='{ "account_holder": { "phone": { "country_code": "+44", "number": "7700900123" } } }'></textarea>
+        </details>
+    </div>
+
+    <div class="va-add" id="va-sf">
+        <div class="sa-sub" style="margin-top:0;">Stored cards in Flow</div>
+        <div class="sa-grid three">
+            <div><label for="va-sf-cus">stored_card.customer_id</label><input type="text" id="va-sf-cus" class="text-input" value="cus_xhsalsrfvkjuxhsxcab2eo4m2y"></div>
+            <div><label for="va-sf-email">customer.email</label><input type="email" id="va-sf-email" class="text-input" value="sm_hasnain96@hotmail.com"></div>
+            <div><label for="va-sf-amount">amount (minor units)</label><input type="number" id="va-sf-amount" class="text-input" value="1000"></div>
+            <div><label for="va-sf-currency">currency</label><select id="va-sf-currency" class="select-input"><option>EUR</option><option>GBP</option><option>USD</option></select></div>
+            <div><label for="va-sf-country">billing country</label><input type="text" id="va-sf-country" class="text-input" value="DE" maxlength="2"></div>
+        </div>
+        <div class="va-actionbar">
+            <button id="va-sf-btn" class="main-button" type="button">Render Flow</button>
+            <button id="va-sf-clear" class="copy-btn" type="button" style="display:none;">Clear</button>
+            <label class="sa-note" style="display:flex; gap:6px; align-items:center; margin:0 0 0 auto;"><input type="checkbox" id="va-sf-cvv"> Always capture CVV</label>
+        </div>
+        <div id="va-sf-host" style="margin-top:12px;"></div>
+    </div>
 </div>

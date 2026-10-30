@@ -334,10 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
         payment_method_configuration: {
             card: {
                 store_payment_details: 'collect_consent'
+            },
+            stored_card: {
+                customer_id: "cus_xhsalsrfvkjuxhsxcab2eo4m2y"
             }
-            // stored_card: {
-            //     customer_id: "cus_pyprfr7v2wzurg7a7jsmmved6y"
-            // }
         },
         //enabled_payment_methods: ["googlepay"],
         disabled_payment_methods: ["remember_me"],
@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         failure_url: `${window.location.protocol}//${window.location.host}/failure.html`,
         customer: {
             email: emailInput.value,
-            id: "cus_pyprfr7v2wzurg7a7jsmmved6y"
+            id: "cus_xhsalsrfvkjuxhsxcab2eo4m2y"
         },
         '3ds': {
             enabled: threeDSToggle.value == 'on' ? false : true
