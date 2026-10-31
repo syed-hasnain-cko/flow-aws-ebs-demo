@@ -18,7 +18,7 @@
     document.body.classList.add('app-docked');   // docked API log + side nav layout (index.html only)
 
     // 2. Inject each tab's content into its shell div
-    document.getElementById('flow-tab').innerHTML = loadSync('tabs/flow.html');
+    document.getElementById('flow-tab').innerHTML = loadSync('tabs/flow.html?v=20261103e');
     document.getElementById('google-tab').innerHTML = loadSync('tabs/wallets.html');
     document.getElementById('setup-tab').innerHTML = loadSync('tabs/payment-setup.html');
     document.getElementById('payouts-tab').innerHTML = loadSync('tabs/payouts.html');

@@ -1,3 +1,40 @@
+<style>
+    .fc-det { margin-top:14px; margin-bottom:18px; border:1px solid var(--border); border-radius:10px; background:var(--bg-subtle); }
+    .fc-det > summary { cursor:pointer; padding:10px 14px; font-size:13px; font-weight:600; color:var(--text-secondary); display:flex; align-items:center; gap:10px; flex-wrap:wrap; list-style:none; }
+    .fc-det > summary::-webkit-details-marker { display:none; }
+    .fc-det > summary::before { content:'▸'; font-size:11px; transition:transform .15s; }
+    .fc-det[open] > summary::before { transform:rotate(90deg); }
+    .fc-count { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; background:var(--primary); color:#fff; }
+    .fc-count.zero { background:var(--bg-card); color:var(--text-muted); border:1px solid var(--border); }
+    .fc-body { padding:4px 14px 14px; }
+    .fc-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .fc-pills { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 14px; }
+    .fc-pill { padding:6px 13px; border-radius:20px; border:1px solid var(--border); background:var(--bg-card); font-size:12px; font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; }
+    .fc-pill:hover { border-color:var(--primary); color:var(--text-primary); }
+    .fc-pill.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .fc-pill .n { margin-left:6px; font-size:10px; padding:1px 6px; border-radius:10px; background:rgba(255,255,255,.28); }
+    .fc-pill:not(.active) .n { background:var(--primary); color:#fff; }
+    .fc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px 16px; }
+    .fc-grid label, .fc-lbl { display:block; font-size:12px; color:var(--text-secondary); margin-bottom:5px; overflow-wrap:anywhere; }
+    .fc-grid .text-input, .fc-grid .select-input, .fc-ta { width:100%; box-sizing:border-box; }
+    .fc-ta { min-height:64px; font-family:'JetBrains Mono', monospace; font-size:12px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); resize:vertical; }
+    .fc-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .fc-chip { padding:5px 11px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); font-size:12px; color:var(--text-primary); cursor:pointer; user-select:none; }
+    .fc-chip:hover { border-color:var(--primary); }
+    .fc-chip.sel { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, transparent); color:var(--primary); font-weight:600; }
+    .fc-chip.sel::before { content:'✓ '; }
+    .fc-chip.deny.sel { border-color:var(--error); background:color-mix(in srgb, var(--error) 10%, transparent); color:var(--error); }
+    .fc-chip.deny.sel::before { content:'✕ '; }
+    .fc-chip.off { opacity:.45; }
+    .fc-chip.locked { cursor:default; opacity:.4; }
+    .fc-checks { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; }
+    .fc-checks label { display:flex; gap:6px; align-items:center; font-size:12px; color:var(--text-secondary); }
+    .fc-preview { margin:0; max-height:360px; overflow:auto; white-space:pre-wrap; word-break:break-all; font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.55; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); }
+    .fc-diff { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+    .fc-diff span { font-size:11px; font-family:'JetBrains Mono', monospace; padding:2px 8px; border-radius:6px; background:color-mix(in srgb, var(--primary) 12%, transparent); color:var(--primary); }
+    .fc-err { color:var(--error); font-size:12px; margin-bottom:8px; }
+</style>
+
 <div class="context-area">
     <div class="inline-form">
         <div class="form-group">
@@ -88,6 +125,116 @@
             </label>
         </div>
     </div>
+    <details class="fc-det" id="fc-det">
+        <summary>Advanced session options <span class="fc-count zero" id="fc-count">defaults</span><span class="fc-note" style="margin-left:auto;">applies to Render Standard Flow only</span></summary>
+        <div class="fc-body">
+            <div class="fc-pills" id="fc-pills">
+                <div class="fc-pill active" data-sec="methods">Payment methods</div>
+                <div class="fc-pill" data-sec="wallets">Cards &amp; wallets</div>
+                <div class="fc-pill" data-sec="stored">Stored cards</div>
+                <div class="fc-pill" data-sec="risk">3DS, capture &amp; risk</div>
+                <div class="fc-pill" data-sec="more">More</div>
+                <div class="fc-pill" data-sec="preview">Preview</div>
+            </div>
+
+            <!-- Payment methods -->
+            <div class="fc-sec" data-sec="methods">
+                <div class="fc-pills" id="fc-pm-mode" style="margin-bottom:8px;">
+                    <div class="fc-pill active" data-mode="default">Default</div>
+                    <div class="fc-pill" data-mode="allow">Only these</div>
+                    <div class="fc-pill" data-mode="deny">Everything except these</div>
+                </div>
+                <div class="fc-note" id="fc-pm-note"></div>
+                <label class="fc-note" style="display:flex; gap:6px; align-items:center; margin-top:8px;"><input type="checkbox" id="fc-pm-hide" checked> Only show methods available for <b id="fc-pm-lbl"></b></label>
+                <div class="fc-chips" id="fc-pm-chips"></div>
+            </div>
+
+            <!-- Cards & wallets -->
+            <div class="fc-sec" data-sec="wallets" style="display:none;">
+                <div class="fc-grid">
+                    <div><label for="fc-card-store">card.store_payment_details</label><select id="fc-card-store" class="select-input"><option value="">(default: collect_consent)</option><option>disabled</option><option>enabled</option><option>collect_consent</option></select></div>
+                    <div><label for="fc-apple-store">applepay.store_payment_details</label><select id="fc-apple-store" class="select-input"><option value="">(default)</option><option>disabled</option><option>enabled</option></select></div>
+                    <div><label for="fc-apple-total">applepay.total_type</label><select id="fc-apple-total" class="select-input"><option value="">(default: final)</option><option>pending</option><option>final</option></select></div>
+                    <div><label for="fc-google-store">googlepay.store_payment_details</label><select id="fc-google-store" class="select-input"><option value="">(default)</option><option>disabled</option><option>enabled</option></select></div>
+                    <div><label for="fc-google-total">googlepay.total_price_status</label><select id="fc-google-total" class="select-input"><option value="">(default: final)</option><option>estimated</option><option>final</option></select></div>
+                </div>
+                <div class="fc-note" style="margin-top:10px;"><code>enabled</code> / <code>collect_consent</code> need <code>customer.id</code> or <code>customer.email</code> (both are sent) and the cardholder's consent. Account-holder objects can be added through “More → Extra JSON”.</div>
+            </div>
+
+            <!-- Stored cards -->
+            <div class="fc-sec" data-sec="stored" style="display:none;">
+                <div class="fc-grid">
+                    <div><label for="fc-sc-mode">stored_card</label><select id="fc-sc-mode" class="select-input"><option value="">(default: customer cus_xhsal…)</option><option value="off">Off — don't send stored_card</option><option value="customer">Another customer</option><option value="ids">Specific instruments</option></select></div>
+                    <div id="fc-sc-cus-w" style="display:none;"><label for="fc-sc-cus">stored_card.customer_id</label><input type="text" id="fc-sc-cus" class="text-input" placeholder="cus_…"></div>
+                    <div id="fc-sc-ids-w" style="display:none;"><label for="fc-sc-ids">stored_card.instrument_ids (max 10, comma-separated)</label><input type="text" id="fc-sc-ids" class="text-input" placeholder="src_…, src_…"></div>
+                    <div id="fc-sc-def-w" style="display:none;"><label for="fc-sc-def">stored_card.default_instrument_id</label><input type="text" id="fc-sc-def" class="text-input" placeholder="src_…"></div>
+                </div>
+                <div class="fc-note" style="margin-top:10px;"><code>customer_id</code> wins over <code>instrument_ids</code> when both are present.</div>
+            </div>
+
+            <!-- 3DS, capture & risk -->
+            <div class="fc-sec" data-sec="risk" style="display:none;">
+                <div class="fc-grid">
+                    <div><label for="fc-3ds-ci">3ds.challenge_indicator</label><select id="fc-3ds-ci" class="select-input"><option value="">(default)</option><option>no_preference</option><option>no_challenge_requested</option><option>challenge_requested</option><option>challenge_requested_mandate</option></select></div>
+                    <div><label for="fc-3ds-ex">3ds.exemption</label><select id="fc-3ds-ex" class="select-input"><option value="">(none)</option><option>low_value</option><option>secure_corporate_payment</option><option>trusted_listing</option><option>transaction_risk_assessment</option><option>3ds_outage</option><option>sca_delegation</option><option>out_of_sca_scope</option><option>other</option><option>low_risk_program</option><option>recurring_operation</option></select></div>
+                    <div><label for="fc-auth-type">authorization_type</label><select id="fc-auth-type" class="select-input"><option value="">(default: Final)</option><option>Final</option><option>Estimated</option></select></div>
+                    <div><label for="fc-capture-on">capture_on (UTC)</label><input type="datetime-local" id="fc-capture-on" class="text-input"></div>
+                    <div><label for="fc-risk">risk.enabled</label><select id="fc-risk" class="select-input"><option value="">(default: on)</option><option value="false">Off</option></select></div>
+                    <div><label for="fc-retry">customer_retry.max_attempts (0–5)</label><input type="number" id="fc-retry" class="text-input" min="0" max="5" placeholder="5"></div>
+                </div>
+                <div class="fc-checks">
+                    <label><input type="checkbox" id="fc-3ds-n3d"> 3ds.attempt_n3d</label>
+                    <label><input type="checkbox" id="fc-3ds-noup"> 3ds.allow_upgrade = false</label>
+                </div>
+                <div class="fc-note" style="margin-top:10px;">The main <b>3DS</b> and <b>Capture</b> switches above still control <code>3ds.enabled</code> and <code>capture</code>; these add to them.</div>
+            </div>
+
+            <!-- More -->
+            <div class="fc-sec" data-sec="more" style="display:none;">
+                <div class="fc-grid">
+                    <div><label>Session expires in (expires_on)</label>
+                        <div style="display:flex; gap:6px;"><input type="number" id="fc-exp-n" class="text-input" min="1" placeholder="24" style="flex:1; min-width:0;">
+                        <select id="fc-exp-u" class="select-input" style="width:auto;"><option value="60">minutes</option><option value="3600" selected>hours</option><option value="86400">days</option></select></div></div>
+                    <div><label for="fc-display-name">display_name</label><input type="text" id="fc-display-name" class="text-input"></div>
+                    <div><label for="fc-description">description</label><input type="text" id="fc-description" class="text-input"></div>
+                    <div><label for="fc-bd-name">billing_descriptor.name (≤25)</label><input type="text" id="fc-bd-name" class="text-input" maxlength="25"></div>
+                    <div><label for="fc-bd-city">billing_descriptor.city (≤13)</label><input type="text" id="fc-bd-city" class="text-input" maxlength="13"></div>
+                    <div><label for="fc-pan">processing.pan_preference</label><select id="fc-pan" class="select-input"><option value="">(default: fpan)</option><option>fpan</option><option>dpan</option></select></div>
+                </div>
+                <div id="fc-plan" style="display:none; margin-top:14px;">
+                    <div class="fc-lbl">Recurring plan (payment_plan)</div>
+                    <div class="fc-grid">
+                        <div><label for="fc-pp-var">amount_variability</label><select id="fc-pp-var" class="select-input"><option value="">(none)</option><option>Fixed</option><option>Variable</option></select></div>
+                        <div><label for="fc-pp-days">days_between_payments</label><input type="number" id="fc-pp-days" class="text-input"></div>
+                        <div><label for="fc-pp-total">total_number_of_payments</label><input type="number" id="fc-pp-total" class="text-input"></div>
+                        <div><label for="fc-pp-exp">expiry (YYYYMMDD)</label><input type="text" id="fc-pp-exp" class="text-input"></div>
+                    </div>
+                </div>
+                <label class="fc-note" style="display:flex; gap:6px; align-items:center; margin:14px 0 8px;"><input type="checkbox" id="fc-ship-on"> Add a shipping address</label>
+                <div class="fc-grid" id="fc-ship-fields" style="display:none;">
+                    <div><label for="fc-s-country">shipping.address.country</label><select id="fc-s-country" class="select-input"></select></div>
+                    <div><label for="fc-s-line1">address_line1</label><input type="text" id="fc-s-line1" class="text-input"></div>
+                    <div><label for="fc-s-city">city</label><input type="text" id="fc-s-city" class="text-input"></div>
+                    <div><label for="fc-s-zip">zip</label><input type="text" id="fc-s-zip" class="text-input"></div>
+                </div>
+                <label class="fc-lbl" for="fc-metadata" style="margin-top:14px;">metadata (JSON, one level)</label>
+                <textarea id="fc-metadata" class="fc-ta" placeholder='{ "order_no": "1066" }'></textarea>
+                <label class="fc-lbl" for="fc-extra" style="margin-top:12px;">Extra JSON, deep-merged into the request last</label>
+                <textarea id="fc-extra" class="fc-ta" placeholder='{ "payment_method_configuration": { "card": { "account_holder": { "type": "individual" } } } }'></textarea>
+            </div>
+
+            <!-- Preview -->
+            <div class="fc-sec" data-sec="preview" style="display:none;">
+                <div id="fc-errors"></div>
+                <div class="fc-diff" id="fc-diff"></div>
+                <pre class="fc-preview" id="fc-preview"></pre>
+                <div class="fc-note" style="margin-top:8px;">This is the request <b>Render Standard Flow</b> will send to <code>POST /payment-sessions</code>. Changes apply the next time you render.</div>
+            </div>
+
+            <div style="margin-top:14px;"><button class="copy-btn" id="fc-reset" type="button">Reset to defaults</button></div>
+        </div>
+    </details>
+
     <div class="button-group">
         <button id="flow-button" class="main-button">Render Standard Flow</button>
         <button id="tokenize-only-button" class="main-button">Render Tokenize Only</button>

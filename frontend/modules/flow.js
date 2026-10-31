@@ -6,6 +6,9 @@ let showPayButtonLogic = true;
 let showCVVField = true;
 let isTokenizeOnly = false;
 let paymentSessionBody = {};
+// The request the CURRENT standard session was created with (default payload + any "Advanced session options").
+// null for tokenize-only sessions, which always use the untouched default payload.
+let flowEffectiveBody = null;
 
 // Track mounted session for theme re-init
 let _flowActiveSession = null;
@@ -104,14 +107,15 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
 
         const handleSubmit = async (self, submitData) => {
      
+            const sessionCfg = flowEffectiveBody || paymentSessionBody;
             const submitResponse = await performPaymentSubmission({
                 paymentSessionId: paymentSession.id,
                 sessionData: submitData,
-                amount: paymentSessionBody.amount,
+                amount: paymentSessionBody.amount,     // amount + items stay live (typing a new amount after rendering still submits it, as before)
                 items: paymentSessionBody.items,
-                "3ds": paymentSessionBody['3ds'],
-                payment_type: paymentSessionBody.payment_type,
-                capture: NO_MANUAL_CAPTURE_METHODS.has(self.type) ? true : paymentSessionBody.capture
+                "3ds": sessionCfg['3ds'],
+                payment_type: sessionCfg.payment_type,
+                capture: NO_MANUAL_CAPTURE_METHODS.has(self.type) ? true : sessionCfg.capture
             });
             // Must return the unmodified submit response body to Flow.
             return submitResponse;
@@ -134,7 +138,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
         const checkout = await CheckoutWebComponents({
             publicKey: window.APP_CONFIG.publicKey,
             environment: "sandbox",
-            locale: paymentSessionBody.locale || "en-GB",
+            locale: (flowEffectiveBody || paymentSessionBody).locale || "en-GB",
             paymentSession,
             appearance: appearance,
             showPayButton: showPayButtonLogic,
@@ -378,17 +382,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const createAndInitializeFlowSession = async function (tokenizeOnly) {
         try {
             isTokenizeOnly = tokenizeOnly;
+            // Standard flow = default payload + the "Advanced session options" the user set (none by default).
+            // Tokenize-only never reads them: it keeps sending the untouched default payload.
+            let requestBody = paymentSessionBody;
+            flowEffectiveBody = null;
+            if (!tokenizeOnly && window.FlowConfig) {
+                const cfg = window.FlowConfig.apply(paymentSessionBody);
+                if (cfg.errors.length) { showToast(cfg.errors[0], 'error'); return; }
+                requestBody = cfg.body;
+                flowEffectiveBody = cfg.body;
+            }
             const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(paymentSessionBody),
+                body: JSON.stringify(requestBody),
             });
             let getData = await getResponse.json();
             await addToApiLog(
                 'POST',
                 `create ${tokenizeOnly ? 'tokenization-only ' : ''}flow payment session: ${getData.id} - /payment-sessions`,
                 getData.id ? 201 : 422,
-                paymentSessionBody,
+                requestBody,
                 getData
             );
             flowContainer.style.display = 'block';
