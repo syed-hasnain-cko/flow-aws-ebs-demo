@@ -1,0 +1,76 @@
+<style>
+    .pe-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .pe-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+    .pe-bar .text-input { flex:1; min-width:240px; max-width:560px; }
+    .pe-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+    .pe-filters .select-input { width:auto; min-width:130px; }
+    .pe-layout { display:grid; grid-template-columns:minmax(280px, 340px) 1fr; gap:16px; align-items:start; margin-top:14px; }
+    .pe-list { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); max-height:640px; overflow:auto; }
+    .pe-row { padding:10px 12px; border-top:1px solid var(--border); cursor:pointer; }
+    .pe-row:first-child { border-top:0; }
+    .pe-row:hover { background:var(--bg-subtle); }
+    .pe-row.active { background:var(--bg-subtle); box-shadow:inset 3px 0 0 var(--primary); }
+    .pe-row .a { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--text-primary); }
+    .pe-row .b { font-size:12px; color:var(--text-secondary); margin-top:3px; overflow-wrap:anywhere; }
+    .pe-row .c { font-size:11px; color:var(--text-secondary); margin-top:3px; font-family:'JetBrains Mono', monospace; overflow-wrap:anywhere; opacity:.8; }
+    .pe-detail { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); padding:16px; min-height:140px; }
+    .pe-empty { color:var(--text-secondary); font-size:13px; padding:8px 4px; }
+    .pe-badge { font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; border:1px solid var(--border); color:var(--text-secondary); background:var(--bg-subtle); white-space:nowrap; }
+    .pe-badge.good { background:var(--success); border-color:var(--success); color:#fff; }
+    .pe-badge.warn { background:#f59e0b; border-color:#f59e0b; color:#fff; }
+    .pe-badge.bad  { background:var(--error); border-color:var(--error); color:#fff; }
+    .pe-badge.info { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .pe-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+    .pe-head h3 { margin:0; font-size:20px; color:var(--text-primary); display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pe-chip { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:6px; font-size:11px; font-family:'JetBrains Mono', monospace; cursor:pointer;
+        background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-primary); margin:2px 6px 2px 0; }
+    .pe-chip:hover { border-color:var(--primary); color:var(--primary); }
+    .pe-chip::after { content:'⧉'; opacity:.5; font-size:10px; }
+    .pe-chip.copied::after { content:'✓'; color:var(--success); opacity:1; }
+    .pe-kv { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px 16px; margin-top:14px; }
+    .pe-kv .k { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); }
+    .pe-kv .v { font-size:13px; color:var(--text-primary); overflow-wrap:anywhere; margin-top:2px; }
+    .pe-sec { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+    .pe-sec > .t { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+    .pe-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+    .pe-actions .text-input { width:170px; }
+    .pe-actions label { display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; }
+    .pe-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .pe-table th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); padding:5px 8px; border-bottom:1px solid var(--border); }
+    .pe-table td { padding:7px 8px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:top; }
+    .pe-ev { border:1px solid var(--border); border-radius:8px; margin-bottom:6px; background:var(--bg-subtle); }
+    .pe-ev > summary { cursor:pointer; padding:7px 10px; font-size:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pe-ev pre { margin:0; padding:10px; font-size:11px; max-height:260px; overflow:auto; white-space:pre-wrap; word-break:break-all; font-family:'JetBrains Mono', monospace; color:var(--text-primary); }
+    .pe-busy button { pointer-events:none; opacity:.5; }
+    #payments-tab .main-button:disabled, #payments-tab .copy-btn:disabled { opacity:.4; cursor:not-allowed; }
+    @media (max-width: 760px) { .pe-layout { grid-template-columns:1fr; } }
+</style>
+
+<div class="context-area" id="pe-root">
+    <h2 class="section-header">Payments</h2>
+
+    <div class="pe-bar">
+        <input type="text" id="pe-q" class="text-input" placeholder="pay_… / reference / email / last 4 — or a query such as status:'Captured' AND amount:>1000">
+        <button id="pe-search" class="main-button" type="button">Search</button>
+        <button id="pe-refresh" class="copy-btn" type="button" title="Re-run the search and reload the open payment">↻ Refresh</button>
+    </div>
+    <div class="pe-filters">
+        <select id="pe-status" class="select-input" title="status">
+            <option value="">Any status</option>
+            <option>Authorized</option><option>Captured</option><option>Partially Captured</option><option>Paid</option><option>Pending</option>
+            <option>Declined</option><option>Card Verified</option><option>Voided</option><option>Canceled</option><option>Expired</option>
+            <option>Refunded</option><option>Partially Refunded</option><option>Disputed</option><option>Authentication Requested</option><option>Authentication Failed</option>
+        </select>
+        <select id="pe-currency" class="select-input" title="currency"><option value="">Any currency</option></select>
+        <select id="pe-period" class="select-input" title="period">
+            <option value="">Last 90 days</option><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
+        </select>
+        <select id="pe-limit" class="select-input" title="results per page"><option>10</option><option selected>20</option><option>50</option><option>100</option></select>
+    </div>
+    <div id="pe-query-note" class="pe-note"></div>
+
+    <div class="pe-layout">
+        <div id="pe-list" class="pe-list"></div>
+        <div id="pe-detail" class="pe-detail"></div>
+    </div>
+</div>

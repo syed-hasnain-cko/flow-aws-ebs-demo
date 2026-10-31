@@ -193,35 +193,40 @@ router.post('/instruments', (req, res) =>
   forward(req, res, { method: 'post', path: '/instruments', body: req.body, scope: 'vault:instruments', defaultAuth: 'secret' }));
 
 // ---------------------------------------------------------------------------
-// Vault proxy — Customers + Instruments management (get / update / delete / create customer)
+// Vault / Payments proxy — one allowlisted route instead of one API Gateway method per operation
 //   POST /standalone/vault  { method, path, body }
-// One allowlisted route instead of one API Gateway method per operation. Only these upstream calls pass:
-//   POST   /customers | /instruments            (collection create)
-//   GET    /customers/{id|email} | /instruments/{id}
-//   PATCH  /customers/{id|email} | /instruments/{id}
-//   DELETE /customers/{id|email} | /instruments/{id}
-//   GET    /validation/bank-accounts/{country}/{currency}
+// Only these upstream calls pass:
+//   Vault:     POST   /customers | /instruments                     (collection create)
+//              GET|PATCH|DELETE /customers/{id|email} | /instruments/{id}
+//              GET    /validation/bank-accounts/{country}/{currency}
+//   Payments:  POST   /payments/search
+//              GET    /payments/{pay_…} | /payments/{pay_…}/actions
+//              POST   /payments/{pay_…}/captures | /voids | /refunds
 // Instrument CREATION from the UI keeps using the existing POST /standalone/instruments route.
+// The default auth is the secret key; the scope below only matters when the UI forces OAuth.
 // ---------------------------------------------------------------------------
 const VAULT_ITEM = /^\/(customers|instruments)\/[A-Za-z0-9_.@%+\-]{1,255}$/;
 const VAULT_COLLECTION = /^\/(customers|instruments)$/;
 const VAULT_VALIDATION = /^\/validation\/bank-accounts\/[A-Za-z]{2}\/[A-Za-z]{3}$/;
+const PAY_SEARCH = /^\/payments\/search$/;
+const PAY_READ = /^\/payments\/pay_[A-Za-z0-9]{10,60}(\/actions)?$/;
+const PAY_ACTION = /^\/payments\/pay_[A-Za-z0-9]{10,60}\/(captures|voids|refunds)$/;
 
 router.post('/vault', (req, res) => {
   const { method, path, body } = req.body || {};
   const m = String(method || '').toUpperCase();
   const p = String(path || '');
   const allowed =
-    (m === 'POST' && VAULT_COLLECTION.test(p)) ||
+    (m === 'POST' && (VAULT_COLLECTION.test(p) || PAY_SEARCH.test(p) || PAY_ACTION.test(p))) ||
     (['GET', 'PATCH', 'DELETE'].includes(m) && VAULT_ITEM.test(p)) ||
-    (m === 'GET' && VAULT_VALIDATION.test(p));
+    (m === 'GET' && (VAULT_VALIDATION.test(p) || PAY_READ.test(p)));
   if (!allowed || p.includes('..')) {
     return res.status(400).json({ upstream_status: 400, upstream: null, auth_mode: null, cko_request_id: null,
-      data: { error: `vault proxy does not allow ${m || '?'} ${p || '?'}` } });
+      data: { error: `proxy does not allow ${m || '?'} ${p || '?'}` } });
   }
   return forward(req, res, {
     method: m.toLowerCase(), path: p, body: ['POST', 'PATCH'].includes(m) ? (body || {}) : undefined,
-    scope: 'vault vault:instruments vault:customers', defaultAuth: 'secret',
+    scope: p.startsWith('/payments') ? 'payments:search gateway' : 'vault vault:instruments vault:customers', defaultAuth: 'secret',
   });
 });
 

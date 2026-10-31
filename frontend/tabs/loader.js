@@ -15,6 +15,8 @@
     // 1. Inject the main shell (header, tab buttons, sidebar, modal, loader overlay)
     document.getElementById('app').innerHTML = loadSync('tabs/main.html');
 
+    document.body.classList.add('app-docked');   // docked API log + side nav layout (index.html only)
+
     // 2. Inject each tab's content into its shell div
     document.getElementById('flow-tab').innerHTML = loadSync('tabs/flow.html');
     document.getElementById('google-tab').innerHTML = loadSync('tabs/wallets.html');
@@ -22,7 +24,8 @@
     document.getElementById('payouts-tab').innerHTML = loadSync('tabs/payouts.html');
     document.getElementById('disputes-tab').innerHTML = loadSync('tabs/disputes.html');
     document.getElementById('auth-types-tab').innerHTML = loadSync('tabs/auth-types.html');
-    document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261102f');
+    document.getElementById('payments-tab').innerHTML = loadSync('tabs/payments.html?v=20261102o');
+    document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261102o');
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
 
