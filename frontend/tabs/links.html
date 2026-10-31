@@ -1,0 +1,212 @@
+<style>
+    .lk-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .lk-pills { display:flex; gap:8px; flex-wrap:wrap; }
+    .lk-pill { padding:8px 16px; border-radius:20px; border:1px solid var(--border); background:var(--bg-subtle); font-size:13px; font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; transition:all .15s; }
+    .lk-pill:hover { border-color:var(--primary); color:var(--text-primary); }
+    .lk-pill.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .lk-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .lk-chip { padding:3px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg-subtle); font-size:12px; color:var(--text-secondary); cursor:pointer; user-select:none; }
+    .lk-chip:hover { border-color:var(--primary); color:var(--primary); }
+    .lk-sec { margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
+    .lk-sec:first-of-type { border-top:0; padding-top:0; }
+    .lk-t { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-secondary); margin-bottom:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .lk-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px 16px; }
+    .lk-grid label, .lk-lbl { display:block; font-size:12px; color:var(--text-secondary); margin-bottom:5px; white-space:normal; overflow-wrap:anywhere; }
+    .lk-grid .text-input, .lk-grid .select-input, .lk-ta { width:100%; box-sizing:border-box; }
+    .lk-ta { min-height:70px; font-family:'JetBrains Mono', monospace; font-size:12px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-input); color:var(--text-primary); resize:vertical; }
+    .lk-inline { display:flex; gap:8px; align-items:flex-end; }
+    .lk-inline .text-input { flex:1; min-width:0; } .lk-inline .select-input { width:auto; }
+    .lk-det { border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-top:12px; background:var(--bg-subtle); }
+    .lk-det > summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text-secondary); }
+    .lk-det[open] > summary { margin-bottom:12px; }
+    /* payment method tiles */
+    .lk-group { margin-top:12px; }
+    .lk-group > .gt { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+    .lk-tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+    .lk-tile { border:1px solid var(--border); border-radius:10px; padding:9px 11px; cursor:pointer; background:var(--bg-card); user-select:none; transition:all .12s; position:relative; }
+    .lk-tile:hover { border-color:var(--primary); }
+    .lk-tile .n { font-size:13px; font-weight:700; color:var(--text-primary); }
+    .lk-tile .s { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+    .lk-tile.sel { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary) inset; background:color-mix(in srgb, var(--primary) 9%, transparent); }
+    .lk-tile.sel::after { content:'✓'; position:absolute; top:6px; right:9px; font-size:12px; color:var(--primary); font-weight:700; }
+    .lk-tile.deny.sel { border-color:var(--error); box-shadow:0 0 0 1px var(--error) inset; background:color-mix(in srgb, var(--error) 8%, transparent); }
+    .lk-tile.deny.sel::after { content:'✕'; color:var(--error); }
+    .lk-tile.off { opacity:.5; }
+    .lk-tile .warn { font-size:10px; color:#b45309; margin-top:3px; }
+    .lk-tile.nomode { cursor:default; }
+    .lk-est { margin-top:12px; font-size:12px; color:var(--text-secondary); line-height:1.7; }
+    .lk-est b { color:var(--text-primary); }
+    .lk-tag { display:inline-block; padding:1px 8px; border-radius:20px; font-size:11px; border:1px solid var(--border); background:var(--bg-subtle); margin:2px 3px 2px 0; color:var(--text-primary); }
+    .lk-tag.need { color:#b45309; border-color:#f59e0b; }
+    /* products */
+    .lk-prod { display:grid; grid-template-columns:2fr 70px 110px 1.3fr auto; gap:8px; margin-bottom:8px; align-items:center; }
+    .lk-prod .text-input { width:100%; box-sizing:border-box; }
+    /* result */
+    .lk-result { margin-top:22px; border:1px solid var(--border); border-radius:12px; padding:16px; background:var(--bg-card); }
+    .lk-url { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 12px; border-radius:10px; background:var(--bg-subtle); border:1px solid var(--border); }
+    .lk-url code { font-size:12px; overflow-wrap:anywhere; flex:1; min-width:200px; color:var(--primary); }
+    .lk-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid var(--border); color:var(--text-secondary); background:var(--bg-subtle); }
+    .lk-badge.good { background:var(--success); border-color:var(--success); color:#fff; }
+    .lk-badge.warn { background:#f59e0b; border-color:#f59e0b; color:#fff; }
+    .lk-badge.bad { background:var(--error); border-color:var(--error); color:#fff; }
+    .lk-kv { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px 16px; margin-top:14px; }
+    .lk-kv .k { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); }
+    .lk-kv .v { font-size:13px; color:var(--text-primary); margin-top:2px; overflow-wrap:anywhere; }
+    .lk-cid { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:6px; font-size:11px; font-family:'JetBrains Mono', monospace; cursor:pointer; background:var(--bg-subtle); border:1px solid var(--border); color:var(--text-primary); margin:2px 6px 2px 0; }
+    .lk-cid:hover { border-color:var(--primary); color:var(--primary); }
+    .lk-cid::after { content:'⧉'; opacity:.5; font-size:10px; }
+    .lk-cid.copied::after { content:'✓'; color:var(--success); opacity:1; }
+    .lk-hist-row { display:flex; gap:10px; align-items:center; padding:8px 4px; border-top:1px solid var(--border); font-size:12px; cursor:pointer; flex-wrap:wrap; }
+    .lk-hist-row:hover { background:var(--bg-subtle); }
+    .lk-busy button { pointer-events:none; opacity:.55; }
+    #links-tab .main-button:disabled { opacity:.4; cursor:not-allowed; }
+    @media (max-width: 760px) { .lk-prod { grid-template-columns:1fr 1fr; } }
+</style>
+
+<div class="context-area" id="lk-root">
+    <h2 class="section-header">Hosted Page &amp; Links</h2>
+
+    <div class="lk-pills" id="lk-kind">
+        <div class="lk-pill active" data-kind="pl">Payment Link</div>
+        <div class="lk-pill" data-kind="hpp">Hosted Payments Page</div>
+    </div>
+    <div class="lk-chips" id="lk-presets"></div>
+
+    <!-- 1. Payment -->
+    <div class="lk-sec">
+        <div class="lk-t">Payment</div>
+        <div class="lk-grid">
+            <div><label for="lk-amount">amount (minor units)</label><input type="number" id="lk-amount" class="text-input" value="1000" min="0"></div>
+            <div><label for="lk-currency">currency</label><select id="lk-currency" class="select-input"></select></div>
+            <div><label for="lk-country">billing.address.country *</label><select id="lk-country" class="select-input"></select></div>
+            <div><label for="lk-reference">reference</label><input type="text" id="lk-reference" class="text-input"></div>
+            <div><label for="lk-description">description</label><input type="text" id="lk-description" class="text-input" placeholder="Payment for Gold Necklace"></div>
+            <div><label for="lk-display-name">display_name (merchant name shown)</label><input type="text" id="lk-display-name" class="text-input" placeholder="The Jewelry Shop"></div>
+            <div><label for="lk-locale">locale</label><select id="lk-locale" class="select-input"></select></div>
+            <div><label for="lk-payment-type">payment_type</label><select id="lk-payment-type" class="select-input"><option>Regular</option><option>Recurring</option></select></div>
+            <div><label for="lk-auth-type">authorization_type</label><select id="lk-auth-type" class="select-input"><option>Final</option><option>Estimated</option></select></div>
+        </div>
+
+        <!-- Payment Link only -->
+        <div id="lk-pl-only" style="margin-top:16px;">
+            <div class="lk-t" style="margin-bottom:6px;">Link expiry <span class="lk-note" style="text-transform:none; letter-spacing:0; font-weight:400;">expires_in · 1 second up to 60 days</span></div>
+            <div class="lk-inline" style="max-width:380px;">
+                <div style="flex:1;"><label class="lk-lbl" for="lk-exp-n">valid for</label><input type="number" id="lk-exp-n" class="text-input" value="1" min="1"></div>
+                <select id="lk-exp-u" class="select-input"><option value="60">minutes</option><option value="3600">hours</option><option value="86400" selected>days</option></select>
+            </div>
+            <div class="lk-chips" id="lk-exp-chips"></div>
+            <div id="lk-exp-note" class="lk-note" style="margin-top:6px;"></div>
+            <div class="lk-grid" style="margin-top:14px;">
+                <div><label for="lk-return-url">return_url (button on the success page)</label><input type="text" id="lk-return-url" class="text-input"></div>
+            </div>
+        </div>
+
+        <!-- Hosted Payments Page only -->
+        <div id="lk-hpp-only" style="display:none; margin-top:16px;">
+            <div class="lk-grid">
+                <div><label for="lk-success-url">success_url *</label><input type="text" id="lk-success-url" class="text-input"></div>
+                <div><label for="lk-cancel-url">cancel_url *</label><input type="text" id="lk-cancel-url" class="text-input"></div>
+                <div><label for="lk-failure-url">failure_url *</label><input type="text" id="lk-failure-url" class="text-input"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Payment methods -->
+    <div class="lk-sec">
+        <div class="lk-t">Payment methods</div>
+        <div class="lk-pills" id="lk-pm-mode">
+            <div class="lk-pill active" data-mode="all">Show everything available</div>
+            <div class="lk-pill" data-mode="allow">Only these</div>
+            <div class="lk-pill" data-mode="deny">Everything except these</div>
+        </div>
+        <label class="lk-note" style="display:flex; gap:6px; align-items:center; margin-top:12px;"><input type="checkbox" id="lk-hide-off" checked> Only show methods available for <b id="lk-hide-lbl"></b> <span id="lk-hide-count"></span></label>
+        <div id="lk-tiles"></div>
+        <div id="lk-pm-est" class="lk-est"></div>
+    </div>
+
+    <!-- 3. More -->
+    <details class="lk-det">
+        <summary>Customer, billing &amp; shipping</summary>
+        <div class="lk-grid">
+            <div><label for="lk-c-email">customer.email</label><input type="email" id="lk-c-email" class="text-input" placeholder="ali.farid@example.com"></div>
+            <div><label for="lk-c-name">customer.name</label><input type="text" id="lk-c-name" class="text-input" placeholder="Ali Farid"></div>
+            <div><label for="lk-c-cc">customer.phone.country_code</label><input type="text" id="lk-c-cc" class="text-input" placeholder="+44"></div>
+            <div><label for="lk-c-num">customer.phone.number</label><input type="text" id="lk-c-num" class="text-input" placeholder="79460000"></div>
+            <div><label for="lk-b-line1">billing.address.address_line1</label><input type="text" id="lk-b-line1" class="text-input"></div>
+            <div><label for="lk-b-line2">billing.address.address_line2</label><input type="text" id="lk-b-line2" class="text-input"></div>
+            <div><label for="lk-b-city">billing.address.city</label><input type="text" id="lk-b-city" class="text-input"></div>
+            <div><label for="lk-b-zip">billing.address.zip</label><input type="text" id="lk-b-zip" class="text-input"></div>
+        </div>
+        <label class="lk-note" style="display:flex; gap:6px; align-items:center; margin:14px 0 8px;"><input type="checkbox" id="lk-ship-on"> Add a shipping address</label>
+        <div class="lk-grid" id="lk-ship-fields" style="display:none;">
+            <div><label for="lk-s-country">shipping.address.country</label><select id="lk-s-country" class="select-input"></select></div>
+            <div><label for="lk-s-line1">shipping.address.address_line1</label><input type="text" id="lk-s-line1" class="text-input"></div>
+            <div><label for="lk-s-city">shipping.address.city</label><input type="text" id="lk-s-city" class="text-input"></div>
+            <div><label for="lk-s-zip">shipping.address.zip</label><input type="text" id="lk-s-zip" class="text-input"></div>
+        </div>
+    </details>
+
+    <details class="lk-det">
+        <summary>Products (basket)</summary>
+        <div class="lk-note" style="margin-bottom:10px;">Required by several methods (PayPal, Klarna, Tabby, Alipay…). <code>price</code> is per item in minor units.</div>
+        <div id="lk-products"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="copy-btn" id="lk-prod-add" type="button">+ Item</button>
+            <button class="copy-btn" id="lk-prod-fill" type="button" title="One item that equals the payment amount">One item = amount</button>
+        </div>
+    </details>
+
+    <details class="lk-det">
+        <summary>Capture, 3DS, risk &amp; retries</summary>
+        <div class="lk-grid">
+            <div><label for="lk-capture">capture</label><select id="lk-capture" class="select-input"><option value="">Account default</option><option value="true">Capture</option><option value="false">Authorize only</option></select></div>
+            <div><label for="lk-capture-on">capture_on (UTC, sets capture = true)</label><input type="datetime-local" id="lk-capture-on" class="text-input"></div>
+            <div><label for="lk-3ds">3ds.enabled</label><select id="lk-3ds" class="select-input"><option value="">Account default</option><option value="true">On</option><option value="false">Off</option></select></div>
+            <div><label for="lk-3ds-ci">3ds.challenge_indicator</label><select id="lk-3ds-ci" class="select-input"><option value="">(default)</option><option>no_preference</option><option>no_challenge_requested</option><option>challenge_requested</option><option>challenge_requested_mandate</option></select></div>
+            <div><label for="lk-3ds-ex">3ds.exemption</label><select id="lk-3ds-ex" class="select-input"><option value="">(none)</option><option>low_value</option><option>secure_corporate_payment</option><option>trusted_listing</option><option>transaction_risk_assessment</option><option>3ds_outage</option><option>sca_delegation</option><option>out_of_sca_scope</option><option>other</option><option>low_risk_program</option><option>recurring_operation</option></select></div>
+            <div><label for="lk-risk">risk.enabled</label><select id="lk-risk" class="select-input"><option value="">Account default (on)</option><option value="false">Off</option></select></div>
+            <div><label for="lk-retry">customer_retry.max_attempts (0–5)</label><input type="number" id="lk-retry" class="text-input" min="0" max="5" placeholder="5"></div>
+            <div><label for="lk-store">card.store_payment_details</label><select id="lk-store" class="select-input"><option value="">(default)</option><option>disabled</option><option>enabled</option><option>collect_consent</option></select></div>
+        </div>
+        <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:12px;">
+            <label class="lk-note" style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="lk-3ds-n3d"> 3ds.attempt_n3d</label>
+            <label class="lk-note" style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="lk-3ds-noup"> 3ds.allow_upgrade = false</label>
+        </div>
+    </details>
+
+    <details class="lk-det" id="lk-plan-det">
+        <summary>Recurring payment plan</summary>
+        <div class="lk-grid">
+            <div><label for="lk-pp-var">payment_plan.amount_variability</label><select id="lk-pp-var" class="select-input"><option value="">(none)</option><option>Fixed</option><option>Variable</option></select></div>
+            <div><label for="lk-pp-days">days_between_payments</label><input type="number" id="lk-pp-days" class="text-input" placeholder="28"></div>
+            <div><label for="lk-pp-total">total_number_of_payments</label><input type="number" id="lk-pp-total" class="text-input" placeholder="5"></div>
+            <div><label for="lk-pp-exp">expiry (YYYYMMDD)</label><input type="text" id="lk-pp-exp" class="text-input" placeholder="20271031"></div>
+        </div>
+    </details>
+
+    <details class="lk-det">
+        <summary>Statement descriptor, stored cards, metadata &amp; extra JSON</summary>
+        <div class="lk-grid">
+            <div><label for="lk-bd-name">billing_descriptor.name (≤25)</label><input type="text" id="lk-bd-name" class="text-input" maxlength="25"></div>
+            <div><label for="lk-bd-city">billing_descriptor.city (≤13)</label><input type="text" id="lk-bd-city" class="text-input" maxlength="13"></div>
+            <div id="lk-sc-wrap"><label for="lk-stored-cus">stored_card.customer_id (Hosted page)</label><input type="text" id="lk-stored-cus" class="text-input" placeholder="cus_…" value="cus_xhsalsrfvkjuxhsxcab2eo4m2y"></div>
+            <div><label for="lk-pc">processing_channel_id</label><input type="text" id="lk-pc" class="text-input"></div>
+        </div>
+        <label class="lk-lbl" for="lk-metadata" style="margin-top:12px;">metadata (JSON, one level)</label>
+        <textarea id="lk-metadata" class="lk-ta" placeholder='{ "order_no": "1066" }'></textarea>
+        <label class="lk-lbl" for="lk-extra" style="margin-top:12px;">Extra JSON, deep-merged into the request</label>
+        <textarea id="lk-extra" class="lk-ta" placeholder='{ "sender": { "type": "individual" } }'></textarea>
+    </details>
+
+    <details class="lk-det">
+        <summary>Request preview <span class="lk-note">(what will be sent)</span></summary>
+        <pre id="lk-preview" class="lk-ta" style="white-space:pre-wrap; word-break:break-all; max-height:340px; overflow:auto; margin:0;"></pre>
+    </details>
+
+    <div class="button-group" style="margin-top:20px; justify-content:flex-start;">
+        <button id="lk-create" class="main-button" type="button">Create Payment Link</button>
+    </div>
+
+    <div id="lk-result" class="lk-result" style="display:none;"></div>
+    <div id="lk-history" style="margin-top:18px;"></div>
+</div>

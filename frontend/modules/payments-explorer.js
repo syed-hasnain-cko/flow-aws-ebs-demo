@@ -16,7 +16,7 @@
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const tabActive = () => $('payments-tab')?.classList.contains('active');
 
-    const state = { results: [], selected: null, pay: null, actions: [], events: [], busy: false, loaded: false, lastQuery: null, timers: [] };
+    const state = { results: [], selected: null, pay: null, actions: [], events: [], busy: false, loaded: false, lastQuery: null };
 
     // =====================================================================
     // HTTP — everything goes through the allowlisted proxy; only the Checkout.com exchange is logged
@@ -113,7 +113,8 @@
         return body;
     }
 
-    async function runSearch() {
+    // Search lists payments only. The open payment is reloaded just when asked (↻ Refresh) or when a pay_ id is typed.
+    async function runSearch({ reloadSelected = false } = {}) {
         const body = buildSearch();
         state.lastQuery = body;
         $('pe-query-note').innerHTML = body.query ? `query: <code>${esc(body.query)}</code>` : 'No filter — newest payments first.';
@@ -127,9 +128,9 @@
         state.results = env.data?.data || [];
         state.loaded = true;
         const direct = /^pay_/i.test(val('pe-q').trim()) ? val('pe-q').trim() : null;
-        if (direct && !state.results.some(p => p.id === direct)) await loadPayment(direct);   // search index can lag a fresh payment
-        else if (state.results.length && !state.results.some(p => p.id === state.selected)) await loadPayment(state.results[0].id, { quiet: true });   // the open payment is not in these results — show the first one
-        else if (state.selected && state.results.some(p => p.id === state.selected)) await loadPayment(state.selected, { quiet: true });
+        if (direct && !state.results.some(p => p.id === direct)) await loadPayment(direct);   // a fresh payment can be missing from the search index
+        else if (direct) await loadPayment(direct, { quiet: true });
+        else if (reloadSelected && state.selected) await loadPayment(state.selected, { quiet: true });
     }
 
     // =====================================================================
@@ -168,10 +169,7 @@
         const env = await pcall('POST', `/payments/${encodeURIComponent(id)}/${kind}`, body);
         if (!env.ok) return showToast(`${kind.slice(0, -1)} failed: ${errText(env)}`, 'error');
         showToast(`${kind.slice(0, -1)} accepted (${env.data?.action_id || env.upstream_status})`);
-        await loadPayment(id, { quiet: true });
-        // The final state and the webhook arrive a moment later — re-check a few times without blocking the UI.
-        state.timers.forEach(clearTimeout);
-        state.timers = [3000, 8000, 15000].map(ms => setTimeout(async () => { if (state.selected === id && tabActive() && !state.busy) { await loadPayment(id, { quiet: true }); render(); } }, ms));
+        await loadPayment(id, { quiet: true });   // one reload to show the new action; later changes (settlement, webhooks) need ↻ Refresh
     }
 
     // =====================================================================
@@ -179,7 +177,7 @@
     // =====================================================================
     function renderList() {
         const box = $('pe-list');
-        if (!state.loaded && !state.results.length) { box.innerHTML = '<div class="pe-empty">Searching…</div>'; return; }
+        if (!state.loaded && !state.results.length) { box.innerHTML = '<div class="pe-empty">Press <b>Search</b> to list recent payments, or paste a <code>pay_…</code> id.</div>'; return; }
         if (!state.results.length) { box.innerHTML = '<div class="pe-empty">No payments match.<br><span class="pe-note">A payment created seconds ago can take a few moments to become searchable — try ↻ Refresh, or paste its <code>pay_…</code> id.</span></div>'; return; }
         box.innerHTML = state.results.map(p => `
             <div class="pe-row ${p.id === state.selected ? 'active' : ''}" data-pe-select="${esc(p.id)}">
@@ -280,10 +278,7 @@
         return withBusy(() => runAction(k));
     }
 
-    function onShow() {
-        if (!$('pe-root')) return;
-        if (!state.loaded && !state.busy) withBusy(runSearch);
-    }
+    function onShow() { /* nothing is fetched on tab open — use Search / Refresh */ }
 
     function init() {
         if (!$('pe-root')) return;
@@ -293,7 +288,7 @@
         $('pe-search').addEventListener('click', () => { state.showRaw = false; withBusy(runSearch); });
         $('pe-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { state.showRaw = false; withBusy(runSearch); } });
         ['pe-status', 'pe-currency', 'pe-period', 'pe-limit'].forEach(id => $(id).addEventListener('change', () => withBusy(runSearch)));
-        $('pe-refresh').addEventListener('click', () => withBusy(async () => { await runSearch(); }));
+        $('pe-refresh').addEventListener('click', () => withBusy(() => runSearch({ reloadSelected: true })));
         document.querySelector('[onclick*="payments-tab"]')?.addEventListener('click', () => setTimeout(onShow, 0));
         render();
     }

@@ -24,8 +24,9 @@
     document.getElementById('payouts-tab').innerHTML = loadSync('tabs/payouts.html');
     document.getElementById('disputes-tab').innerHTML = loadSync('tabs/disputes.html');
     document.getElementById('auth-types-tab').innerHTML = loadSync('tabs/auth-types.html');
-    document.getElementById('payments-tab').innerHTML = loadSync('tabs/payments.html?v=20261102o');
-    document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261102o');
+    document.getElementById('links-tab').innerHTML = loadSync('tabs/links.html?v=20261103c');
+    document.getElementById('payments-tab').innerHTML = loadSync('tabs/payments.html?v=20261103c');
+    document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261103c');
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
 
