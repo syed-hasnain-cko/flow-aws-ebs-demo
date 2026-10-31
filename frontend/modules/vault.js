@@ -67,6 +67,7 @@
         const mode = val('sa-auth-mode');
         if (mode) headers['x-auth-mode'] = mode;
         let status = 0, env;
+        const t0 = performance.now();
         try {
             const res = await fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
             status = res.status;
@@ -78,9 +79,10 @@
         env.ok = env.upstream_status >= 200 && env.upstream_status < 300;
         // Log only the Checkout.com exchange (request body, response body, status, full CKO URL) — not our proxy envelope,
         // and nothing for calls that never reached Checkout.com (those surface as toasts).
+        const meta = { duration_ms: Math.round(performance.now() - t0), ...(env.cko_request_id ? { request_id: env.cko_request_id } : {}) };
         const up = String(env.upstream || '').match(/^([A-Z]+)\s+(https?:\/\/\S+)$/);
-        if (up) addToApiLog(label.method, label.title || up[2].replace(/^https?:\/\/[^/]+/, ''), env.upstream_status, label.body ?? {}, env.data ?? null, up[2]);
-        else if (label.url) addToApiLog(label.method, label.title || label.path, env.upstream_status || status, label.body ?? {}, env.data ?? null, label.url);   // existing route that returns the raw CKO body
+        if (up) addToApiLog(label.method, label.title || up[2].replace(/^https?:\/\/[^/]+/, ''), env.upstream_status, label.body ?? {}, env.data ?? null, up[2], meta);
+        else if (label.url) addToApiLog(label.method, label.title || label.path, env.upstream_status || status, label.body ?? {}, env.data ?? null, label.url, meta);   // existing route that returns the raw CKO body
         return env;
     }
     const vcall = (method, path, body) =>

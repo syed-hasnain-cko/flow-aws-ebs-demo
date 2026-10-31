@@ -1699,3 +1699,85 @@ pre {
     .header-logo-icon { width: 30px; height: 30px; font-size: 15px; }
     .context-area { padding: 14px 12px; }
 }
+
+/* ================================================================
+   APP SHELL — grouped left navigation + docked API log
+   (index.html only: tabs/main.html wraps everything in .app-body and
+    tabs/loader.js adds body.app-docked; success/failure pages keep the
+    old floating log.)
+   ================================================================ */
+.nav-toggle { display: none; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); color: #fff; border-radius: 10px;
+    width: 38px; height: 38px; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+.app-body { display: flex; align-items: flex-start; min-height: calc(100vh - 70px); }
+.app-body .wrapper { flex: 1 1 0; min-width: 0; max-width: 1100px; margin: 28px auto; padding: 0 28px; }
+
+.side-nav { position: sticky; top: 70px; height: calc(100vh - 70px); width: 248px; flex-shrink: 0; overflow-y: auto; overflow-x: hidden;
+    padding: 14px 12px 12px; background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px;
+    transition: width .2s ease; }
+.nav-group { margin-bottom: 4px; }
+.nav-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: 0; cursor: pointer;
+    padding: 8px 10px 6px; font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-muted); }
+.nav-heading:hover { color: var(--text-secondary); }
+.nav-heading .chev { transition: transform .15s ease; font-size: 11px; }
+.nav-group.collapsed .chev { transform: rotate(-90deg); }
+.nav-group.collapsed .nav-items { display: none; }
+.nav-items { display: flex; flex-direction: column; gap: 2px; }
+.side-nav .nav-item, .side-nav .nav-collapse { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; padding: 9px 12px; font-size: 13px;
+    font-weight: 600; border-radius: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .1px; color: var(--text-secondary); }
+.side-nav .nav-item:hover, .side-nav .nav-collapse:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.side-nav .nav-item.active { background: color-mix(in srgb, var(--primary) 13%, transparent); color: var(--primary); box-shadow: inset 3px 0 0 var(--primary); }
+.nav-ico { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
+.nav-label { overflow: hidden; text-overflow: ellipsis; }
+.nav-collapse { margin-top: auto; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0 !important; cursor: pointer; font-family: inherit; }
+
+/* collapsed to icons */
+.side-nav.collapsed { width: 64px; padding: 14px 8px 12px; }
+.side-nav.collapsed .nav-label, .side-nav.collapsed .chev, .side-nav.collapsed .nav-heading-text { display: none; }
+.side-nav.collapsed .nav-heading { padding: 2px 0 6px; cursor: default; pointer-events: none; }
+.side-nav.collapsed .nav-heading::before { content: ''; display: block; width: 100%; border-top: 1px solid var(--border); }
+.side-nav.collapsed .nav-group:first-child .nav-heading::before { display: none; }
+.side-nav.collapsed .nav-group.collapsed .nav-items { display: flex; }   /* group folding is only for the expanded menu */
+.side-nav.collapsed .nav-item, .side-nav.collapsed .nav-collapse { justify-content: center; padding: 10px 0; }
+.side-nav.collapsed .nav-collapse .nav-ico { transform: none; }
+
+/* docked API log (desktop) */
+@media (min-width: 901px) {
+    body.app-docked .api-log-sidebar { position: sticky; top: 70px; right: auto; left: auto; width: var(--log-w, 340px); height: calc(100vh - 70px); max-height: none;
+        border-radius: 0; box-shadow: none; border: 0; border-left: 1px solid #1e293b; flex-shrink: 0; z-index: 5; overflow: hidden; }
+    body.app-docked .api-log-sidebar .sidebar-header { border-radius: 0; }
+    body.app-docked .log-entries-container { flex: 1; min-height: 0; }
+    body.app-docked .api-log-toggle, body.app-docked .sidebar-backdrop { display: none !important; }
+    #log-resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; z-index: 6; }
+    #log-resizer:hover, #log-resizer.drag { background: #38bdf8; opacity: .5; }
+    #log-collapse { background: transparent; border: 0; color: #94a3b8; cursor: pointer; font-size: 14px; padding: 0 6px; font-family: inherit; }
+    #log-collapse:hover { color: #e2e8f0; }
+    #log-dock-tab { display: none; }
+    body.app-docked .api-log-sidebar.dock-collapsed { width: 44px; }
+    body.app-docked .api-log-sidebar.dock-collapsed > *:not(#log-dock-tab) { display: none; }
+    body.app-docked .api-log-sidebar.dock-collapsed #log-dock-tab { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0; width: 100%;
+        height: 100%; background: transparent; border: 0; color: #38bdf8; cursor: pointer; font-family: inherit; }
+    #log-dock-tab .vt { writing-mode: vertical-rl; letter-spacing: 2px; font-size: 10px; font-weight: 700; }
+    #log-dock-tab .badge { min-width: 20px; padding: 2px 6px; border-radius: 20px; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; font-size: 10px; text-align: center; }
+    #log-dock-tab .badge:empty { display: none; }
+}
+
+/* tablet / mobile: nav becomes a slide-over drawer (the API log keeps its existing bottom drawer) */
+@media (max-width: 900px) {
+    .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+    .app-body { display: block; }
+    .app-body .wrapper { margin: 18px auto; padding: 0 16px; }
+    .side-nav, .side-nav.collapsed { position: fixed; top: 0; left: 0; height: 100vh; width: 270px; z-index: 1700; transform: translateX(-102%); transition: transform .25s ease;
+        box-shadow: 0 0 40px rgba(0,0,0,.45); padding: 14px 12px 12px; }
+    body.nav-open .side-nav { transform: none; }
+    .side-nav.collapsed .nav-label, .side-nav.collapsed .nav-heading-text { display: inline; }
+    .side-nav.collapsed .chev { display: inline; }
+    .side-nav.collapsed .nav-heading { pointer-events: auto; padding: 8px 10px 6px; }
+    .side-nav.collapsed .nav-heading::before { display: none; }
+    .side-nav.collapsed .nav-item { justify-content: flex-start; padding: 9px 12px; }
+    .nav-collapse { display: none !important; }
+    .nav-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1690; backdrop-filter: blur(2px); }
+    body.nav-open .nav-backdrop { display: block; }
+}
+
+/* header spans the full width so the brand lines up with the left menu */
+body.app-docked .header-inner { max-width: none; }

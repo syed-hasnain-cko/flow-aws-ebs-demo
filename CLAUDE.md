@@ -772,3 +772,34 @@ New 5th product in the Standalone Suite selector ("Vault: Customers & Instrument
 - `addToApiLog(method, endpoint, status, req, res, url)` — new optional 6th arg `url`; the log-detail modal shows `METHOD <full url>` (click to copy) at the top. Without `url` it falls back to a `http(s)://…` URL embedded in the endpoint label (partner calls via `withUpstream()` already include one), else the label. Entry ids are de-duplicated (two logs in the same millisecond used to overwrite each other).
 - Standalone Suite: `logCko()` (standalone.js) / `request()` (vault.js) parse `env.upstream` ("POST https://…") for method + URL. Calls through existing raw routes (`/payments`, `/payment-sessions`, …) pass a best-effort `https://api.sandbox.checkout.com<path>` (our `/card-metadata` → `/metadata/card`, `/get-payment-details` → `/payments/{id}`). Webhook entries log the CKO event shape `{id,type,created_on,data}`.
 - Other (older) tabs still log without a URL; pass a 6th arg there when touching them.
+
+---
+
+## Session Summary (2026-10-31) — API logger upgrade + Payments Explorer
+
+### API logger upgrade (`frontend/modules/api-log.js`)
+All UI is created from `api-log.js` itself (the sidebar markup is duplicated in `main.html`, `success.html`, `failure.html`), so it works on every page.
+- **Sidebar**: search box (matches method, status, path, URL and request/response field values, e.g. a card number or `pay_` id), result filter (All / 2xx / 4xx-5xx / Pinned), `N of M calls` count, **Export** (downloads the log as JSON), per-entry time + duration.
+- **Detail modal**: status · duration · `cko-request-id` · timestamp, full `METHOD url` (click to copy), **Copy as cURL** (uses `$CKO_SECRET_KEY` / `${CKO_BASE_URL}` — a secret is never embedded; disabled for WEBHOOK entries and entries with no known URL), Copy request, Copy response, **Pin**. Esc closes.
+- **Pin**: pinned entries survive CLEAR and reload (sessionStorage); shift-click CLEAR wipes pinned too.
+- `addToApiLog(method, endpoint, status, req, res, url, meta)` — new optional 7th arg `meta = { duration_ms, request_id }`. Standalone/Vault/Payments callers pass it. Older tabs still log without url/meta.
+
+### Payments Explorer (new top-level "Payments" tab)
+Files: `tabs/payments.html`, `modules/payments-explorer.js` (tab wiring in `main.html`, `loader.js`, `index.html`).
+- Lists the account's recent payments straight from the **Payment Search API** (`POST /payments/search`, newest first, default last 90 days) — no local registry needed. Free-text box is mapped to a search field (`pay_…` → `id`, email → `email`, 4 digits → `last4`, anything with `:` = raw query, else `reference`); filters for status / currency / period / page size; the exact query sent is shown under the bar.
+- Detail pane: amount + status, copyable `pay_` / reference / `src_` / `cus_` chips, source, response, 3DS, risk, balances, **action history** (`GET /payments/{id}/actions`), **webhook timeline** (from the existing non-consuming `/standalone/webhook-events?match=<pay_id>` buffer), raw JSON.
+- **Capture / Void / Refund** with optional `amount` + `reference`; buttons are enabled only when the payment's `_links` (or `balances.available_to_*`) allow it. After an action it re-checks at 3 s / 8 s / 15 s.
+- **Backend**: no new route — the `POST /standalone/vault` allowlist now also passes `POST /payments/search`, `GET /payments/{pay_…}` (+ `/actions`) and `POST /payments/{pay_…}/captures|voids|refunds`. **Redeploy `standalone-routes.js`** (the Gateway method already exists/is pending from the Vault tab).
+- Sandbox facts: Payment Search needs the key to carry `payments:search` (it does here); a payment created seconds ago can take a few moments to be searchable by query (the unfiltered list shows it sooner; pasting its `pay_` id always works). This account declines Visa CIT with `43102`, so test captures/refunds with a Mastercard. One request runs at a time; a click during a running request is queued (not dropped).
+
+---
+
+## Session Summary (2026-10-31) — App shell redesign: grouped left nav + docked API log
+
+The horizontal tab bar (10 tabs, last one hidden under the floating log) was replaced so the app can keep growing.
+
+- **Left navigation** (`tabs/main.html`, CSS at the end of `style.css`, behaviour in `modules/nav.js`): groups **Accept payments** (Checkout Flow, Wallets, Payment Setup, Authorization Types) · **Manage** (Payments, Disputes, Payouts) · **Standalone** (3DS, Network Tokens, Account Updater & RTAU, Card Metadata, Vault) · **Tools** (Forward API, Competitor Testing). Groups fold (remembered, `cko-nav-groups`); the whole menu collapses to icons (remembered, `cko-nav-collapsed`); ≤900px it is a ☰ slide-over drawer.
+- **Adding a page**: add a `<div id="x-tab" class="tab-content">` + `loader.js` injection as before, then ONE nav item inside the right `.nav-group` in `main.html`: `<button class="tab-link nav-item" onclick="openTab(event, 'x-tab')" title="…"><span class="nav-ico">🆕</span><span class="nav-label">…</span></button>`. They are still `.tab-link` buttons calling `openTab(event, …)` — `script.js`, the initial-tab click, the 3DS return and the Payments-tab hook all work unchanged. A new group = another `.nav-group` block.
+- **Standalone products are nav items** (`data-sa-nav="3ds|nt|au|meta|vault"`, onclick `openTab(event,'standalone-tab'); selectStandaloneProduct('<key>')`; `window.selectStandaloneProduct = selectProduct` in `standalone.js`). The in-page product picker is kept in the DOM but hidden (code toggles `data-sa-product`). A new Standalone product = add its panel + a `data-sa-nav` item.
+- **API log is docked** on the right (index.html only: `loader.js` adds `body.app-docked`; success/failure pages keep the floating log): pushes the content instead of covering it, collapses to a slim tab with a call-count badge, drag the left edge to resize (`cko-log-w`, 280–720px), state remembered (`cko-log-collapsed`; default collapsed below 1500px wide so forms keep their room). ≤900px it keeps the old bottom drawer + 📋 button. Built in `api-log.js` (`_ensureDock`).
+- Layout: `.app-body` (flex) → `nav.side-nav` · `main.wrapper` (max 1100px) · `#api-sidebar`; header is full width in this layout. CSS cache-buster: `style.css?v=…` in `index.html` — bump together with the JS ones.

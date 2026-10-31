@@ -1,6 +1,7 @@
 <header>
     <div class="header-inner">
         <div class="header-brand">
+            <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu">☰</button>
             <div class="header-logo-icon">⚡</div>
             <div>
                 <h1>Syed's Testing Suite</h1>
@@ -18,19 +19,47 @@
     </div>
 </header>
 
+<div class="app-body">
+    <div class="nav-backdrop" id="nav-backdrop"></div>
+    <nav class="side-nav" id="side-nav" aria-label="Main navigation">
+        <div class="nav-group" data-group="accept">
+            <button class="nav-heading" type="button" aria-expanded="true"><span class="nav-heading-text">Accept payments</span><span class="chev">▾</span></button>
+            <div class="nav-items">
+            <button class="tab-link nav-item" onclick="openTab(event, 'flow-tab')" title="Checkout Flow"><span class="nav-ico">🛒</span><span class="nav-label">Checkout Flow</span></button>
+            <button class="tab-link nav-item" onclick="openTab(event, 'google-tab')" title="Wallets"><span class="nav-ico">👛</span><span class="nav-label">Wallets</span></button>
+            <button class="tab-link nav-item" onclick="openTab(event, 'setup-tab')" title="Payment Setup"><span class="nav-ico">🧩</span><span class="nav-label">Payment Setup</span></button>
+            <button class="tab-link nav-item" onclick="openTab(event, 'auth-types-tab')" title="Authorization Types"><span class="nav-ico">🔐</span><span class="nav-label">Authorization Types</span></button>
+            </div>
+        </div>
+        <div class="nav-group" data-group="manage">
+            <button class="nav-heading" type="button" aria-expanded="true"><span class="nav-heading-text">Manage</span><span class="chev">▾</span></button>
+            <div class="nav-items">
+            <button class="tab-link nav-item" onclick="openTab(event, 'payments-tab')" title="Payments"><span class="nav-ico">💳</span><span class="nav-label">Payments</span></button>
+            <button class="tab-link nav-item" onclick="openTab(event, 'disputes-tab')" title="Disputes"><span class="nav-ico">⚖️</span><span class="nav-label">Disputes</span></button>
+            <button class="tab-link nav-item" onclick="openTab(event, 'payouts-tab')" title="Payouts"><span class="nav-ico">💸</span><span class="nav-label">Payouts</span></button>
+            </div>
+        </div>
+        <div class="nav-group" data-group="standalone">
+            <button class="nav-heading" type="button" aria-expanded="true"><span class="nav-heading-text">Standalone</span><span class="chev">▾</span></button>
+            <div class="nav-items">
+            <button class="tab-link nav-item" data-sa-nav="3ds" onclick="openTab(event, 'standalone-tab'); window.selectStandaloneProduct &amp;&amp; selectStandaloneProduct('3ds')" title="3DS"><span class="nav-ico">🛡️</span><span class="nav-label">3DS</span></button>
+            <button class="tab-link nav-item" data-sa-nav="nt" onclick="openTab(event, 'standalone-tab'); window.selectStandaloneProduct &amp;&amp; selectStandaloneProduct('nt')" title="Network Tokens"><span class="nav-ico">🔑</span><span class="nav-label">Network Tokens</span></button>
+            <button class="tab-link nav-item" data-sa-nav="au" onclick="openTab(event, 'standalone-tab'); window.selectStandaloneProduct &amp;&amp; selectStandaloneProduct('au')" title="Account Updater & RTAU"><span class="nav-ico">🔄</span><span class="nav-label">Account Updater & RTAU</span></button>
+            <button class="tab-link nav-item" data-sa-nav="meta" onclick="openTab(event, 'standalone-tab'); window.selectStandaloneProduct &amp;&amp; selectStandaloneProduct('meta')" title="Card Metadata"><span class="nav-ico">🔎</span><span class="nav-label">Card Metadata</span></button>
+            <button class="tab-link nav-item" data-sa-nav="vault" onclick="openTab(event, 'standalone-tab'); window.selectStandaloneProduct &amp;&amp; selectStandaloneProduct('vault')" title="Vault"><span class="nav-ico">🗄️</span><span class="nav-label">Vault</span></button>
+            </div>
+        </div>
+        <div class="nav-group" data-group="tools">
+            <button class="nav-heading" type="button" aria-expanded="true"><span class="nav-heading-text">Tools</span><span class="chev">▾</span></button>
+            <div class="nav-items">
+            <button class="tab-link nav-item" onclick="openTab(event, 'forward-tab')" title="Forward API"><span class="nav-ico">➡️</span><span class="nav-label">Forward API</span></button>
+            <button class="tab-link nav-item" onclick="openTab(event, 'competitors-tab')" title="Competitor Testing"><span class="nav-ico">🆚</span><span class="nav-label">Competitor Testing</span></button>
+            </div>
+        </div>
+        <button class="nav-collapse" id="nav-collapse" type="button" title="Collapse menu"><span class="nav-ico">«</span><span class="nav-label">Collapse</span></button>
+    </nav>
+
 <main class="wrapper">
-    <!-- Tab Buttons -->
-    <div class="tab-container">
-        <button class="tab-link active" onclick="openTab(event, 'flow-tab')">Checkout Flow</button>
-        <button class="tab-link" onclick="openTab(event, 'google-tab')">Wallets</button>
-        <button class="tab-link" onclick="openTab(event, 'setup-tab')">Payment Setup</button>
-        <button class="tab-link" onclick="openTab(event, 'payouts-tab')">Payouts</button>
-        <button class="tab-link" onclick="openTab(event, 'disputes-tab')">Disputes</button>
-        <button class="tab-link" onclick="openTab(event, 'auth-types-tab')">Authorization Types</button>
-        <button class="tab-link" onclick="openTab(event, 'standalone-tab')">Standalone Suite</button>
-        <button class="tab-link" onclick="openTab(event, 'forward-tab')">Forward API</button>
-        <button class="tab-link" onclick="openTab(event, 'competitors-tab')">Competitor Testing</button>
-    </div>
 
     <!-- Tab Content: filled by loader.js -->
     <div id="flow-tab" class="tab-content active"></div>
@@ -39,6 +68,7 @@
     <div id="payouts-tab" class="tab-content"></div>
     <div id="disputes-tab" class="tab-content"></div>
     <div id="auth-types-tab" class="tab-content"></div>
+    <div id="payments-tab" class="tab-content"></div>
     <div id="standalone-tab" class="tab-content"></div>
     <div id="forward-tab" class="tab-content"></div>
     <div id="competitors-tab" class="tab-content"></div>
@@ -68,17 +98,6 @@
         <span>📋</span> API LOG
     </button>
 
-    <!-- API Activity Log Sidebar -->
-    <div id="api-sidebar" class="api-log-sidebar">
-        <div class="sidebar-header">
-            <span class="header-label">API ACTIVITY LOG</span>
-            <button onclick="clearApiLogs()" class="clear-logs-btn" title="Clear All Logs">
-                <span class="icon">×</span> CLEAR
-            </button>
-        </div>
-        <div id="log-entries" class="log-entries-container"></div>
-    </div>
-
     <!-- Request / Response Detail Modal -->
     <div id="log-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
@@ -99,6 +118,18 @@
         </div>
     </div>
 </main>
+
+    <!-- API Activity Log Sidebar -->
+    <div id="api-sidebar" class="api-log-sidebar">
+        <div class="sidebar-header">
+            <span class="header-label">API ACTIVITY LOG</span>
+            <button onclick="clearApiLogs()" class="clear-logs-btn" title="Clear All Logs">
+                <span class="icon">×</span> CLEAR
+            </button>
+        </div>
+        <div id="log-entries" class="log-entries-container"></div>
+    </div>
+</div>
 
 <!-- Toast notification -->
 <div id="toast-container" style="display:none;"></div>

@@ -146,6 +146,7 @@
         if (mode) headers['x-auth-mode'] = mode;
 
         let httpStatus = 0, env;
+        const t0 = performance.now();
         try {
             const res = await fetch(`${API_BASE}/standalone/${path}${qs}`, {
                 method, headers, body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -157,7 +158,7 @@
         }
         if (env.upstream_status === undefined) env = { upstream_status: httpStatus, upstream: null, data: env }; // gateway-level error shape
         env.ok = env.upstream_status >= 200 && env.upstream_status < 300;
-        logCko(method, env, body, label);
+        logCko(method, env, body, label, Math.round(performance.now() - t0));
         return env;
     }
 
@@ -169,17 +170,19 @@
         const m = String(upstream || '').match(/^([A-Z]+)\s+(https?:\/\/\S+)$/);
         return m ? { method: m[1], url: m[2] } : null;
     }
-    function logCko(method, env, body, label) {
+    function logCko(method, env, body, label, ms) {
         const up = splitUpstream(env.upstream);
         if (!up) return;
         const path = up.url.replace(/^https?:\/\/[^/]+/, '');
-        addToApiLog(method, label || path, env.upstream_status, body ?? {}, env.data ?? null, up.url);
+        addToApiLog(method, label || path, env.upstream_status, body ?? {}, env.data ?? null, up.url,
+            { ...(ms != null ? { duration_ms: ms } : {}), ...(env.cko_request_id ? { request_id: env.cko_request_id } : {}) });
     }
 
     // Existing routes return the raw CKO body; wrap into the same shape so renderers are shared.
     async function callLegacy(method, path, { body, query, label } = {}) {
         const qs = query ? '?' + new URLSearchParams(query).toString() : '';
         let status = 0, data;
+        const t0 = performance.now();
         try {
             const res = await fetch(`${API_BASE}${path}${qs}`, {
                 method, headers: { 'Content-Type': 'application/json' }, body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -190,7 +193,7 @@
             data = { error: 'Network error: ' + err.message };
         }
         const ckoPath = path === '/get-payment-details' ? `/payments/${query?.paymentId ?? '{id}'}` : (CKO_PATH[path] || path);
-        addToApiLog(method, label || path, status, body ?? {}, data, `${CKO_BASE}${ckoPath}`);
+        addToApiLog(method, label || path, status, body ?? {}, data, `${CKO_BASE}${ckoPath}`, { duration_ms: Math.round(performance.now() - t0) });
         return { ok: status >= 200 && status < 300, upstream_status: status, upstream: `${method} ${path}`, auth_mode: 'secret (existing route)', cko_request_id: null, data };
     }
 
@@ -2341,6 +2344,8 @@
         // script.js clicks the first tab on DOMContentLoaded — handle the 3DS return after that.
         window.addEventListener('load', handleReturn);
     }
+
+    window.selectStandaloneProduct = selectProduct;   // used by the sidebar's Standalone items
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
