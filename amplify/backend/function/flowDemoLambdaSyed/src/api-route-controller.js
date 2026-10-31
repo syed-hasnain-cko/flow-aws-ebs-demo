@@ -724,6 +724,8 @@ router.post("/payments", async (req, res) => {
               cvv: src.cvv,
               name: src.name,
               allow_update: src.allow_update,
+              // Subsequent merchant-initiated payments (Authorization Types → AFT recurring/unscheduled) mark the card as stored.
+              stored: src.stored,
             };
 
       const payment = await cko.payments.request({
@@ -760,6 +762,11 @@ router.post("/payments", async (req, res) => {
           processing:              req.body.processing,
           merchant_initiated:      req.body.merchant_initiated,
           previous_payment_id:     req.body.previous_payment_id,
+          // Optional — Account Funding Transactions (Authorization Types tab): the funds' sender / recipient and the
+          // payment purpose. All undefined for every other caller.
+          sender:                  req.body.sender,
+          recipient:               req.body.recipient,
+          instruction:             req.body.instruction,
       });
       res.send({ payment });
   } catch (error) {

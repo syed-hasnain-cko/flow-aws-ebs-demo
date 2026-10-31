@@ -20,7 +20,7 @@
         ['available_to_refund', 'Available to Refund'],
     ];
 
-    let _selectedType = null; // 'partial' | 'estimated' | 'amex' | 'discover'
+    let _selectedType = null; // 'partial' | 'estimated' | 'amex' | 'discover' | 'aft'
     let _currentPaymentId = null;
     let _currentScheme = null;
     let _actionPollInterval = null;
@@ -65,7 +65,7 @@
         document.querySelectorAll('.at-type-card').forEach(el => el.classList.remove('active'));
         $(`at-type-${type}`).classList.add('active');
 
-        ['partial', 'estimated', 'amex', 'discover'].forEach(t => {
+        ['partial', 'estimated', 'amex', 'discover', 'aft'].forEach(t => {
             $(`at-info-${t}`).style.display = t === type ? 'block' : 'none';
         });
 
@@ -74,6 +74,7 @@
 
         renderTypeCards(type);
         configureFormForType(type);
+        if (window.AftTest) { if (type === 'aft') window.AftTest.onSelect(); else window.AftTest.onDeselect(); }   // Account Funding Transactions (modules/aft.js)
     }
 
     function fillCard(card) {
@@ -84,6 +85,7 @@
     function renderTypeCards(type) {
         const row = $('at-cards-row');
         row.innerHTML = '';
+        if (type === 'aft') return;   // AFT shows its own test cards by issuer country (modules/aft.js)
         let cards;
         let note = '';
         if (type === 'partial') {
@@ -220,6 +222,8 @@
             body.partial_authorization = { enabled: true };
         } else if (_selectedType === 'estimated') {
             body.authorization_type = 'Estimated';
+        } else if (_selectedType === 'aft') {
+            window.AftTest.extendBody(body);   // processing.aft, sender, recipient, instruction.purpose, payment_type / MIT fields
         } else if (_selectedType === 'amex' || _selectedType === 'discover') {
             body.customer = {
                 email: $('at-customer-email').value.trim(),
@@ -331,7 +335,7 @@
 
     function updateSummaryBar() {
         $('at-summary-bar').style.display = 'flex';
-        const typeLabel = { partial: 'Partial Authorization', estimated: 'Estimated Authorization', amex: 'Amex Enhanced Auth', discover: 'Discover Enhanced Decisioning' }[_selectedType];
+        const typeLabel = { partial: 'Partial Authorization', estimated: 'Estimated Authorization', amex: 'Amex Enhanced Auth', discover: 'Discover Enhanced Decisioning', aft: window.AftTest ? window.AftTest.summaryLabel() : 'Account Funding Transaction' }[_selectedType];
         $('at-summary-text').textContent = `Testing: ${typeLabel} — ${_currentScheme || 'card'} — payment ${_currentPaymentId}`;
     }
 
@@ -351,6 +355,7 @@
         $('at-action-webhook-status').style.display = 'none';
         $('at-increment-section').style.display = 'none';
         $('at-enhanced-checklist-panel').style.display = 'none';
+        if (window.AftTest) window.AftTest.reset();
     }
 
     function incrementalSupportFor(scheme) {
@@ -418,6 +423,14 @@
                 showToast('Select an authorization type first.', 'error');
                 return;
             }
+            if (_selectedType === 'aft' && window.AftTest) {
+                const blocked = window.AftTest.blocking();
+                if (blocked) {
+                    showToast(`AFT not sent — ${blocked.errors} error${blocked.errors > 1 ? 's' : ''} in the qualification check (untick “block sending” to send anyway).`, 'error');
+                    window.AftTest.scrollToChecks();
+                    return;
+                }
+            }
             const body = buildPaymentBody();
             if (!body.source.number || !body.source.expiry_month || !body.source.expiry_year || !body.amount) {
                 showToast('Fill in card number, expiry, and amount first (click a test card, or enter manually).', 'error');
@@ -436,6 +449,7 @@
                 const data = await res.json();
                 const payment = data.payment || data; // error responses aren't wrapped in { payment }
                 await addToApiLog('POST', `create ${_selectedType} authorization payment - /payments`, res.ok ? 201 : res.status, body, data);
+                if (_selectedType === 'aft' && window.AftTest) window.AftTest.diagnose(res.status, data);
 
                 if (!res.ok || !payment?.id) {
                     showToast(`Payment request failed (${res.status}) — see API log for the response_code/response_summary.`, 'error');
@@ -445,8 +459,12 @@
                 renderPaymentResult(payment);
                 renderEnhancedChecklist(body);
                 updateActionsForPayment(payment);
-                updateSummaryBar();
-                collapseSetupSections();
+                // A declined AFT keeps the form open so a field can be corrected and the request re-sent
+                // (every other type collapses the setup once a payment exists).
+                if (!(_selectedType === 'aft' && payment.approved === false)) {
+                    updateSummaryBar();
+                    collapseSetupSections();
+                }
                 startActionWebhookPoll(payment.id, 'payment_approved / payment_declined');
 
                 if (payment.response_code === '10010') {

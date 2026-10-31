@@ -851,3 +851,30 @@ const LINK_PAYMENT_METHODS = [
     { id: 'truemoney',   label: 'TrueMoney',     group: 'Asia wallets', countries: ['TH'], currencies: ['THB', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
 ];
 const LINK_LOCALES = ['en-GB', 'ar', 'da-DK', 'de-DE', 'el', 'es-ES', 'fi-FI', 'fil-PH', 'fr-FR', 'hi-IN', 'id-ID', 'it-IT', 'ja-JP', 'ms-MY', 'nb-NO', 'nl-NL', 'pt-PT', 'sv-SE', 'th-TH', 'vi-VN', 'zh-CN', 'zh-HK', 'zh-TW'];
+
+// ── Account Funding Transactions (Authorization Types → AFT) ────────────────────────────────────────────────
+// Test cards by ISSUER COUNTRY (Checkout.com "Test cards" page). The issuer country matters for AFTs: it decides
+// domestic vs cross-border and whether `instruction.purpose` is required (Visa: AR BD CL CO EG IN MX SA).
+// `expect` is what the docs / a real sandbox run showed — never an assumption.
+const AFT_TEST_CARDS = [
+    { scheme: 'Visa', number: '4242424242424242', country: 'GB', type: 'Credit', expect: 'Default Visa — approved with a valid AFT request' },
+    { scheme: 'Visa', number: '4921817844445119', country: 'GB', type: 'Debit',  expect: 'UK debit — approved' },
+    { scheme: 'Visa', number: '4978313915783283', country: 'FR', type: 'Debit',  expect: 'French issuer — approved (Europe cross-border)' },
+    { scheme: 'Visa', number: '4556574722325580', country: 'PT', type: 'Credit', expect: 'Portuguese issuer' },
+    { scheme: 'Visa', number: '4076613139850359', country: 'SG', type: 'Debit',  expect: 'Singapore issuer (APAC)' },
+    { scheme: 'Visa', number: '4275765574319271', country: 'JP', type: 'Credit', expect: 'Japanese issuer (APAC)' },
+    { scheme: 'Visa', number: '4539929207120660', country: 'IN', type: 'Credit', expect: 'Indian issuer — instruction.purpose is required for Visa AFTs' },
+    { scheme: 'Visa', number: '4000020000000000', country: 'US', type: 'Credit', expect: 'US issuer (USA)' },
+    { scheme: 'Visa', number: '4024764449971519', country: 'US', type: 'Debit',  expect: 'US debit (USA)' },
+    { scheme: 'Visa', number: '4500622868341387', country: 'CA', type: 'Credit', expect: 'Canadian issuer — also the "3DS authentication required" (20154) test card' },
+    { scheme: 'Visa', number: '4659465888705671', country: 'GB', type: 'Credit', expect: 'AFT decline card — response 20057 (Transaction not permitted to cardholder) for AFTs' },
+    { scheme: 'Mastercard', number: '5436031030606378', country: 'MU', type: 'Credit', expect: 'Default Mastercard' },
+    { scheme: 'Mastercard', number: '5305484748800098', country: 'DE', type: 'Debit',  expect: 'German issuer (Europe)' },
+    { scheme: 'Mastercard', number: '5355224968521878', country: 'GB', type: 'Debit',  expect: 'UK issuer' },
+    { scheme: 'Mastercard', number: '5132728491870081', country: 'FR', type: 'Debit',  expect: 'French issuer' },
+    { scheme: 'Mastercard', number: '5526303170157160', country: 'SG', type: 'Debit',  expect: 'Singapore issuer (APAC)' },
+    { scheme: 'Mastercard', number: '5318773012490080', country: 'US', type: 'Debit',  expect: 'US issuer (USA)' },
+    { scheme: 'Mastercard', number: '5258901507741160', country: 'CA', type: 'Credit', expect: 'Canadian issuer — a 3DS challenge test card' },
+    { scheme: 'Mastercard', number: '5355224542121849', country: 'GB', type: 'Credit', expect: 'AFT decline card — response 20057 for AFTs' },
+];
+const AFT_PURPOSES = ['donations', 'education', 'emergency_need', 'expatriation', 'family_support', 'financial_services', 'gifts', 'income', 'insurance', 'investment', 'it_services', 'leisure', 'loan_payment', 'medical_treatment', 'other', 'pension', 'royalties', 'savings', 'travel_and_tourism'];

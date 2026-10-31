@@ -103,6 +103,54 @@
             color: var(--accent); background: var(--bg-chip); border: 1px solid var(--border);
             padding: 1px 6px; border-radius: 4px; font-size: 11px;
         }
+
+        /* ── Account Funding Transactions (modules/aft.js) ── */
+        .aft-card { border:1px solid var(--border); border-radius:var(--radius-md); background:var(--bg-subtle); padding:14px 16px; margin-top:12px; }
+        .aft-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+        .aft-row:last-child { margin-bottom:0; }
+        .aft-lbl { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-secondary); min-width:110px; }
+        .aft-hint { font-size:11px; color:var(--text-muted); text-transform:none; letter-spacing:0; font-weight:400; }
+        .aft-pills { display:flex; gap:6px; flex-wrap:wrap; }
+        .aft-pill { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--bg-card); font-size:12px; font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; }
+        .aft-pill:hover { border-color:var(--primary); color:var(--text-primary); }
+        .aft-pill.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+        .aft-support span { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; margin-left:4px; }
+        .aft-ok { color:var(--success); } .aft-bad { color:var(--error); } .aft-warn { color:#b45309; }
+        .aft-support .aft-ok, .aft-summary .aft-ok { border:1px solid var(--success); }
+        .aft-support .aft-bad, .aft-summary .aft-bad { border:1px solid var(--error); }
+        .aft-support .aft-warn, .aft-summary .aft-warn { border:1px solid #f59e0b; }
+        .aft-summary span { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; margin-left:6px; }
+        .aft-cards { display:flex; flex-wrap:wrap; gap:6px; }
+        .aft-tc { padding:4px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); font-family:'JetBrains Mono', monospace; font-size:11.5px; cursor:pointer; user-select:none; color:var(--text-primary); }
+        .aft-tc:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .aft-tc small { opacity:.65; } .aft-tc b { font-family:inherit; }
+        .aft-btn { padding:6px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); font-size:12px; cursor:pointer; }
+        .aft-btn:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); } .aft-btn:disabled { opacity:.5; }
+        .aft-tag { display:inline-block; padding:2px 9px; border-radius:20px; background:var(--bg-card); border:1px solid var(--border); font-size:11px; margin-right:5px; color:var(--text-primary); }
+        .aft-issuer { display:inline-flex; align-items:center; flex-wrap:wrap; gap:2px; }
+        .aft-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px, 1fr)); gap:12px; margin-top:12px; }
+        .aft-party { border:1px solid var(--border); border-radius:var(--radius-md); background:var(--bg-subtle); padding:14px 16px; }
+        .aft-party.aft-off .aft-grid { opacity:.45; }
+        .aft-party-h { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:var(--text-primary); }
+        .aft-party-note { font-size:11px; color:var(--text-muted); margin-left:auto; }
+        .aft-inc { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--text-secondary); }
+        .aft-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px 12px; }
+        .aft-f { margin:0; min-width:0; }
+        .aft-f .text-input, .aft-f .select-input { width:100%; box-sizing:border-box; }
+        .aft-badge { font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-left:4px; }
+        .aft-badge.req { color:var(--error); } .aft-badge.cond { color:#b45309; } .aft-badge.opt { color:var(--text-muted); }
+        .aft-msg { font-size:11px; color:var(--error); min-height:0; margin-top:3px; }
+        .aft-f.aft-err .text-input, .aft-f.aft-err .select-input { border-color:var(--error); }
+        .aft-f.aft-warnf .text-input { border-color:#f59e0b; } .aft-f.aft-warnf .aft-msg { color:#b45309; }
+        .aft-check-h { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; color:var(--text-primary); }
+        .aft-chk { display:flex; gap:10px; align-items:flex-start; padding:5px 0; font-size:12px; border-top:1px solid var(--border); color:var(--text-secondary); }
+        .aft-chk:first-of-type { border-top:0; }
+        .aft-chk .i { width:16px; text-align:center; font-weight:700; flex-shrink:0; }
+        .aft-chk .a { min-width:78px; font-weight:700; color:var(--text-primary); flex-shrink:0; }
+        .aft-chk .t { overflow-wrap:anywhere; }
+        .aft-chk.ok .i { color:var(--success); } .aft-chk.error .i, .aft-chk.error .t { color:var(--error); } .aft-chk.warn .i, .aft-chk.warn .t { color:#b45309; } .aft-chk.info .i { color:var(--primary); }
+        .aft-pre { margin:10px 0 0; max-height:340px; overflow:auto; white-space:pre-wrap; word-break:break-all; font-family:'JetBrains Mono', monospace; font-size:11px; padding:12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); }
+        @media (max-width: 760px) { .aft-grid { grid-template-columns:1fr; } .aft-grid2 { grid-template-columns:1fr; } }
     </style>
 
     <div class="at-type-grid" id="at-type-grid">
@@ -121,6 +169,10 @@
         <div class="at-type-card" id="at-type-discover" data-type="discover">
             <div class="at-type-title">Discover Enhanced Decisioning</div>
             <div class="at-type-sub">Extra risk-signal fields sent to Discover issuers (card-not-present only).</div>
+        </div>
+        <div class="at-type-card" id="at-type-aft" data-type="aft">
+            <div class="at-type-title">Account Funding Transaction (AFT)</div>
+            <div class="at-type-sub">Visa / Mastercard AFTs with the sender + recipient data each region and domestic / cross-border scenario requires.</div>
         </div>
     </div>
 
@@ -153,6 +205,11 @@
         <strong>How to verify:</strong> same as Amex Enhanced Auth — no response flag or sandbox simulation exists for this either. Check the payment still <strong>Authorized</strong>, and use the <strong>"Enhanced Data Fields Sent"</strong> checklist after you pay to confirm the required fields were actually populated. Real-world effect is only measurable in production over time.
     </div>
 
+    <div class="at-info-banner" id="at-info-aft">
+        <strong>AFT</strong> pulls funds from a card to fund a non-merchant account (load a prepaid card, top up a wallet, P2P transfer). Send <code>processing.aft: true</code> plus <code>sender</code> / <code>recipient</code> — what is required depends on the scheme, the operating region and domestic vs cross-border. The <strong>Qualification check</strong> below applies the documented rules live.<br><br>
+        <strong>Prerequisite:</strong> AFTs must be enabled by Checkout.com for your account and scheme. <code>422 aft_processor_not_matched</code> means they are not enabled for that scheme on your processing channel. A Visa payment <em>without</em> the AFT flag can be declined <code>43102</code> (Visa AFT mandate compliance).
+    </div>
+
     <div class="at-cards-row" id="at-cards-row"></div>
 
     <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border);">
@@ -160,6 +217,7 @@
     <p id="at-select-type-hint" style="font-size:0.8rem; color:var(--text-muted);">Select an authorization type above to see the relevant fields and test cards.</p>
 
     <div id="at-form-section" style="display:none;">
+        <div id="at-aft-scenario" style="display:none; margin-bottom:14px;"></div>
         <div class="inline-form">
             <div class="form-group">
                 <label for="at-card-number" class="text-label">Card Number</label>
@@ -201,6 +259,8 @@
         </div>
         <p id="at-amount-note" style="display:none; font-size:11px; color:var(--text-muted); margin:-6px 0 10px;"></p>
         <p id="at-capture-note" style="display:none; font-size:11px; color:var(--text-muted); margin:-6px 0 10px;"></p>
+
+        <div id="at-aft-parties" style="display:none; margin-bottom:12px;"></div>
 
         <!-- Enhanced data fields — shown (and highlighted) for Amex / Discover,
              collapsed for Partial / Estimated since they're irrelevant there. -->
@@ -285,6 +345,7 @@
 
     <div class="success-payment-message" id="at-payment-result-panel" style="display:none; margin-top:16px;">
         <div style="font-weight:700; font-size:13px; color:var(--text-primary); margin-bottom:8px;">Payment Result</div>
+        <div id="at-aft-diagnosis-result" class="aft-card" style="display:none; margin-bottom:10px;"></div>
         <div id="at-payment-result-response"></div>
         <div style="font-weight:700; font-size:12.5px; color:var(--text-primary); margin-top:14px;">Balances</div>
         <table class="at-balances-table" id="at-balances-table"><tbody></tbody></table>
