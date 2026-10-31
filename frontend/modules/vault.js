@@ -12,6 +12,7 @@
 (function () {
 
     const API_BASE = window.APP_CONFIG?.apiBaseUrl || '';
+    const CKO_BASE = 'https://api.sandbox.checkout.com';   // best-effort base for calls made through this app's existing raw routes
     const LS_DIR = 'cko-vault-directory';          // { customers: { cus_… : obj|null }, loose: { src_… : obj|null } }
     const LS_SUITE = 'cko-suite-instruments';      // saved by the other Suite products — used to seed the directory once
     const DEFAULT_CUSTOMER = 'cus_xhsalsrfvkjuxhsxcab2eo4m2y';   // sm_hasnain96@hotmail.com
@@ -75,9 +76,11 @@
         }
         if (env.upstream_status === undefined) env = { upstream_status: status, upstream: null, data: env };
         env.ok = env.upstream_status >= 200 && env.upstream_status < 300;
-        addToApiLog(label.method, env.upstream || label.path, env.upstream_status || status, label.body ?? {}, {
-            upstream_status: env.upstream_status, auth_mode: env.auth_mode, cko_request_id: env.cko_request_id, data: env.data,
-        });
+        // Log only the Checkout.com exchange (request body, response body, status, full CKO URL) — not our proxy envelope,
+        // and nothing for calls that never reached Checkout.com (those surface as toasts).
+        const up = String(env.upstream || '').match(/^([A-Z]+)\s+(https?:\/\/\S+)$/);
+        if (up) addToApiLog(label.method, label.title || up[2].replace(/^https?:\/\/[^/]+/, ''), env.upstream_status, label.body ?? {}, env.data ?? null, up[2]);
+        else if (label.url) addToApiLog(label.method, label.title || label.path, env.upstream_status || status, label.body ?? {}, env.data ?? null, label.url);   // existing route that returns the raw CKO body
         return env;
     }
     const vcall = (method, path, body) =>
@@ -370,7 +373,7 @@
                 success_url: `${window.location.origin}/success.html`,
                 failure_url: `${window.location.origin}/failure.html`,
             };
-            const env = await request(`${API_BASE}/payment-sessions`, 'POST', body, { method: 'POST', path: '/payment-sessions (Vault — stored cards)', body });
+            const env = await request(`${API_BASE}/payment-sessions`, 'POST', body, { method: 'POST', path: '/payment-sessions', title: '/payment-sessions (Vault — stored cards)', url: `${CKO_BASE}/payment-sessions`, body });
             if (!env.data?.id) throw new Error(errText(env) || 'Payment session creation failed');
             const checkout = await CheckoutWebComponents({
                 publicKey: window.APP_CONFIG.publicKey, environment: 'sandbox', locale: 'en-GB', paymentSession: env.data,
@@ -405,7 +408,7 @@
                 success_url: `${window.location.origin}/success.html`, failure_url: `${window.location.origin}/failure.html`,
                 disabled_payment_methods: ['remember_me'], billing: { address: { country: 'DE' } },
             };
-            const env = await request(`${API_BASE}/payment-sessions`, 'POST', sessionBody, { method: 'POST', path: '/payment-sessions (Vault tokenizer)', body: sessionBody });
+            const env = await request(`${API_BASE}/payment-sessions`, 'POST', sessionBody, { method: 'POST', path: '/payment-sessions', title: '/payment-sessions (Vault tokenizer)', url: `${CKO_BASE}/payment-sessions`, body: sessionBody });
             if (!env.data?.id) throw new Error('Payment session creation failed');
             const checkout = await CheckoutWebComponents({
                 publicKey: window.APP_CONFIG.publicKey, environment: 'sandbox', locale: 'en-GB', paymentSession: env.data,

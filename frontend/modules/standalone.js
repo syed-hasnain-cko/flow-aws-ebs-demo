@@ -11,6 +11,8 @@
 (function () {
 
     const API_BASE = window.APP_CONFIG?.apiBaseUrl || '';
+    const CKO_BASE = 'https://api.sandbox.checkout.com';           // best-effort base for calls made through this app's existing routes
+    const CKO_PATH = { '/card-metadata': '/metadata/card' };       // our route name → the Checkout.com path it proxies to
 
     // ----- Storage keys -----
     const LS_INSTRUMENTS = 'cko-suite-instruments';   // saved src_ ids, grouped by customer
@@ -155,10 +157,23 @@
         }
         if (env.upstream_status === undefined) env = { upstream_status: httpStatus, upstream: null, data: env }; // gateway-level error shape
         env.ok = env.upstream_status >= 200 && env.upstream_status < 300;
-        addToApiLog(method, label || env.upstream || `/standalone/${path}`, env.upstream_status || httpStatus, body ?? {}, {
-            upstream_status: env.upstream_status, auth_mode: env.auth_mode, cko_request_id: env.cko_request_id, data: env.data,
-        });
+        logCko(method, env, body, label);
         return env;
+    }
+
+    // API log = what a merchant's integration sends to / receives from Checkout.com, nothing else: the CKO request
+    // body, the CKO response body, the upstream status and the full CKO URL. Our own envelope fields (auth_mode,
+    // cko_request_id, upstream_status wrapper) and calls that never reached CKO (gateway / network failures,
+    // already surfaced as toasts) are not logged.
+    function splitUpstream(upstream) {
+        const m = String(upstream || '').match(/^([A-Z]+)\s+(https?:\/\/\S+)$/);
+        return m ? { method: m[1], url: m[2] } : null;
+    }
+    function logCko(method, env, body, label) {
+        const up = splitUpstream(env.upstream);
+        if (!up) return;
+        const path = up.url.replace(/^https?:\/\/[^/]+/, '');
+        addToApiLog(method, label || path, env.upstream_status, body ?? {}, env.data ?? null, up.url);
     }
 
     // Existing routes return the raw CKO body; wrap into the same shape so renderers are shared.
@@ -174,7 +189,8 @@
         } catch (err) {
             data = { error: 'Network error: ' + err.message };
         }
-        addToApiLog(method, label || path, status, body ?? {}, data);
+        const ckoPath = path === '/get-payment-details' ? `/payments/${query?.paymentId ?? '{id}'}` : (CKO_PATH[path] || path);
+        addToApiLog(method, label || path, status, body ?? {}, data, `${CKO_BASE}${ckoPath}`);
         return { ok: status >= 200 && status < 300, upstream_status: status, upstream: `${method} ${path}`, auth_mode: 'secret (existing route)', cko_request_id: null, data };
     }
 
@@ -1053,7 +1069,7 @@
                 if (s?.id) {
                     if (s.status !== state.pollStatus) {
                         state.pollStatus = s.status;
-                        addToApiLog('GET', env.upstream || '/standalone/session', env.upstream_status, { id: state.sid }, { note: 'status changed', ...env });
+                        logCko('GET', env, undefined, `GET /sessions/${state.sid} (status → ${s.status})`);
                         applySession(s);
                         env.ok = true;
                         renderResponse('sa-3ds-session-res', env, sessionSummary(s));
@@ -1956,7 +1972,7 @@
     }
 
     function logWebhook(e) {
-        addToApiLog('WEBHOOK', `${e.type} — /webhook`, 200, {}, { event_id: e.event_id, received_at: e.received_at, created_on: e.created_on, data: e.data });
+        addToApiLog('WEBHOOK', e.type, 200, {}, { id: e.event_id, type: e.type, created_on: e.created_on, data: e.data }, `${API_BASE}/webhook`);
     }
 
     function ingestWebhook(e) {
