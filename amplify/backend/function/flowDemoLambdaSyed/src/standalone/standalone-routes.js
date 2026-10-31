@@ -202,6 +202,8 @@ router.post('/instruments', (req, res) =>
 //   Payments:  POST   /payments/search
 //              GET    /payments/{pay_…} | /payments/{pay_…}/actions
 //              POST   /payments/{pay_…}/captures | /voids | /refunds
+//   Links/HPP: POST   /payment-links | /hosted-payments
+//              GET    /payment-links/{pl_…} | /hosted-payments/{hpp_…}
 // Instrument CREATION from the UI keeps using the existing POST /standalone/instruments route.
 // The default auth is the secret key; the scope below only matters when the UI forces OAuth.
 // ---------------------------------------------------------------------------
@@ -210,6 +212,8 @@ const VAULT_COLLECTION = /^\/(customers|instruments)$/;
 const VAULT_VALIDATION = /^\/validation\/bank-accounts\/[A-Za-z]{2}\/[A-Za-z]{3}$/;
 const PAY_SEARCH = /^\/payments\/search$/;
 const PAY_READ = /^\/payments\/pay_[A-Za-z0-9]{10,60}(\/actions)?$/;
+const LINK_CREATE = /^\/(payment-links|hosted-payments)$/;
+const LINK_READ = /^\/(payment-links\/pl_|hosted-payments\/hpp_)[A-Za-z0-9_\-]{4,60}$/;
 const PAY_ACTION = /^\/payments\/pay_[A-Za-z0-9]{10,60}\/(captures|voids|refunds)$/;
 
 router.post('/vault', (req, res) => {
@@ -217,16 +221,16 @@ router.post('/vault', (req, res) => {
   const m = String(method || '').toUpperCase();
   const p = String(path || '');
   const allowed =
-    (m === 'POST' && (VAULT_COLLECTION.test(p) || PAY_SEARCH.test(p) || PAY_ACTION.test(p))) ||
+    (m === 'POST' && (VAULT_COLLECTION.test(p) || PAY_SEARCH.test(p) || PAY_ACTION.test(p) || LINK_CREATE.test(p))) ||
     (['GET', 'PATCH', 'DELETE'].includes(m) && VAULT_ITEM.test(p)) ||
-    (m === 'GET' && (VAULT_VALIDATION.test(p) || PAY_READ.test(p)));
+    (m === 'GET' && (VAULT_VALIDATION.test(p) || PAY_READ.test(p) || LINK_READ.test(p)));
   if (!allowed || p.includes('..')) {
     return res.status(400).json({ upstream_status: 400, upstream: null, auth_mode: null, cko_request_id: null,
       data: { error: `proxy does not allow ${m || '?'} ${p || '?'}` } });
   }
   return forward(req, res, {
     method: m.toLowerCase(), path: p, body: ['POST', 'PATCH'].includes(m) ? (body || {}) : undefined,
-    scope: p.startsWith('/payments') ? 'payments:search gateway' : 'vault vault:instruments vault:customers', defaultAuth: 'secret',
+    scope: /^\/(payments|payment-links|hosted-payments)/.test(p) ? 'payments:search gateway' : 'vault vault:instruments vault:customers', defaultAuth: 'secret',
   });
 });
 

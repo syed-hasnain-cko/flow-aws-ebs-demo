@@ -802,3 +802,52 @@ const NT_GROUPS = [
         ],
     },
 ];
+
+// ── Hosted Payments Page / Payment Links: payment-method catalogue ─────────────────────────────────────────
+// `allow_payment_methods` / `disabled_payment_methods` accept exactly these ids (PaymentInterfacesPaymentMethodEnum).
+// countries / currencies = what the method needs from billing.address.country and currency (docs: "Payment method
+// field requirements"); null = no restriction. `needs` = extra request fields the method requires.
+const SEPA_COUNTRIES = ['AD','AT','BE','BG','CH','CY','CZ','DE','DK','EE','ES','FI','FR','GB','GR','HR','HU','IE','IS','IT','LI','LT','LU','LV','MC','MT','NL','NO','PL','PT','RO','SE','SI','SK','SM','VA'];
+const KLARNA_COUNTRIES = ['AT','AU','BE','CH','CZ','DE','DK','ES','FR','FI','GB','GR','IE','IT','NL','NO','PL','PT','SE','US'];
+const LINK_PAYMENT_METHODS = [
+    // Cards & wallets
+    { id: 'card',        label: 'Cards',         group: 'Cards & wallets', countries: null, currencies: null, needs: [] },
+    { id: 'applepay',    label: 'Apple Pay',     group: 'Cards & wallets', countries: null, currencies: null, needs: [], note: 'currency + country must be supported by Apple Pay' },
+    { id: 'googlepay',   label: 'Google Pay',    group: 'Cards & wallets', countries: null, currencies: null, needs: [], note: 'currency + country must be supported by Google Pay' },
+    { id: 'paypal',      label: 'PayPal',        group: 'Cards & wallets', countries: null, currencies: null, needs: ['products'] },
+    { id: 'stored_card', label: 'Stored cards',  group: 'Cards & wallets', countries: null, currencies: null, needs: ['stored customer id'], hppOnly: true },
+    // Bank & local
+    { id: 'ideal',       label: 'iDEAL',         group: 'Bank & local', countries: ['NL'], currencies: ['EUR'], needs: [] },
+    { id: 'bancontact',  label: 'Bancontact',    group: 'Bank & local', countries: ['BE'], currencies: ['EUR'], needs: ['customer name'] },
+    { id: 'eps',         label: 'EPS',           group: 'Bank & local', countries: ['AT'], currencies: ['EUR'], needs: [] },
+    { id: 'p24',         label: 'Przelewy24',    group: 'Bank & local', countries: ['PL'], currencies: ['EUR', 'PLN'], needs: ['customer name', 'customer email'] },
+    { id: 'sepa',        label: 'SEPA Direct Debit', group: 'Bank & local', countries: SEPA_COUNTRIES, currencies: ['EUR'], needs: ['billing address line 1', 'city', 'zip'] },
+    { id: 'bizum',       label: 'Bizum',         group: 'Bank & local', countries: ['ES'], currencies: ['EUR'], needs: [] },
+    { id: 'mbway',       label: 'MB WAY',        group: 'Bank & local', countries: ['PT'], currencies: ['EUR'], needs: ['reference'] },
+    { id: 'multibanco',  label: 'Multibanco',    group: 'Bank & local', countries: ['PT'], currencies: ['EUR'], needs: ['customer name'] },
+    { id: 'twint',       label: 'TWINT',         group: 'Bank & local', countries: ['CH'], currencies: ['CHF'], needs: ['reference', 'payment_type Regular'] },
+    { id: 'vipps',       label: 'Vipps',         group: 'Bank & local', countries: ['NO', 'SE'], currencies: ['NOK', 'SEK'], needs: [] },
+    { id: 'mobilepay',   label: 'MobilePay',     group: 'Bank & local', countries: ['DK', 'FI'], currencies: ['EUR', 'DKK'], needs: [] },
+    { id: 'paynow',      label: 'PayNow',        group: 'Bank & local', countries: ['SG'], currencies: ['SGD'], needs: ['payment_type Regular'] },
+    { id: 'octopus',     label: 'Octopus',       group: 'Bank & local', countries: ['HK'], currencies: ['HKD'], needs: ['payment_type Regular'] },
+    { id: 'knet',        label: 'KNET',          group: 'Bank & local', countries: ['KW'], currencies: ['KWD'], needs: ['locale ar'] },
+    { id: 'benefit',     label: 'Benefit',       group: 'Bank & local', countries: ['BH'], currencies: ['BHD'], needs: ['reference'] },
+    { id: 'qpay',        label: 'QPay',          group: 'Bank & local', countries: ['QA'], currencies: ['QAR'], needs: ['description'] },
+    { id: 'stcpay',      label: 'stc pay',       group: 'Bank & local', countries: ['SA'], currencies: ['SAR'], needs: ['reference'] },
+    { id: 'plaid',       label: 'Plaid',         group: 'Bank & local', countries: null, currencies: null, needs: [] },
+    // Pay later
+    { id: 'klarna',      label: 'Klarna',        group: 'Pay later', countries: KLARNA_COUNTRIES, currencies: ['AUD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'NOK', 'PLN', 'SEK', 'USD'], needs: ['products', 'customer name'] },
+    { id: 'alma',        label: 'Alma',          group: 'Pay later', countries: ['FR'], currencies: ['EUR'], needs: [] },
+    { id: 'tabby',       label: 'Tabby',         group: 'Pay later', countries: ['AE', 'SA', 'KW'], currencies: ['AED', 'SAR', 'KWD'], needs: ['reference', 'products', 'shipping'] },
+    { id: 'tamara',      label: 'Tamara',        group: 'Pay later', countries: ['SA', 'AE'], currencies: ['SAR', 'AED'], needs: ['reference', 'products', 'customer email', 'shipping'] },
+    // Asia wallets
+    { id: 'alipay_cn',   label: 'Alipay CN',     group: 'Asia wallets', countries: ['CN'], currencies: ['CNY', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
+    { id: 'alipay_hk',   label: 'Alipay HK',     group: 'Asia wallets', countries: ['HK'], currencies: ['HKD', 'SGD'], needs: ['products', 'customer email'] },
+    { id: 'wechatpay',   label: 'WeChat Pay',    group: 'Asia wallets', countries: null, currencies: null, needs: ['amount', 'payment_type Regular'] },
+    { id: 'gcash',       label: 'GCash',         group: 'Asia wallets', countries: ['PH'], currencies: ['PHP', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
+    { id: 'dana',        label: 'DANA',          group: 'Asia wallets', countries: ['ID'], currencies: ['IDR', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
+    { id: 'kakaopay',    label: 'KakaoPay',      group: 'Asia wallets', countries: ['KR'], currencies: ['KRW', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
+    { id: 'tng',         label: "Touch 'n Go",   group: 'Asia wallets', countries: ['MY'], currencies: ['MYR', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
+    { id: 'truemoney',   label: 'TrueMoney',     group: 'Asia wallets', countries: ['TH'], currencies: ['THB', 'HKD', 'SGD'], needs: ['products', 'customer email'] },
+];
+const LINK_LOCALES = ['en-GB', 'ar', 'da-DK', 'de-DE', 'el', 'es-ES', 'fi-FI', 'fil-PH', 'fr-FR', 'hi-IN', 'id-ID', 'it-IT', 'ja-JP', 'ms-MY', 'nb-NO', 'nl-NL', 'pt-PT', 'sv-SE', 'th-TH', 'vi-VN', 'zh-CN', 'zh-HK', 'zh-TW'];
