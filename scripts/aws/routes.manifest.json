@@ -1,0 +1,278 @@
+[
+  {
+    "method": "POST",
+    "path": "/apple-pay"
+  },
+  {
+    "method": "POST",
+    "path": "/capture-payment"
+  },
+  {
+    "method": "POST",
+    "path": "/card-metadata"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/cancel"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/capture"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/adyen/config"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/adyen/payment-link/:id"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/payment-links"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/payment-methods"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/payments-details"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/payments"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/refund"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/adyen/session-result"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/sessions"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/adyen/webhook-event"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/adyen/webhook"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/cancel-payment-intent"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/capture-payment-intent"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/stripe/checkout/session/:id"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/checkout/session"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/stripe/config"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/direct/payment-intent"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/payment-element/session"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/stripe/payment-intent/:id"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/payment-links"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/refund"
+  },
+  {
+    "method": "GET",
+    "path": "/competitors/stripe/webhook-event"
+  },
+  {
+    "method": "POST",
+    "path": "/competitors/stripe/webhook"
+  },
+  {
+    "method": "GET",
+    "path": "/config"
+  },
+  {
+    "method": "POST",
+    "path": "/confirm-payment-setups"
+  },
+  {
+    "method": "POST",
+    "path": "/disputes/:id/accept"
+  },
+  {
+    "method": "POST",
+    "path": "/disputes/:id/evidence/submit"
+  },
+  {
+    "method": "GET",
+    "path": "/disputes/:id/evidence"
+  },
+  {
+    "method": "PUT",
+    "path": "/disputes/:id/evidence"
+  },
+  {
+    "method": "GET",
+    "path": "/disputes/:id"
+  },
+  {
+    "method": "POST",
+    "path": "/disputes/create-test-payment"
+  },
+  {
+    "method": "GET",
+    "path": "/disputes/"
+  },
+  {
+    "method": "GET",
+    "path": "/forward-config"
+  },
+  {
+    "method": "GET",
+    "path": "/forward-customer-instruments"
+  },
+  {
+    "method": "GET",
+    "path": "/forward-jwks"
+  },
+  {
+    "method": "GET",
+    "path": "/forward-request"
+  },
+  {
+    "method": "POST",
+    "path": "/forward-request"
+  },
+  {
+    "method": "GET",
+    "path": "/get-payment-actions"
+  },
+  {
+    "method": "GET",
+    "path": "/get-payment-details"
+  },
+  {
+    "method": "GET",
+    "path": "/get-payment-setup"
+  },
+  {
+    "method": "POST",
+    "path": "/google-pay"
+  },
+  {
+    "method": "POST",
+    "path": "/increment-authorization"
+  },
+  {
+    "method": "POST",
+    "path": "/payment-sessions"
+  },
+  {
+    "method": "POST",
+    "path": "/payment-setups"
+  },
+  {
+    "method": "POST",
+    "path": "/payments"
+  },
+  {
+    "method": "POST",
+    "path": "/payouts"
+  },
+  {
+    "method": "POST",
+    "path": "/refund-payment"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/account-updater"
+  },
+  {
+    "method": "GET",
+    "path": "/standalone/config"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/instruments"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/network-token-cryptogram"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/network-token-delete"
+  },
+  {
+    "method": "GET",
+    "path": "/standalone/network-token"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/network-tokens"
+  },
+  {
+    "method": "GET",
+    "path": "/standalone/session"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/sessions"
+  },
+  {
+    "method": "POST",
+    "path": "/standalone/vault"
+  },
+  {
+    "method": "GET",
+    "path": "/standalone/webhook-events"
+  },
+  {
+    "method": "POST",
+    "path": "/submit-payment-session"
+  },
+  {
+    "method": "PUT",
+    "path": "/update-payment-setups"
+  },
+  {
+    "method": "POST",
+    "path": "/validate-apple-session"
+  },
+  {
+    "method": "POST",
+    "path": "/void-payment"
+  },
+  {
+    "method": "GET",
+    "path": "/webhook-event"
+  },
+  {
+    "method": "POST",
+    "path": "/webhook"
+  }
+]

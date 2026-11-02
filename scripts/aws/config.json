@@ -1,0 +1,4 @@
+{
+  "profile": "cko-syed-testing-playground",
+  "_note": "Only the SSO/login profile name lives here (no credentials, no account id). The Lambda, API id, stage and region are pinned in lib.js on purpose, so a wrong profile can never point these scripts at other resources."
+}

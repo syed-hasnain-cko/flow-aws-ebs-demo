@@ -6,7 +6,14 @@
   "scripts": {
     "start": "node app-ebs.js",
     "dev": "nodemon app-ebs.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "aws:check": "node scripts/aws/check.js",
+    "api:routes": "node scripts/aws/routes.js",
+    "api:diff": "node scripts/aws/api-diff.js",
+    "api:sync": "node scripts/aws/api-sync.js",
+    "lambda:build": "node scripts/aws/lambda-build.js",
+    "lambda:deploy": "node scripts/aws/lambda-deploy.js",
+    "lambda:rollback": "node scripts/aws/lambda-rollback.js"
   },
   "keywords": [],
   "author": "",

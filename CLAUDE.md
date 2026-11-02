@@ -161,7 +161,7 @@ These were identified as high-value but not yet created — create them if the u
 
 ### AWS Deployment Reminder
 
-Every new Express route in `api-route-controller.js` **must also be manually added in AWS API Gateway** (Method + Lambda proxy integration → `flowDemoLambdaSyed`) before it works in production. This is not automated.
+Every new Express route in `api-route-controller.js` must be reachable through AWS API Gateway before it works in production. *Update (2026-11-02): this is now checked/automated — `npm run api:diff` lists unreachable routes and `npm run api:sync` creates them (see “AWS deploy tooling”). Routes under `/standalone`, `/competitors` and `/disputes` already work through catch-all `{proxy+}` resources and need nothing.*
 
 ---
 
@@ -846,3 +846,24 @@ New 5th type **Account Funding Transaction (AFT)** in the Authorization Types ta
 - **Scenario = full happy-flow setup (2026-11-04 update)**: clicking a scheme / region / category pill now loads, in one go, sender + recipient defaults (countries consistent with domestic / cross-border), a matching **test card** (`HAPPY_CARD` in aft.js — issuer country fits the scenario, shown with a note) and the region currency, and re-includes both parties. Only Visa · Europe (domestic + cross-border) is marked "approved on the demo sandbox"; Mastercard notes warn about `aft_processor_not_matched`; UAE notes that no UAE-issued test card is published (so the scheme sees GB-issued cards as cross-border). Editing a field afterwards is never overwritten except by choosing another scenario / "Reset to scenario defaults".
 - **Include checkboxes** exist for both Sender and Recipient and are always usable. Excluding a party the scenario requires is flagged as a qualification error (blocking unless "block sending" is unticked, so the API's own rejection can be tested); optional parties can be dropped silently. A declined AFT keeps the form open (other types collapse it) so a field can be corrected and re-sent.
 - The AFT form builds its own country list (shared `COUNTRIES` lacks SG, JP, CA, IN … and every prohibited country) and adds missing currencies (CAD, JPY …) to `#at-currency`.
+
+
+---
+
+## AWS deploy tooling (2026-11-02) — branch `feature/aws-deploy-automation`
+
+Scripts in `scripts/aws/` (npm scripts in the root `package.json`) talk to AWS **only through the `aws` CLI with a login/SSO profile** — no access keys anywhere. Profile name in `scripts/aws/config.json` (`cko-syed-testing-playground`; `$AWS_PROFILE` overrides). Sign in once with `aws login --profile cko-syed-testing-playground` (needs AWS CLI ≥ 2.32; the old SSO flow is `aws sso login`). Account numbers are masked in all output.
+
+**Pinned target (cannot be overridden by flags)** — in `scripts/aws/lib.js`: Lambda `flowDemoLambdaSyed-staging` (note the `-staging` suffix), REST API `flowDemoAPIGatewaySyed` = `zzrte604h4`, stage `staging`, region `us-east-1`; the scripts refuse to run unless signed in as the `cko_playground_engineer` role.
+
+| Command | What it does | Changes AWS? |
+|---|---|---|
+| `npm run aws:check` | who am I, Lambda/API/stage reachable, API→Lambda wiring | no |
+| `npm run api:routes` | rewrites `scripts/aws/routes.manifest.json` (all Express routes, found by loading the controller with stubs — no secrets/network) | no |
+| `npm run api:diff` | routes in code vs API Gateway; exits 1 if any are unreachable | no |
+| `npm run api:sync` | **dry run**: plan for missing routes. `-- --apply` creates `/<x>` (ANY → Lambda proxy + OPTIONS mock CORS) and `/<x>/{proxy+}` when nested, then deploys stage `staging`. `-- --simulate /new/path` previews a plan | only with `--apply` |
+| `npm run lambda:build` | clean zip → `.aws-build/` (src incl. `node_modules` + `certificates`, minus `__MACOSX`, `.DS_Store`, `event.json`) | no (local) |
+| `npm run lambda:deploy` | **dry run**: builds, lists source files that differ from the deployed package. `-- --apply` backs up the deployed package to `.aws-backups/`, uploads with `--revision-id` (race guard), waits for `function-updated`, smoke-tests `GET /config` + `/standalone/config` | only with `--apply` |
+| `npm run lambda:rollback` | `-- --list` backups; dry run; `-- --apply [--file <zip>]` restores | only with `--apply` |
+
+Facts learned about the live setup: every method is `ANY` + Lambda `AWS_PROXY`, authorization NONE, CORS via mock `OPTIONS`; the Lambda invoke permission already covers the whole API (`zzrte604h4/*/*/*`) so new methods need no per-route permission; only the **code** is replaced by deploys (env vars, layer, memory, timeout untouched); the deployed package's `node_modules` (107 packages) matches the local one. `.aws-build/` and `.aws-backups/` are git-ignored (backups contain certificates). The role is `Allow *` (except Lambda `Thanos`); Lambda code update permission was confirmed with `--dry-run`.
