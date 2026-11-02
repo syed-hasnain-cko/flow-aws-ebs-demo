@@ -1799,3 +1799,17 @@ body.app-docked .header-inner { max-width: none; }
 .settings-input { width: 100%; box-sizing: border-box; }
 @media (max-width: 760px) { .settings-grid { grid-template-columns: 1fr; } .settings-grid.settings-head { display: none; } }
 .settings-grid code { overflow-wrap: anywhere; word-break: break-all; }
+
+/* ---- Webhooks tab ---- */
+.wh-tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin:14px 0 16px; }
+.wh-tab { background:none; border:0; border-bottom:3px solid transparent; margin-bottom:-1px; padding:10px 16px; font:inherit; font-weight:600; color:var(--text-secondary); cursor:pointer; border-radius:8px 8px 0 0; }
+.wh-tab:hover { background:var(--bg-subtle); color:var(--text); }
+.wh-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.wh-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; justify-content:flex-start; }
+.wh-btn { background:var(--bg-subtle); color:var(--text); border:1px solid var(--border-strong); border-radius:8px; padding:7px 14px; font:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+.wh-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+.wh-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.wh-btn.primary:hover:not(:disabled) { color:#fff; filter:brightness(1.1); }
+.wh-btn:disabled { opacity:.5; cursor:not-allowed; }
+.wh-state { font-size:12px; color:var(--text-secondary); margin-left:4px; }
+#wh-list { overflow-x:auto; }

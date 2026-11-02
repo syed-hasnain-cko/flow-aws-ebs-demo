@@ -2,17 +2,18 @@
     <h2 class="section-header">Webhooks</h2>
     <p class="settings-sub">Backed by the Checkout.com <strong>Workflows API</strong>: events are stored by Checkout.com (not in this app's memory), so delivery status and replay work across Lambda containers. Uses the active account (default or your custom one).</p>
 
-    <div class="button-group" style="margin-bottom:14px;">
-        <button class="main-button wh-view-btn" data-view="manage" type="button">⚙️ Manage workflows</button>
-        <button class="main-button wh-view-btn" data-view="inspect" type="button" style="opacity:.6">🔍 Inspector</button>
+    <div class="wh-tabs" role="tablist">
+        <button class="wh-tab wh-view-btn active" data-view="manage" role="tab" type="button">⚙️ Manage workflows</button>
+        <button class="wh-tab wh-view-btn" data-view="inspect" role="tab" type="button">🔍 Inspector</button>
     </div>
 
     <!-- ============ MANAGE ============ -->
     <div id="wh-view-manage">
-        <div class="button-group">
-            <button id="wh-refresh" class="main-button" type="button">↻ Refresh list</button>
-            <button id="wh-new" class="main-button" type="button">＋ New workflow</button>
-            <button id="wh-use-app" class="main-button" type="button" title="Creates a workflow that sends all events to this app's /webhook endpoint">⚡ Send events to this app</button>
+        <div class="wh-toolbar">
+            <button id="wh-refresh" class="wh-btn" type="button" title="Reload your workflows from Checkout.com and check whether this app already receives your account's webhooks">↻ Refresh list</button>
+            <button id="wh-new" class="wh-btn" type="button" title="Create a workflow with your own webhook URL and events">＋ New workflow</button>
+            <button id="wh-use-app" class="wh-btn primary" type="button" title="Refresh the list first to check whether this app is already configured">⚡ Send events to this app</button>
+            <span id="wh-app-state" class="wh-state"></span>
         </div>
         <div id="wh-list" class="settings-sub" style="margin-top:12px;">Click “Refresh list” to load your workflows.</div>
 
@@ -35,9 +36,9 @@
             <div style="margin:6px 0"><input id="wh-ev-filter" class="text-input" placeholder="filter event types…" style="max-width:280px"></div>
             <div id="wh-events" style="max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;">Loading event types…</div>
             <details style="margin-top:10px"><summary>Request preview</summary><pre id="wh-preview" class="json-code-block"></pre></details>
-            <div class="button-group" style="margin-top:12px;">
-                <button id="wh-save" class="main-button" type="button">Save workflow</button>
-                <button id="wh-cancel" class="main-button" type="button" style="opacity:.7">Cancel</button>
+            <div class="wh-toolbar" style="margin-top:12px;">
+                <button id="wh-save" class="wh-btn primary" type="button">Save workflow</button>
+                <button id="wh-cancel" class="wh-btn" type="button">Cancel</button>
             </div>
         </div>
 
@@ -49,14 +50,14 @@
     <div id="wh-view-inspect" style="display:none">
         <div class="inline-form">
             <div class="form-group" style="flex:2"><label class="text-label" for="wh-subject">Subject id (payment, dispute, …)</label><input id="wh-subject" class="text-input" placeholder="pay_… / dsp_…"></div>
-            <div class="form-group" style="align-self:flex-end"><button id="wh-find" class="main-button" type="button">Find events</button></div>
-            <div class="form-group" style="align-self:flex-end"><button id="wh-replay-subject" class="main-button" type="button" title="Replays all events of this subject to every matching workflow">↺ Replay all</button></div>
+            <div class="form-group" style="align-self:flex-end"><button id="wh-find" class="wh-btn primary" type="button">Find events</button></div>
+            <div class="form-group" style="align-self:flex-end"><button id="wh-replay-subject" class="wh-btn" type="button" title="Replays all events of this subject to every matching workflow">↺ Replay all</button></div>
         </div>
         <div class="settings-sub">Events and delivery attempts come from Checkout.com, so they are complete even when this app's Lambda container changed.</div>
         <div id="wh-events-list" style="margin-top:12px;"></div>
         <div id="wh-event-detail" style="margin-top:14px;"></div>
         <details style="margin-top:18px"><summary>Live feed received by this app (this Lambda container only)</summary>
-            <div class="button-group" style="margin-top:8px"><button id="wh-live-refresh" class="main-button" type="button">↻ Refresh live feed</button></div>
+            <div class="wh-toolbar" style="margin-top:8px"><button id="wh-live-refresh" class="wh-btn" type="button">↻ Refresh live feed</button></div>
             <div id="wh-live" class="settings-sub"></div>
         </details>
     </div>

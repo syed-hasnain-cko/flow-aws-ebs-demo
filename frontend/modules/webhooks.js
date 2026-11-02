@@ -20,14 +20,14 @@
     async function busy(fn, ...btns) {
         if (st.busy) return; st.busy = true;
         const els = btns.map($).filter(Boolean); els.forEach(b => b.disabled = true);
-        try { return await fn(); } finally { st.busy = false; els.forEach(b => b.disabled = false); }
+        try { return await fn(); } finally { st.busy = false; els.forEach(b => b.disabled = false); if (st.workflows) updateAppButton(); }
     }
 
     // ---------- views ----------
     function showView(v) {
         $('wh-view-manage').style.display = v === 'manage' ? '' : 'none';
         $('wh-view-inspect').style.display = v === 'inspect' ? '' : 'none';
-        document.querySelectorAll('.wh-view-btn').forEach(b => b.style.opacity = b.dataset.view === v ? '1' : '.6');
+        document.querySelectorAll('.wh-view-btn').forEach(b => { const on = b.dataset.view === v; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); });
     }
 
     // ---------- event types ----------
@@ -90,6 +90,28 @@
         if (!r.ok) { $('wh-list').textContent = 'Could not load workflows: ' + err(r); return; }
         st.workflows = list(r.data);
         renderList();
+        await detectApp();
+    }
+    // is a workflow already sending this account's events to this app's /webhook?
+    async function detectApp() {
+        const url = API() + '/webhook'; st.appWf = null;
+        for (const w of st.workflows) {
+            const d = await call('GET', `/workflows/${w.id}`);
+            if (d.ok && (d.data.actions || []).some(a => a.url === url)) { st.appWf = { id: w.id, name: w.name, active: d.data.active !== false }; break; }
+        }
+        updateAppButton();
+    }
+    function updateAppButton() {
+        const b = $('wh-use-app'), s = $('wh-app-state');
+        if (st.appWf) {
+            b.disabled = true;
+            b.title = `Already configured: “${st.appWf.name || st.appWf.id}” (${st.appWf.id}) sends this account's events to ${API()}/webhook` + (st.appWf.active ? '.' : ' — but it is disabled; enable it in the list.');
+            s.textContent = st.appWf.active ? '✅ This app receives this account\'s webhooks' : '⏸ Configured but disabled';
+        } else {
+            b.disabled = false;
+            b.title = 'Create a workflow that sends all events of this account to ' + API() + '/webhook';
+            s.textContent = '⚠️ This app is not receiving this account\'s webhooks yet';
+        }
     }
     function renderList() {
         if (!st.workflows.length) { $('wh-list').innerHTML = 'No workflows yet. Create one, or use “Send events to this app”.'; return; }
@@ -179,7 +201,7 @@
         const opts = Object.entries(evs).flatMap(([s, l]) => l.map(e => `<label style="font-size:12px;margin-right:12px"><input type="checkbox" class="wh-test-ev" data-k="${esc(s + ':' + e)}"> ${esc(e)}</label>`)).join('') || 'This workflow has no events.';
         const box = $('wh-test'); box.style.display = '';
         box.innerHTML = `<h3 style="margin-top:0">Test ${esc(id)}</h3><p class="settings-sub">Sends sample events (flagged <code>isTest</code>) to the workflow's webhook URL.</p><div style="max-height:200px;overflow:auto">${opts}</div>
-          <div class="button-group" style="margin-top:10px"><button id="wh-test-go" class="main-button" type="button">Send test events</button><button id="wh-test-close" class="main-button" type="button" style="opacity:.7">Close</button></div>`;
+          <div class="wh-toolbar" style="margin-top:10px"><button id="wh-test-go" class="wh-btn primary" type="button">Send test events</button><button id="wh-test-close" class="wh-btn" type="button">Close</button></div>`;
         $('wh-test-close').onclick = () => box.style.display = 'none';
         $('wh-test-go').onclick = () => busy(async () => {
             const sel = {}; box.querySelectorAll('.wh-test-ev:checked').forEach(c => { const k = c.dataset.k, i = k.indexOf(':'); (sel[k.slice(0, i)] = sel[k.slice(0, i)] || []).push(k.slice(i + 1)); });

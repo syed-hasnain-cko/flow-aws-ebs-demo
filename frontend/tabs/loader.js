@@ -29,7 +29,7 @@
     document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261103c');
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
-    document.getElementById('webhooks-tab').innerHTML = loadSync('tabs/webhooks.html?v=20261105b');
+    document.getElementById('webhooks-tab').innerHTML = loadSync('tabs/webhooks.html?v=20261105c');
     document.getElementById('settings-tab').innerHTML = loadSync('tabs/settings.html?v=20261105a');
 
     // 3. Inject each partner's content into its panel div (index.html above must load first)
