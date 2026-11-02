@@ -10,6 +10,7 @@ const { deploy } = require('./lambda-deploy');
 const { rollback } = require('./lambda-rollback');
 const { syncRoutes, removeTestResources, TEST_PREFIX } = require('./api-sync');
 const { listRoutes } = require('./routes');
+const { planEnv, applyEnv, setEnv, currentLambdaEnv } = require('./lambda-env');
 const { fetchResources, coverage } = require('./gateway');
 
 const results = [];
@@ -30,6 +31,28 @@ async function waitFor(fn, ms = 25000, every = 2000) { const end = Date.now() + 
         const cov = coverage(listRoutes(), fetchResources());
         check('every route in the code is reachable through API Gateway', cov.missing.length === 0, cov.missing.length ? cov.missing.map(m => m.path).join(', ') : `${cov.covered.length} paths`);
         const smoke0 = await smokeTest(); check('live API answers (smoke test)', smoke0.every(r => r.status === 200), smoke0.map(r => `${r.path} ${r.status}`).join(', '));
+        // environment-variable logic (offline unit checks with made-up inputs, then the real Lambda state)
+        const L = { vars: { EXISTING: 'lambda-value', ENV: 'PROD' }, revision: 'x' };
+        const mf = { ENV: { policy: 'ask' }, EXISTING: { policy: 'copy-local' } };
+        const t = (code, local, lambdaFile = {}, extra = {}) => planEnv({ _inject: { code, local, lambdaFile, lambda: L, manifest: mf }, ...extra });
+        const a = t({ NEW_KEY: { required: true } }, { NEW_KEY: 'v1' });
+        check('env logic: a new required variable is copied from the local .env', a.add.NEW_KEY === 'v1' && a.report.new[0]?.source === 'local .env');
+        const b = t({ NEW_KEY: { required: true } }, { NEW_KEY: 'v1' }, { NEW_KEY: 'lambda-specific' });
+        check('env logic: scripts/aws/.env.lambda wins over the local .env', b.add.NEW_KEY === 'lambda-specific');
+        const c = t({ SERVICE_URL: { required: true } }, { SERVICE_URL: 'http://localhost:4244' });
+        check('env logic: an environment-specific name (…_URL) is never copied from local — it blocks', c.report.blocked.some(x => x.name === 'SERVICE_URL') && !('SERVICE_URL' in c.add));
+        const d = t({ NEW_KEY: { required: true } }, {});
+        check('env logic: a required variable with no value anywhere blocks the release', d.report.blocked.some(x => x.name === 'NEW_KEY'));
+        const e = t({ OPT_KEY: { required: false } }, {});
+        check('env logic: an optional variable (code has a fallback) is not an error', e.report.blocked.length === 0 && e.report.optionalMissing.includes('OPT_KEY'));
+        const f = t({ EXISTING: { required: true }, ENV: { required: true } }, { EXISTING: 'other-local-value', ENV: 'DEV' });
+        check('env logic: existing Lambda values are never changed (drift is only reported)', Object.keys(f.add).length === 0 && f.report.drift.includes('EXISTING') && !f.report.drift.includes('ENV'));
+        const g = t({ EXISTING: { required: true } }, { EXISTING: 'rotated' }, {}, { overwrite: ['EXISTING'] });
+        check('env logic: --overwrite replaces only the named variable', g.add.EXISTING === 'rotated' && Object.keys(g.add).length === 1);
+        const bad = t({ _BAD_NAME: { required: true } }, { _BAD_NAME: 'x' });
+        check('env logic: a name Lambda would reject is blocked before any AWS call', bad.report.blocked.some(x => x.name === '_BAD_NAME') && !('_BAD_NAME' in bad.add));
+        const live = planEnv();
+        check('the Lambda has every REQUIRED environment variable the code reads', live.report.blocked.length === 0 && live.report.new.length === 0, `${live.codeCount} read by the code, ${Object.keys(live.existing).length} on the Lambda, ${live.size}/4096 bytes`);
         const dry = await deploy({ apply: false }); check('deploy dry run works (build + diff vs deployed)', true, dry.changed.length ? `${dry.changed.length} file(s) differ: ${dry.changed.join(', ')}` : 'no source differences');
 
         if (!apply) { log('\n  Read-only run finished. Add  -- --apply  to run the Lambda round trip and the throwaway-route test.'); return; }
@@ -54,6 +77,27 @@ async function waitFor(fn, ms = 25000, every = 2000) { const end = Date.now() + 
             check('re-deploy: same build as the first deploy (reproducible zip)', d2.builtSha === d1.builtSha);
         }
         }
+        // ── Lambda environment: add a temporary variable, prove nothing else moved, restore ──
+        if (!skipLambda) {
+            log('\n— Lambda environment round trip —');
+            const before = currentLambdaEnv();
+            const tmpVar = { ZZ_VERIFY_TMP_VAR: 'temporary-test-value' };
+            const plan = { add: tmpVar, merged: { ...before.vars, ...tmpVar }, existing: before.vars, revision: before.revision, size: 0, report: {} };
+            let restored = false;
+            try {
+                const res = await applyEnv(plan);
+                const mid = currentLambdaEnv().vars;
+                check('env: the new variable is on the Lambda and every existing variable is unchanged', mid.ZZ_VERIFY_TMP_VAR === 'temporary-test-value' && Object.keys(before.vars).every(k => mid[k] === before.vars[k]));
+                const smokeE = await smokeTest(); check('env: the API still answers after the configuration change', smokeE.every(r => r.status === 200));
+                void res;
+            } finally {
+                const cur = currentLambdaEnv();
+                await setEnv(before.vars, cur.revision); restored = true;
+            }
+            const aft = currentLambdaEnv().vars;
+            check('env: restored — the test variable is gone and all original variables are identical', restored && !('ZZ_VERIFY_TMP_VAR' in aft) && Object.keys(before.vars).length === Object.keys(aft).length && Object.keys(before.vars).every(k => aft[k] === before.vars[k]));
+        }
+
         if (!skipApi) {
 
         // ── API Gateway: throwaway route ──────────────────────────────────────────────

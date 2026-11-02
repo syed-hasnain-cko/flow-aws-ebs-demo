@@ -42,3 +42,4 @@ amplify/team-provider-info.json
 # AWS deploy tooling (scripts/aws): local build output + code backups (backups contain the deployed package incl. certificates)
 .aws-build/
 .aws-backups/
+scripts/aws/.env.lambda

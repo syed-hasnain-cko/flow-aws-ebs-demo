@@ -7,16 +7,19 @@
 //   1. API Gateway: create routes that exist in code but are not reachable (api:sync)
 //   2. Lambda: deploy the new backend code with backup + hash verification + smoke test (lambda:deploy)
 //   3. Frontend: commit everything, merge into main if you are on a feature branch, push → waits for the Amplify build and checks the site
-// Flags: --no-backend / --no-frontend to do only one half.
+//   0. pre-flight: if the code needs an environment variable that has no value anywhere, stop before changing anything
+//   (between 1 and 2: new Lambda environment variables are added automatically — see lambda-env.js)
+// Flags: --no-backend / --no-frontend to do only one half; --overwrite NAME[,NAME] to also replace existing Lambda variables from your .env.
 const { execFileSync } = require('child_process');
 const { aws, guard, PIN, ROOT, FRONTEND_URL, smokeTest, log, ok, warn, hasFlag, flagValue } = require('./lib');
 const { deploy } = require('./lambda-deploy');
 const { syncRoutes } = require('./api-sync');
+const { planEnv, syncEnv } = require('./lambda-env');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
 
 // What actually finished — printed at the end so nobody starts testing against a half-finished release.
-const done = { routes: null, lambda: null, frontend: null, commit: null };
+const done = { routes: null, env: null, lambda: null, frontend: null, commit: null };
 const line = '═'.repeat(64);
 function banner(complete, lines) {
     log(`\n${line}`);
@@ -39,17 +42,24 @@ function banner(complete, lines) {
 
         if (doBackend) {
             guard();
-            log('\n[1/3] API Gateway routes');
+            // pre-flight: refuse to start if the code needs an environment variable that has no value anywhere (nothing has been changed yet)
+            const overwrite = (flagValue('--overwrite') || '').split(',').filter(Boolean);
+            const pre = planEnv({ overwrite });
+            if (pre.report.blocked.length) { await syncEnv({ apply: false, overwrite }); }
+            log('\n[1/4] API Gateway routes');
             const sr = await syncRoutes({ apply });
             done.routes = sr.missing.length ? `${sr.plan.length} API Gateway resource(s) created` : 'all routes already reachable';
-            log('\n[2/3] Lambda code');
+            log('\n[2/4] Lambda environment variables');
+            const ev = await syncEnv({ apply, overwrite });
+            done.env = ev.changed.length ? `${ev.changed.length} env var(s) added: ${ev.changed.join(', ')}` : 'environment already complete';
+            log('\n[3/4] Lambda code');
             const d = await deploy({ apply });
             if (apply && d.unchanged) ok('backend code already live — nothing uploaded');
             done.lambda = apply ? (d.unchanged ? 'backend code was already live (hash-identical)' : `Lambda deployed, live hash verified (${String(d.afterSha).slice(0, 8)}…)`) : null;
         }
-        if (!doFrontend) { if (apply) banner(true, [`✓ Backend  — ${done.routes}; ${done.lambda}`, '– Frontend — skipped (--no-frontend)']); else log('\nDone (dry run, frontend skipped).\n'); return; }
+        if (!doFrontend) { if (apply) banner(true, [`✓ Backend  — ${done.routes}; ${done.env}; ${done.lambda}`, '– Frontend — skipped (--no-frontend)']); else log('\nDone (dry run, frontend skipped).\n'); return; }
 
-        log('\n[3/3] Frontend (commit → main → push → Amplify)');
+        log('\n[4/4] Frontend (commit → main → push → Amplify)');
         const plan = branch === 'main' ? 'commit on main and push' : `commit on ${branch}, merge into main, push main`;
         log(`  plan: ${plan}${message ? ` — “${message}”` : ''}`);
         if (!apply) { log('\n  Dry run only — nothing was changed, nothing was pushed. Add  --apply  to run it.\n'); return; }
@@ -79,11 +89,11 @@ function banner(complete, lines) {
         if (smoke.some(x => x.status !== 200)) throw new Error('Both halves deployed, but the API smoke test failed: ' + smoke.map(x => `${x.path} ${x.status}`).join(', '));
         ok('API smoke test passed');
         done.frontend = `Amplify build ${job.jobId} succeeded, site HTTP 200 (commit ${done.commit})`;
-        banner(true, [`✓ Backend  — ${done.routes}; ${done.lambda || 'no backend step'}`, `✓ Frontend — ${done.frontend}`, 'Hard-refresh the site (Cmd+Shift+R) before testing.']);
+        banner(true, [`✓ Backend  — ${[done.routes, done.env, done.lambda].filter(Boolean).join('; ') || 'no backend step'}`, `✓ Frontend — ${done.frontend}`, 'Hard-refresh the site (Cmd+Shift+R) before testing.']);
     } catch (e) {
         console.error(`\n✕ ${e.message}`);
         banner(false, [
-            `${done.routes || done.lambda ? '✓' : '✕'} Backend  — ${[done.routes, done.lambda].filter(Boolean).join('; ') || 'did not finish'}`,
+            `${done.lambda ? '✓' : '✕'} Backend  — ${[done.routes, done.env, done.lambda].filter(Boolean).join('; ') || 'did not finish'}`,
             `${done.frontend ? '✓' : '✕'} Frontend — ${done.frontend || (done.commit ? `pushed (${done.commit}) but not confirmed live — check the Amplify console` : 'not pushed / not finished')}`,
             'Backend rollback if needed:  npm run lambda:rollback -- --apply',
         ]);

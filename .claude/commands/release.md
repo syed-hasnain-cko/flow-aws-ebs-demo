@@ -5,8 +5,9 @@ reports success when **both halves are verifiably live**. It replaces the old fr
 
 How it works (all done by `npm run release`, see CLAUDE.md → "AWS deploy tooling"):
 1. API Gateway: creates any route that exists in code but is not reachable.
-2. Lambda: deploys the backend with a backup, verifies the live code hash equals the uploaded zip, smoke-tests the API.
-3. Frontend: commits, merges into `main` if on a feature branch, pushes, **waits for the Amplify build of that exact commit**, checks the site and the API once more.
+2. Lambda environment: adds any env var the code needs that the Lambda lacks (never changes existing ones).
+3. Lambda code: deploys the backend with a backup, verifies the live code hash equals the uploaded zip, smoke-tests the API.
+4. Frontend: commits, merges into `main` if on a feature branch, pushes, **waits for the Amplify build of that exact commit**, checks the site and the API once more.
 Backend goes first; if any backend step fails the frontend is NOT pushed.
 
 The user must not start testing until BOTH are done — so never say "done / safe to test" unless the script printed `RELEASE COMPLETE`.
@@ -38,7 +39,7 @@ npm run release -- --message "<the commit message>"
 
 Summarise the plan in 3–4 lines for the user: current branch (and that it will be merged into `main` if it is not `main`), uncommitted files by area,
 API routes that would be created, whether the backend code differs from what is live.
-Stop and ask before continuing only if: the dry run errored, it proposes creating API routes the user did not mention, or `git status` shows files that look like secrets
+Stop and ask before continuing only if: the dry run errored or says BLOCKED, it proposes creating API routes the user did not mention, or `git status` shows files that look like secrets
 (`.env`, keys, certificates, `team-provider-info.json`) that are not git-ignored. Otherwise continue straight to the apply — invoking this skill is the user's request to release.
 
 ## STEP 4 — Apply
@@ -68,5 +69,5 @@ This can take several minutes (the Amplify build is awaited, up to 12 minutes). 
 ## Reminders
 
 - New backend routes no longer need manual API Gateway work: `release` creates them (routes under `/standalone`, `/competitors`, `/disputes` already work through catch-all proxies).
-- Environment variables, the Lambda layer, memory and timeout are NOT changed by a release — change those in the AWS console if a feature needs a new env var, and tell the user.
+- **Environment variables are handled automatically** (`npm run lambda:env`): a NEW variable the code needs is added from the local `.env` — except environment-specific names (`ENV`, `*_URL`, `REGION`, `DOMAIN*`, `*_SECRET_NAME`), whose Lambda value must be put in `scripts/aws/.env.lambda` (git-ignored). If the dry run says **BLOCKED <NAME>**, tell the user exactly which name and file, wait until they add it, then re-run. Existing Lambda values are never changed unless they ask (`--overwrite NAME`, e.g. after rotating a key). The layer, memory and timeout are still not changed by a release.
 - The release is pinned to Lambda `flowDemoLambdaSyed-staging`, API `zzrte604h4` stage `staging`, Amplify app `d11m29074qik0k`; nothing else is touched.
