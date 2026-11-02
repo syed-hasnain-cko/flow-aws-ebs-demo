@@ -16,7 +16,7 @@
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const tabActive = () => $('payments-tab')?.classList.contains('active');
 
-    const state = { results: [], selected: null, pay: null, actions: [], events: [], busy: false, loaded: false, lastQuery: null };
+    const state = { results: [], selected: null, pay: null, actions: [], events: [], busy: false, loaded: false, lastQuery: null, watching: null };
 
     // =====================================================================
     // HTTP — everything goes through the allowlisted proxy; only the Checkout.com exchange is logged
@@ -145,9 +145,43 @@
             return false;
         }
         state.pay = d.data;
+        syncRow(d.data);
         state.actions = a.ok && Array.isArray(a.data) ? a.data : [];
         await loadEvents(id);
         return true;
+    }
+
+    // Keep the list row in step with the freshly loaded payment (status, amount, reference).
+    function syncRow(p) {
+        const row = state.results.find(r => r.id === p.id);
+        if (row) Object.assign(row, { status: p.status, amount: p.amount ?? row.amount, reference: p.reference ?? row.reference });
+    }
+
+    // After an action, Checkout.com confirms asynchronously by webhook. Watch the (non-consuming) webhook buffer for this
+    // payment and reload it whenever a new event arrives, so status, balances, buttons and the list row update by themselves.
+    // Bounded: ~2 minutes, only for the payment just acted on, stops when another payment is opened.
+    function watchPayment(id) {
+        const token = state.watching = { id, stop: false };
+        const seen = new Set(state.events.map(e => e.event_id));
+        const deadline = Date.now() + 120000;
+        (async function tick() {
+            while (!token.stop && state.watching === token && Date.now() < deadline) {
+                await new Promise(r => setTimeout(r, 2500));
+                if (token.stop || state.watching !== token || state.selected !== id) break;
+                try {
+                    const res = await fetch(`${API_BASE}/standalone/webhook-events?match=${encodeURIComponent(id)}`);
+                    const j = await res.json();
+                    const fresh = res.ok ? (j.events || []).filter(e => !seen.has(e.event_id)) : [];
+                    if (fresh.length) {
+                        fresh.forEach(e => seen.add(e.event_id));
+                        showToast(`Webhook: ${fresh.map(e => e.type).join(', ')}`);
+                        await withBusy(() => loadPayment(id, { quiet: true }));
+                    }
+                } catch (e) { /* transient — try again on the next tick */ }
+            }
+            if (state.watching === token) { state.watching = null; render(); }
+        })();
+        render();
     }
 
     async function loadEvents(id) {
@@ -158,18 +192,88 @@
         } catch (e) { state.events = []; }
     }
 
+    // Which actions the open payment still allows: balances are authoritative when present, otherwise the HAL links.
+    function availability(p) {
+        const bal = p.balances || {}, links = p._links || {};
+        const captured = (bal.total_captured || 0) - (bal.total_refunded || 0);
+        const pos = (n) => typeof n === 'number' && n > 0;
+        const refundable = pos(bal.available_to_refund) ? bal.available_to_refund : (captured > 0 ? captured : undefined);
+        return {
+            captures: { ok: !!links.capture || pos(bal.available_to_capture), max: bal.available_to_capture },
+            voids: { ok: !!links.void || pos(bal.available_to_void), max: bal.available_to_void },
+            refunds: { ok: !!links.refund || pos(bal.available_to_refund) || /^(captured|partially captured|partially refunded)$/i.test(p.status || '') && captured > 0, max: refundable },
+        };
+    }
+
+    const ACTION_UI = {
+        captures: { verb: 'Capture', icon: '✓', danger: false, text: 'Funds will be captured from the authorization.' },
+        voids: { verb: 'Void', icon: '⊘', danger: true, text: 'The remaining authorization will be released. This cannot be undone.' },
+        refunds: { verb: 'Refund', icon: '↩', danger: true, text: 'Funds will be returned to the customer. This cannot be undone.' },
+    };
+
+    // In-page dialog (replaces window.confirm) with the optional amount / reference inputs.
+    // Resolves { amount?, reference? } on confirm (empty amount = full), or null when cancelled.
+    function confirmDialog(kind, p) {
+        const ui = ACTION_UI[kind], av = availability(p)[kind];
+        const full = av.max !== undefined ? av.max : p.amount;
+        const partial = kind !== 'voids';   // the void endpoint takes no amount — it always releases the whole remaining authorization
+        const base = (typeof CURRENCIES !== 'undefined' && CURRENCIES.find(c => c.iso4217 === p.currency)?.base) || 100;
+        return new Promise((resolve) => {
+            const back = document.createElement('div');
+            back.className = 'pe-modal-back';
+            back.innerHTML = `
+                <div class="pe-modal ${ui.danger ? 'danger' : ''}" role="dialog" aria-modal="true" aria-label="${ui.verb} payment">
+                    <div class="mh"><div class="mi">${ui.icon}</div><div class="mt">${ui.verb} this payment?</div></div>
+                    <div class="mb">${esc(ui.text)}</div>
+                    <div class="ms">
+                        <div><span>Payment</span><span>${esc(p.id)}</span></div>
+                        <div><span>${kind === 'refunds' ? 'Available to refund' : kind === 'captures' ? 'Available to capture' : 'Authorized'}</span><span>${esc(money(full, p.currency))}</span></div>
+                    </div>
+                    <div class="mf-fields">
+                        ${partial ? `<label>Amount <small>(${esc(p.currency)}, minor units — leave empty for the full ${esc(money(full, p.currency))})</small>
+                            <input type="number" min="1" step="1" id="pe-m-amount" class="text-input" placeholder="${esc(full ?? '')}"></label>` : `<div class="mn">Void always releases the full remaining authorization.</div>`}
+                        <label>Reference <small>(optional)</small><input type="text" id="pe-m-ref" class="text-input" maxlength="80"></label>
+                    </div>
+                    <div class="me" id="pe-m-err"></div>
+                    <div class="mf">
+                        <button type="button" class="copy-btn" data-m="no">Cancel</button>
+                        <button type="button" class="main-button ${ui.danger ? 'danger-btn' : ''}" data-m="yes" id="pe-m-yes">${ui.verb} full amount</button>
+                    </div>
+                </div>`;
+            const amtEl = back.querySelector('#pe-m-amount'), refEl = back.querySelector('#pe-m-ref'), errEl = back.querySelector('#pe-m-err'), yes = back.querySelector('#pe-m-yes');
+            const check = () => {
+                const raw = amtEl ? amtEl.value.trim() : '';
+                const n = raw === '' ? 0 : Number(raw);
+                let err = '';
+                if (raw !== '' && (!Number.isInteger(n) || n < 1)) err = 'Enter a whole number of minor units (e.g. 500 = ' + money(500, p.currency) + ').';
+                else if (n && av.max !== undefined && n > av.max) err = `Amount exceeds the ${money(av.max, p.currency)} available.`;
+                errEl.textContent = err; yes.disabled = !!err;
+                yes.textContent = n ? `${ui.verb} ${money(n, p.currency)}${full && n < full ? ' (partial)' : ''}` : `${ui.verb} full amount`;
+                return { n, err };
+            };
+            amtEl?.addEventListener('input', check);
+            const submit = () => { const { n, err } = check(); if (err) return; done({ ...(n ? { amount: n } : {}), ...(refEl.value.trim() ? { reference: refEl.value.trim() } : {}) }); };
+            const done = (v) => { document.removeEventListener('keydown', onKey, true); back.remove(); resolve(v); };
+            const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(null); } else if (e.key === 'Enter' && back.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') { e.preventDefault(); submit(); } };
+            back.addEventListener('click', (e) => { if (e.target === back) return done(null); const m = e.target.closest('[data-m]'); if (m && !m.disabled) (m.dataset.m === 'yes' ? submit() : done(null)); });
+            document.addEventListener('keydown', onKey, true);
+            document.body.appendChild(back);
+            (amtEl || refEl).focus();
+        });
+    }
+
     // Capture / void / refund bodies are exactly what the API accepts: optional amount + reference.
-    async function runAction(kind) {
+    async function runAction(kind, btn) {
         const id = state.selected;
-        const body = {};
-        const amt = parseInt(val('pe-amount'), 10);
-        if (amt) body.amount = amt;
-        if (val('pe-reference').trim()) body.reference = val('pe-reference').trim();
-        if (kind !== 'voids' && !amt && !confirm(`${kind === 'refunds' ? 'Refund' : 'Capture'} the FULL remaining amount?`)) return;
+        const body = await confirmDialog(kind, state.pay);
+        if (!body) return;
+        btn?.classList.add('pe-btn-spin');
+        const label = ACTION_UI[kind].verb;
         const env = await pcall('POST', `/payments/${encodeURIComponent(id)}/${kind}`, body);
-        if (!env.ok) return showToast(`${kind.slice(0, -1)} failed: ${errText(env)}`, 'error');
-        showToast(`${kind.slice(0, -1)} accepted (${env.data?.action_id || env.upstream_status})`);
-        await loadPayment(id, { quiet: true });   // one reload to show the new action; later changes (settlement, webhooks) need ↻ Refresh
+        if (!env.ok) { btn?.classList.remove('pe-btn-spin'); return showToast(`${label} failed: ${errText(env)}`, 'error'); }
+        showToast(`${label} accepted (${env.data?.action_id || env.upstream_status}) — waiting for the webhook`);
+        await loadPayment(id, { quiet: true });   // re-render straight away…
+        watchPayment(id);                          // …and again whenever the webhook arrives
     }
 
     // =====================================================================
@@ -199,16 +303,14 @@
         if (!p) { box.innerHTML = '<div class="pe-empty">Select a payment, or search by <code>pay_…</code>.</div>'; return; }
         const bal = p.balances || {};
         const links = p._links || {};
-        const can = {
-            captures: !!links.capture || (bal.available_to_capture > 0),
-            voids: !!links.void || (bal.available_to_void > 0),
-            refunds: !!links.refund || (bal.available_to_refund > 0),
-        };
+        const avail = availability(p);
+        const can = { captures: avail.captures.ok, voids: avail.voids.ok, refunds: avail.refunds.ok };
+        const whyNot = { captures: 'Nothing left to capture', voids: 'Nothing left to void', refunds: 'Nothing available to refund' };
         const balRows = ['total_authorized', 'total_captured', 'total_refunded', 'total_voided', 'available_to_capture', 'available_to_void', 'available_to_refund']
             .filter(k => bal[k] !== undefined && (bal[k] || k.startsWith('total_authorized')))
             .map(k => kvRow(k.replace(/_/g, ' '), esc(money(bal[k], p.currency))));
         const tds = p['3ds'] || {};
-        const btn = (kind, label) => `<button class="${kind === 'refunds' ? 'copy-btn' : 'main-button'}" data-pe-act="${kind}" type="button" ${can[kind] ? '' : `disabled title="Not available — the payment has no ${kind.slice(0, -1)} link"`}>${label}</button>`;
+        const btn = (kind, label) => `<button class="${kind === 'refunds' ? 'copy-btn' : 'main-button'}" data-pe-act="${kind}" type="button" ${can[kind] ? '' : `disabled title="${whyNot[kind]} (status: ${esc(p.status)})"`}>${label}</button>`;
 
         box.innerHTML = `
             <div class="pe-head">
@@ -233,10 +335,9 @@
             <div class="pe-sec">
                 <div class="t">Actions</div>
                 <div class="pe-actions">
-                    <div><label for="pe-amount">amount (minor units, optional)</label><input type="number" id="pe-amount" class="text-input" placeholder="full amount"></div>
-                    <div><label for="pe-reference">reference (optional)</label><input type="text" id="pe-reference" class="text-input"></div>
                     ${btn('captures', 'Capture')}${btn('voids', 'Void')}${btn('refunds', 'Refund')}
                 </div>
+                ${state.watching?.id === p.id ? '<div class="pe-note pe-watch">⏳ Waiting for the webhook — this page updates automatically.</div>' : ''}
             </div>
             <div class="pe-sec">
                 <div class="t"><span>Action history</span></div>
@@ -269,13 +370,13 @@
         const cp = ev.target.closest('[data-pe-copy]');
         if (cp) return copy(cp);
         const row = ev.target.closest('[data-pe-select]');
-        if (row) { const id = row.dataset.peSelect; state.showRaw = false; return withBusy(() => loadPayment(id)); }
+        if (row) { const id = row.dataset.peSelect; state.showRaw = false; if (state.watching && state.watching.id !== id) { state.watching.stop = true; state.watching = null; } return withBusy(() => loadPayment(id)); }
         const act = ev.target.closest('[data-pe-act]');
         if (!act || act.disabled) return;
         const k = act.dataset.peAct;
         if (k === 'raw') { state.showRaw = !state.showRaw; return render(); }
         if (k === 'events') return withBusy(() => loadEvents(state.selected));
-        return withBusy(() => runAction(k));
+        return withBusy(() => runAction(k, act));
     }
 
     function onShow() { /* nothing is fetched on tab open — use Search / Refresh */ }
