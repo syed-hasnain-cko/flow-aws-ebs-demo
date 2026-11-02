@@ -9,11 +9,21 @@
 //   3. Frontend: commit everything, merge into main if you are on a feature branch, push → waits for the Amplify build and checks the site
 // Flags: --no-backend / --no-frontend to do only one half.
 const { execFileSync } = require('child_process');
-const { aws, guard, PIN, ROOT, FRONTEND_URL, log, ok, warn, fail, hasFlag, flagValue } = require('./lib');
+const { aws, guard, PIN, ROOT, FRONTEND_URL, smokeTest, log, ok, warn, hasFlag, flagValue } = require('./lib');
 const { deploy } = require('./lambda-deploy');
 const { syncRoutes } = require('./api-sync');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
+
+// What actually finished — printed at the end so nobody starts testing against a half-finished release.
+const done = { routes: null, lambda: null, frontend: null, commit: null };
+const line = '═'.repeat(64);
+function banner(complete, lines) {
+    log(`\n${line}`);
+    log(complete ? '  RELEASE COMPLETE — backend and frontend are both live. Safe to test now.' : '  RELEASE NOT COMPLETE — do NOT start testing yet.');
+    lines.forEach(l => log('  ' + l));
+    log(line + '\n');
+}
 
 (async () => {
     try {
@@ -30,12 +40,14 @@ const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).tr
         if (doBackend) {
             guard();
             log('\n[1/3] API Gateway routes');
-            await syncRoutes({ apply });
+            const sr = await syncRoutes({ apply });
+            done.routes = sr.missing.length ? `${sr.plan.length} API Gateway resource(s) created` : 'all routes already reachable';
             log('\n[2/3] Lambda code');
             const d = await deploy({ apply });
             if (apply && d.unchanged) ok('backend code already live — nothing uploaded');
+            done.lambda = apply ? (d.unchanged ? 'backend code was already live (hash-identical)' : `Lambda deployed, live hash verified (${String(d.afterSha).slice(0, 8)}…)`) : null;
         }
-        if (!doFrontend) { log('\nDone (frontend skipped).\n'); return; }
+        if (!doFrontend) { if (apply) banner(true, [`✓ Backend  — ${done.routes}; ${done.lambda}`, '– Frontend — skipped (--no-frontend)']); else log('\nDone (dry run, frontend skipped).\n'); return; }
 
         log('\n[3/3] Frontend (commit → main → push → Amplify)');
         const plan = branch === 'main' ? 'commit on main and push' : `commit on ${branch}, merge into main, push main`;
@@ -45,7 +57,7 @@ const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).tr
         if (git('status', '--porcelain')) { git('add', '.'); git('commit', '-m', message); ok('committed'); } else ok('nothing to commit');
         if (branch !== 'main') { git('checkout', 'main'); git('merge', branch, '--no-edit'); ok(`merged ${branch} into main`); }
         git('push', 'origin', 'main'); ok('pushed main');
-        const head = git('rev-parse', 'HEAD');
+        const head = git('rev-parse', 'HEAD'); done.commit = head.slice(0, 7);
 
         // wait for the Amplify build of exactly this commit
         log('  waiting for the Amplify build …');
@@ -59,7 +71,22 @@ const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).tr
         if (!job) throw new Error('Pushed, but no Amplify build for this commit appeared in 12 minutes — check the Amplify console.');
         if (job.status !== 'SUCCEED') throw new Error(`Amplify build ${job.jobId} ended as ${job.status}.`);
         ok(`Amplify build ${job.jobId} succeeded`);
-        const r = await fetch(FRONTEND_URL); (r.status === 200 ? ok : warn)(`${FRONTEND_URL} → HTTP ${r.status}`);
-        log('\n✓ Release complete — hard-refresh the site.\n');
-    } catch (e) { fail(e.message); }
+        const r = await fetch(`${FRONTEND_URL}/?cb=${Date.now()}`);
+        if (r.status !== 200) throw new Error(`The Amplify build succeeded but ${FRONTEND_URL} answered HTTP ${r.status}.`);
+        ok(`${FRONTEND_URL} → HTTP 200`);
+        // the API must still be healthy now that both halves are live
+        const smoke = await smokeTest();
+        if (smoke.some(x => x.status !== 200)) throw new Error('Both halves deployed, but the API smoke test failed: ' + smoke.map(x => `${x.path} ${x.status}`).join(', '));
+        ok('API smoke test passed');
+        done.frontend = `Amplify build ${job.jobId} succeeded, site HTTP 200 (commit ${done.commit})`;
+        banner(true, [`✓ Backend  — ${done.routes}; ${done.lambda || 'no backend step'}`, `✓ Frontend — ${done.frontend}`, 'Hard-refresh the site (Cmd+Shift+R) before testing.']);
+    } catch (e) {
+        console.error(`\n✕ ${e.message}`);
+        banner(false, [
+            `${done.routes || done.lambda ? '✓' : '✕'} Backend  — ${[done.routes, done.lambda].filter(Boolean).join('; ') || 'did not finish'}`,
+            `${done.frontend ? '✓' : '✕'} Frontend — ${done.frontend || (done.commit ? `pushed (${done.commit}) but not confirmed live — check the Amplify console` : 'not pushed / not finished')}`,
+            'Backend rollback if needed:  npm run lambda:rollback -- --apply',
+        ]);
+        process.exit(1);
+    }
 })();
