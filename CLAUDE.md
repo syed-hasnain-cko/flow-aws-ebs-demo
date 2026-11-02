@@ -850,20 +850,27 @@ New 5th type **Account Funding Transaction (AFT)** in the Authorization Types ta
 
 ---
 
-## AWS deploy tooling (2026-11-02) — branch `feature/aws-deploy-automation`
+## AWS deploy tooling (2026-11-02) — one command to ship backend + frontend
 
-Scripts in `scripts/aws/` (npm scripts in the root `package.json`) talk to AWS **only through the `aws` CLI with a login/SSO profile** — no access keys anywhere. Profile name in `scripts/aws/config.json` (`cko-syed-testing-playground`; `$AWS_PROFILE` overrides). Sign in once with `aws login --profile cko-syed-testing-playground` (needs AWS CLI ≥ 2.32; the old SSO flow is `aws sso login`). Account numbers are masked in all output.
+### How we are connected to AWS (read this when a deploy needs AWS)
+- **No access keys, ever** (the owner is not allowed to have them). The `aws` CLI is used with a **login profile `cko-syed-testing-playground`** (region `us-east-1`, role `cko_playground_engineer`, CKO "Gen 3" playground account). Profile name lives in `scripts/aws/config.json` (`$AWS_PROFILE` overrides). Account numbers are masked in all script output.
+- **If the session is missing/expired** the scripts say so. Ask the owner to run (with the `!` prefix in the chat, or in their own terminal):
+  `aws login --profile cko-syed-testing-playground` → press Enter to accept `us-east-1` → sign in in the browser tab that opens. Then run `npm run aws:check` to confirm. Needs AWS CLI ≥ 2.32 (installed: 2.39.3, from the official pkg — `brew upgrade awscli` does NOT update it; use `https://awscli.amazonaws.com/AWSCLIV2.pkg` + `sudo installer -pkg … -target /`, which the owner must run). The older flow is `aws sso login --profile …`.
+- **Pinned resources** (hard-coded in `scripts/aws/lib.js`; no flag can change them; the scripts also refuse to run unless signed in as `cko_playground_engineer`): Lambda **`flowDemoLambdaSyed-staging`**, REST API `flowDemoAPIGatewaySyed` = **`zzrte604h4`**, stage **`staging`**, Amplify app `flow-syed-demo` = **`d11m29074qik0k`** (branch `main`, auto-build on push). `d2ave4x7yz6z7` in the team how-to is an example app, not ours.
+- The role is `Allow *` on all resources except Lambda `Thanos`.
 
-**Pinned target (cannot be overridden by flags)** — in `scripts/aws/lib.js`: Lambda `flowDemoLambdaSyed-staging` (note the `-staging` suffix), REST API `flowDemoAPIGatewaySyed` = `zzrte604h4`, stage `staging`, region `us-east-1`; the scripts refuse to run unless signed in as the `cko_playground_engineer` role.
-
+### Commands (root `package.json`)
 | Command | What it does | Changes AWS? |
 |---|---|---|
-| `npm run aws:check` | who am I, Lambda/API/stage reachable, API→Lambda wiring | no |
-| `npm run api:routes` | rewrites `scripts/aws/routes.manifest.json` (all Express routes, found by loading the controller with stubs — no secrets/network) | no |
-| `npm run api:diff` | routes in code vs API Gateway; exits 1 if any are unreachable | no |
-| `npm run api:sync` | **dry run**: plan for missing routes. `-- --apply` creates `/<x>` (ANY → Lambda proxy + OPTIONS mock CORS) and `/<x>/{proxy+}` when nested, then deploys stage `staging`. `-- --simulate /new/path` previews a plan | only with `--apply` |
-| `npm run lambda:build` | clean zip → `.aws-build/` (src incl. `node_modules` + `certificates`, minus `__MACOSX`, `.DS_Store`, `event.json`) | no (local) |
-| `npm run lambda:deploy` | **dry run**: builds, lists source files that differ from the deployed package. `-- --apply` backs up the deployed package to `.aws-backups/`, uploads with `--revision-id` (race guard), waits for `function-updated`, smoke-tests `GET /config` + `/standalone/config` | only with `--apply` |
-| `npm run lambda:rollback` | `-- --list` backups; dry run; `-- --apply [--file <zip>]` restores | only with `--apply` |
+| **`npm run release -- --message "…"`** | **THE one command.** Dry run by default; `--apply` does: (1) `api:sync` (create unreachable routes) → (2) `lambda:deploy` (backup, upload, hash check, smoke test) → (3) frontend: commit, merge into `main` if on a feature branch, `git push origin main`, wait for the Amplify build of that commit, check the site. Backend first; if a backend step fails the frontend is NOT pushed. `--no-backend` / `--no-frontend` for one half | only with `--apply` |
+| `npm run aws:check` | signed-in role, Lambda/API/stage reachable, API→Lambda wiring | no |
+| `npm run aws:verify` | read-only checks. **`-- --apply`** = full self-test with auto-cleanup: Lambda deploy → live hash == uploaded zip → rollback → live hash == original → re-deploy; throwaway route `/__synctest` → OPTIONS 200 + CORS, GET reaches Express (404 html, not API-Gateway 403) → deleted → 403 again. `--skip-lambda` / `--skip-api` run one half | only with `--apply` (restores itself) |
+| `npm run api:diff` / `api:routes` | routes in code vs API Gateway (exit 1 if unreachable) / rewrite `scripts/aws/routes.manifest.json` (loads the controller with stubs — no secrets/network) | no |
+| `npm run api:sync` | dry-run plan; `-- --apply` creates `/<x>` (ANY → Lambda proxy + OPTIONS mock CORS) and `/<x>/{proxy+}` if nested, then deploys stage `staging`. `--simulate /path` previews; with `--apply` it is allowed only for `/__synctest…` | only with `--apply` |
+| `npm run lambda:build` / `lambda:deploy` / `lambda:rollback` | clean zip → `.aws-build/` (src incl. `node_modules` + `certificates`, minus `__MACOSX`, `.DS_Store`, `event.json`); deploy (dry run lists files that differ from the deployed package; `--apply` backs up to `.aws-backups/`, uploads with `--revision-id`, waits, **asserts the live `CodeSha256` equals the zip**, smoke-tests `/config` + `/standalone/config`); rollback (`--list`, `--apply [--file]`) | only with `--apply` |
 
-Facts learned about the live setup: every method is `ANY` + Lambda `AWS_PROXY`, authorization NONE, CORS via mock `OPTIONS`; the Lambda invoke permission already covers the whole API (`zzrte604h4/*/*/*`) so new methods need no per-route permission; only the **code** is replaced by deploys (env vars, layer, memory, timeout untouched); the deployed package's `node_modules` (107 packages) matches the local one. `.aws-build/` and `.aws-backups/` are git-ignored (backups contain certificates). The role is `Allow *` (except Lambda `Thanos`); Lambda code update permission was confirmed with `--dry-run`.
+### Facts about the live setup
+Every API Gateway method is `ANY` + Lambda `AWS_PROXY`, authorization NONE, CORS via mock `OPTIONS`; `/standalone`, `/competitors`, `/disputes` have catch-all `{proxy+}` children so new routes under those prefixes need no gateway work; the Lambda's invoke permission already covers the whole API (`zzrte604h4/*/*/*`); deploys replace **only the code** (env vars, layer, memory, timeout untouched); the API edge is CloudFront, which **caches 403s** — probe with a unique `?cb=` query when testing new routes. `.aws-build/` and `.aws-backups/` are git-ignored (backups contain certificates).
+
+### Verified 2026-11-02 (real runs against staging)
+Lambda round trip: deploy hash ✓, backup exact copy ✓, rollback hash == original ✓, re-deploy reproducible ✓, smoke tests ✓. API Gateway throwaway route: created ✓ GET→Express ✓ OPTIONS+CORS ✓ cleaned ✓. Staging Lambda now runs the clean 4.5 MB build (same source as before; a backup of the original Finder-zipped package is in `.aws-backups/`). `npm run release` was dry-run only — the first `--apply` happens when this branch is merged.

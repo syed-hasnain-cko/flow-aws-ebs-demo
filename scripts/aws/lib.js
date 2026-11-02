@@ -22,10 +22,13 @@ const PIN = Object.freeze({
     restApiId: 'zzrte604h4',
     stage: 'staging',
     expectedRole: 'cko_playground_engineer',      // the SSO role this tooling expects to run as
+    amplifyAppId: 'd11m29074qik0k',               // Amplify app “flow-syed-demo” (the frontend; deploys on every push to main)
+    amplifyBranch: 'main',
 });
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 const PROFILE = process.env.AWS_PROFILE || cfg.profile;
 const API_BASE = `https://${PIN.restApiId}.execute-api.${PIN.region}.amazonaws.com/${PIN.stage}`;
+const FRONTEND_URL = `https://${PIN.amplifyBranch}.${PIN.amplifyAppId}.amplifyapp.com`;
 
 const mask = (s) => String(s).replace(/\b\d{12}\b/g, '************');
 const hasFlag = (f) => process.argv.includes(f);
@@ -84,4 +87,4 @@ async function smokeTest(paths = ['/config', '/standalone/config']) {
     return out;
 }
 
-module.exports = { ROOT, SRC_DIR, BUILD_DIR, BACKUP_DIR, PIN, PROFILE, API_BASE, mask, hasFlag, flagValue, log, ok, warn, fail, aws, guard, sha256b64, sha8, stamp, downloadDeployed, smokeTest };
+module.exports = { ROOT, SRC_DIR, BUILD_DIR, BACKUP_DIR, PIN, PROFILE, API_BASE, FRONTEND_URL, mask, hasFlag, flagValue, log, ok, warn, fail, aws, guard, sha256b64, sha8, stamp, downloadDeployed, smokeTest };

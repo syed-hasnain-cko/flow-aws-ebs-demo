@@ -3,28 +3,29 @@
 // npm run api:sync -- --apply → creates the missing resources/methods (Lambda proxy, same shape as the existing ones) and deploys the stage
 // Convention copied from this API: /<x> ANY + OPTIONS(mock CORS), and /<x>/{proxy+} ANY + OPTIONS when the route is nested.
 // The Lambda already allows the whole API (zzrte604h4/*/*/*), so no per-route permission is needed.
-// `--simulate /new-prefix/thing` pretends a route exists in code (to preview the plan without touching anything).
+// `--simulate /new-prefix/thing` pretends a route exists in code (to preview — or, with --apply, to test — the plan).
 const { aws, guard, PIN, log, ok, warn, fail, hasFlag, flagValue } = require('./lib');
 const { listRoutes } = require('./routes');
 const { fetchResources, coverage, planFor } = require('./gateway');
 
-function run(cmd, args) { return aws([cmd, ...args]); }
+const run = (cmd, args) => aws([cmd, ...args]);
+const TEST_PREFIX = '/__synctest';
 
-try {
-    guard();
-    const apply = hasFlag('--apply');
+// Returns { missing, plan, applied, deploymentId }. Throws on errors (callers decide how to report).
+async function syncRoutes({ apply = false, simulate } = {}) {
+    if (simulate && apply && !simulate.startsWith(TEST_PREFIX)) throw new Error(`--simulate together with --apply is only allowed for the test prefix ${TEST_PREFIX} (it would create real resources for a route that does not exist).`);
     let routes = listRoutes();
-    const sim = flagValue('--simulate'); if (sim) routes = [...routes, { method: 'POST', path: sim }];
+    if (simulate) routes = [...routes, { method: 'POST', path: simulate }];
     const resources = fetchResources();
     const { missing } = coverage(routes, resources);
     log(`\nAPI Gateway sync (${apply ? 'APPLY' : 'dry run'}) — API ${PIN.restApiId}, stage ${PIN.stage}`);
-    if (!missing.length) { ok('nothing to do — every route is already reachable\n'); process.exit(0); }
+    if (!missing.length) { ok('nothing to do — every route is already reachable'); return { missing, plan: [], applied: false }; }
     const plan = planFor(missing, resources);
     missing.forEach(m => warn(`${m.methods.join(',')} ${m.path} is not reachable`));
     log('  plan:');
     plan.forEach(p => log(`    + resource ${p}  → ANY (Lambda proxy ${PIN.lambda}) + OPTIONS (mock CORS)`));
     log(`    + deployment to stage “${PIN.stage}”`);
-    if (!apply) { log('\n  Dry run only — nothing was changed. Re-run with  -- --apply  to execute.\n'); process.exit(0); }
+    if (!apply) { log('\n  Dry run only — nothing was changed. Re-run with  -- --apply  to execute.'); return { missing, plan, applied: false }; }
 
     // reference shapes copied from an existing flat route
     const ref = resources.find(r => r.path === '/payments'); if (!ref) throw new Error('reference resource /payments not found');
@@ -57,5 +58,23 @@ try {
         }
     }
     const dep = run('apigateway', ['create-deployment', '--rest-api-id', PIN.restApiId, '--stage-name', PIN.stage, '--description', `api:sync ${new Date().toISOString()}`]);
-    ok(`deployed to stage “${PIN.stage}” (deployment ${dep.id})\n`);
-} catch (e) { fail(e.message); }
+    ok(`deployed to stage “${PIN.stage}” (deployment ${dep.id})`);
+    return { missing, plan, applied: true, deploymentId: dep.id };
+}
+
+// Remove the throwaway test prefix (used only by aws:verify). Refuses to delete anything else.
+async function removeTestResources() {
+    const res = fetchResources().find(r => r.path === TEST_PREFIX);
+    if (!res) return false;
+    aws(['apigateway', 'delete-resource', '--rest-api-id', PIN.restApiId, '--resource-id', res.id]);   // children go with it
+    aws(['apigateway', 'create-deployment', '--rest-api-id', PIN.restApiId, '--stage-name', PIN.stage, '--description', 'api:verify cleanup']);
+    return true;
+}
+
+if (require.main === module) {
+    (async () => {
+        try { guard(); await syncRoutes({ apply: hasFlag('--apply'), simulate: flagValue('--simulate') }); log(''); }
+        catch (e) { fail(e.message); }
+    })();
+}
+module.exports = { syncRoutes, removeTestResources, TEST_PREFIX };
