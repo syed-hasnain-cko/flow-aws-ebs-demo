@@ -875,3 +875,23 @@ Every API Gateway method is `ANY` + Lambda `AWS_PROXY`, authorization NONE, CORS
 
 ### Verified 2026-11-02 (real runs against staging)
 Lambda environment round trip (real): temp variable added, 24 existing untouched, API ok, restored identical ✓ (also found: Lambda names must start with a letter — now validated up front). Lambda round trip: deploy hash ✓, backup exact copy ✓, rollback hash == original ✓, re-deploy reproducible ✓, smoke tests ✓. API Gateway throwaway route: created ✓ GET→Express ✓ OPTIONS+CORS ✓ cleaned ✓. Staging Lambda now runs the clean 4.5 MB build (same source as before; a backup of the original Finder-zipped package is in `.aws-backups/`). `npm run release` was dry-run only — the first `--apply` happens when this branch is merged.
+
+
+---
+
+## Session Summary (2026-11-05) — Account Settings (bring your own Checkout.com account)
+
+### What was built
+A **Settings** page (bottom of the side nav, ⚙️) + header badge ("Default account" / "🔑 Custom account · …9999") that lets a visitor test THEIR OWN Checkout.com sandbox account: secret key, public key, processing channel, currency account, API base URL (may carry an account prefix), access key id/secret, access URL, webhook secret. Per field: custom value if set, otherwise the server's env default. The page shows the env defaults **masked** (prefix + last 4), per-field "↺ use default", "Reset everything to defaults", "Test credentials" (real 401/404 probe for the secret key, token request for the access key), and a keep-for (1h/8h/24h/7d) selector.
+
+### How it works (read before touching credentials anywhere)
+- `POST /account/seal` validates the values and returns an **AES-256-GCM sealed token** (key = env `CONFIG_SEAL_KEY`, server-side only). The server stores nothing. The browser keeps only the token + masked display values in `localStorage['cko-account-config']`; `modules/account-config.js` (loaded right after `frontend-config.js` on index/success/failure) wraps `fetch` to add `Authorization: Bearer acct.<token>` to calls to `APP_CONFIG.apiBaseUrl`, and overrides `APP_CONFIG.publicKey/processingChannelId/currencyAccountId`. `Authorization` is used (not a custom header) because API Gateway's MOCK OPTIONS only allows Content-Type, Authorization, X-Amz-*, X-Api-Key.
+- Backend `account-config.js`: `middleware` (mounted at the top of `api-route-controller.js`, with `/account` routes) opens the token for ONE request via AsyncLocalStorage. `install(config)` turns `config.sk/pk/processingChannelId/currencyAccountId/ckoAccess*` into request-aware getters, so existing code keeps reading `config.sk`. **Use `config.sk` (never a module-level copy), `accountConfig.gwUrl()` (never `process.env.GW_URL`) and `accountConfig.getCko(config)` / the `cko` Proxy (never `new Checkout(...)`) in any new route** or custom accounts silently won't work there. `x-account-config: active|expired|invalid` response header tells the browser to drop a bad token.
+- Safety: URLs must be `https://[prefix.]api[.sandbox].checkout.com` / `…access[.sandbox].checkout.com/connect/token` (else the visitor's key could be sent to any host); formats validated per field; raw secrets are never returned (only masks) or logged; no `CONFIG_SEAL_KEY` → sealing refused (503), defaults only. OAuth token cache in `standalone-routes.js` is keyed by client id + URL + scope.
+- Webhooks: `/webhook` accepts the default `WEBHOOK_SECRET` plus secrets of currently-active custom accounts (in-memory registry, per warm Lambda container, filled on seal and on every request that carries the token — best-effort).
+
+### Limits (by design)
+A token can't be revoked before it expires (stateless) — keep durations short, sandbox keys only. Forward API, Stripe and Adyen tabs keep their own credentials (the Forward routes still use `process.env.GW_URL`). A tracked `ngrokToken` literal sits in `amplify/.../src/config.js` — should be moved to env/removed.
+
+### Deploy notes
+`/release` handles it: creates the `/account` + `/account/{proxy+}` API Gateway resources and adds `CONFIG_SEAL_KEY` (generated into local `.env`, `copy-local` in `env.manifest.json`) to the Lambda. Verified locally (no AWS): masked defaults, seal/test/reset, URL allowlist, tampered token → defaults, per-field fallback, webhook registry, 23 Playwright checks on the Settings flow.

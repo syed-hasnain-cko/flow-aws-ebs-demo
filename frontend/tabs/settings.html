@@ -1,0 +1,40 @@
+<div class="context-area" id="settings-root">
+    <h2 class="section-header">Account Settings</h2>
+    <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin:0 0 14px;">
+        Test <strong>your own</strong> Checkout.com account: enter your sandbox credentials below and every request from this app uses them instead of the server defaults.
+        Leave a field empty to keep using the default. Secrets are sent once, sealed (AES-256-GCM) on the server and kept in this browser only as an
+        encrypted token — they are never shown again and the server stores nothing.
+    </p>
+
+    <div id="settings-banner" class="settings-banner">Loading…</div>
+
+    <div id="settings-fields"></div>
+
+    <div class="inline-form" style="margin-top:16px;align-items:flex-end;">
+        <div class="form-group" style="max-width:220px;">
+            <label for="settings-ttl" class="select-label">Keep my configuration for</label>
+            <select id="settings-ttl" class="select-input">
+                <option value="1">1 hour</option>
+                <option value="8" selected>8 hours</option>
+                <option value="24">24 hours</option>
+                <option value="168">7 days</option>
+            </select>
+        </div>
+    </div>
+    <div class="button-group" style="margin-top:12px;gap:10px;flex-wrap:wrap;">
+        <button id="settings-test" class="main-button" style="background:var(--bg-subtle);color:var(--text-primary);border:1px solid var(--border-strong);">Test credentials</button>
+        <button id="settings-save" class="main-button">Save &amp; use my account</button>
+        <button id="settings-reset" class="main-button" style="background:transparent;color:var(--error);border:1px solid var(--error);">Reset everything to defaults</button>
+    </div>
+    <div id="settings-test-result" style="margin-top:12px;"></div>
+
+    <hr style="margin:26px 0;border:0;border-top:1px solid var(--border);">
+    <h3 style="margin:0 0 8px;font-size:14px;">Good to know</h3>
+    <ul style="color:var(--text-secondary);font-size:12.5px;line-height:1.7;margin:0;padding-left:18px;">
+        <li><strong>Webhooks:</strong> in your Checkout.com dashboard point a workflow at <code id="settings-webhook-url"></code> with the header <code>Authorization: &lt;your webhook secret&gt;</code> — events for your account then show up in the app. Verification of custom secrets is per server instance, so re-save if a webhook is rejected after a long idle period.</li>
+        <li><strong>Public key</strong> (<code>pk_…</code>), <strong>processing channel</strong> and <strong>currency account</strong> are not secrets: the browser uses them directly to start Flow and wallets.</li>
+        <li><strong>Base URL / access URL</strong> must be Checkout.com hosts (<code>https://[prefix.]api.sandbox.checkout.com</code>); anything else is rejected so your keys can never be sent elsewhere.</li>
+        <li><strong>Not covered:</strong> the Forward API, Stripe and Adyen tabs have their own credentials. A saved configuration cannot be revoked before it expires — use a short duration and sandbox keys only.</li>
+        <li>Pay attention to the environment: a sandbox key with a production URL (or the reverse) is rejected by Checkout.com with 401.</li>
+    </ul>
+</div>

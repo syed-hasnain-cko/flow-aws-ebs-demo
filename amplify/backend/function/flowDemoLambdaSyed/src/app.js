@@ -31,7 +31,8 @@ app.get('/frontend-config.js', (req, res) => {
 // Enable CORS for all methods
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*")
-  res.header("Access-Control-Allow-Headers", "*")
+  res.header("Access-Control-Allow-Headers", "*, Authorization")   // "*" does not cover Authorization, which carries the Settings-page account token
+  if (req.method === 'OPTIONS') return res.sendStatus(204)         // local / direct preflight (API Gateway answers its own via the MOCK OPTIONS method)
   next()
 });
 

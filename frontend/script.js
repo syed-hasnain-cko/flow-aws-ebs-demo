@@ -191,6 +191,8 @@ window.openTab = function (evt, tabName) {
     document.getElementById(tabName).classList.add("active");
     evt.currentTarget.classList.add("active");
 
+    if (tabName === 'settings-tab' && window.refreshSettings) window.refreshSettings();
+
     if (tabName === 'google-tab') {
         loadGooglePayScript();   // defined in modules/wallets.js
     } else {

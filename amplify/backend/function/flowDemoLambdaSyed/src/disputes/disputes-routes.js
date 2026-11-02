@@ -16,13 +16,13 @@
 const axios = require('axios');
 const router = require('express').Router();
 const config = require('../config');
-const { Checkout } = require('checkout-sdk-node');
+const accountConfig = require('../account-config');
 
-const cko = new Checkout(config.sk, { pk: config.pk, timeout: 10000 });
-const API_SECRET_KEY = config.sk;
+// SDK client of the account active on this request (custom credentials from Settings, else env defaults)
+const cko = new Proxy({}, { get: (_t, prop) => accountConfig.getCko(config)[prop] });
 
 function ckoHeaders() {
-  return { Authorization: `Bearer ${API_SECRET_KEY}` };
+  return { Authorization: `Bearer ${config.sk}` };
 }
 
 // Creates the payment that triggers a sandbox test dispute. Uses a raw card
@@ -60,7 +60,7 @@ router.post('/create-test-payment', async (req, res) => {
 // GET /disputes — list, forwards all query params (payment_id, statuses, etc.)
 router.get('/', async (req, res) => {
   try {
-    const response = await axios.get(`${process.env.GW_URL}/disputes`, {
+    const response = await axios.get(`${accountConfig.gwUrl()}/disputes`, {
       headers: ckoHeaders(),
       params: req.query,
     });
@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
 // GET /disputes/:id
 router.get('/:id', async (req, res) => {
   try {
-    const response = await axios.get(`${process.env.GW_URL}/disputes/${req.params.id}`, {
+    const response = await axios.get(`${accountConfig.gwUrl()}/disputes/${req.params.id}`, {
       headers: ckoHeaders(),
     });
     res.json(response.data);
@@ -85,7 +85,7 @@ router.get('/:id', async (req, res) => {
 // POST /disputes/:id/accept
 router.post('/:id/accept', async (req, res) => {
   try {
-    const response = await axios.post(`${process.env.GW_URL}/disputes/${req.params.id}/accept`, {}, {
+    const response = await axios.post(`${accountConfig.gwUrl()}/disputes/${req.params.id}/accept`, {}, {
       headers: ckoHeaders(),
     });
     res.status(response.status).json(response.data || {});
@@ -99,7 +99,7 @@ router.post('/:id/accept', async (req, res) => {
 // description or an externally-hosted link in place of a file).
 router.put('/:id/evidence', async (req, res) => {
   try {
-    const response = await axios.put(`${process.env.GW_URL}/disputes/${req.params.id}/evidence`, req.body, {
+    const response = await axios.put(`${accountConfig.gwUrl()}/disputes/${req.params.id}/evidence`, req.body, {
       headers: { ...ckoHeaders(), 'Content-Type': 'application/json' },
     });
     res.status(response.status).json(response.data || {});
@@ -111,7 +111,7 @@ router.put('/:id/evidence', async (req, res) => {
 // GET /disputes/:id/evidence — read back what's currently attached
 router.get('/:id/evidence', async (req, res) => {
   try {
-    const response = await axios.get(`${process.env.GW_URL}/disputes/${req.params.id}/evidence`, {
+    const response = await axios.get(`${accountConfig.gwUrl()}/disputes/${req.params.id}/evidence`, {
       headers: ckoHeaders(),
     });
     res.json(response.data);
@@ -125,7 +125,7 @@ router.get('/:id/evidence', async (req, res) => {
 // calls) to avoid colliding with the PUT route above at the same path.
 router.post('/:id/evidence/submit', async (req, res) => {
   try {
-    const response = await axios.post(`${process.env.GW_URL}/disputes/${req.params.id}/evidence`, {}, {
+    const response = await axios.post(`${accountConfig.gwUrl()}/disputes/${req.params.id}/evidence`, {}, {
       headers: ckoHeaders(),
     });
     res.status(response.status).json(response.data || {});

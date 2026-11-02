@@ -9,6 +9,7 @@
             </div>
         </div>
         <div class="header-controls">
+            <span id="account-badge" class="account-badge" role="button" tabindex="0" style="display:none"></span>
             <select id="theme-selector" class="theme-select" onchange="applyTheme(this.value)">
                 <option value="light">☀️ Light</option>
                 <option value="dark">🌙 Dark</option>
@@ -57,6 +58,11 @@
             <button class="tab-link nav-item" onclick="openTab(event, 'competitors-tab')" title="Competitor Testing"><span class="nav-ico">🆚</span><span class="nav-label">Competitor Testing</span></button>
             </div>
         </div>
+        <div class="nav-bottom">
+            <div class="nav-items">
+            <button class="tab-link nav-item" id="nav-settings" onclick="openTab(event, 'settings-tab')" title="Settings"><span class="nav-ico">⚙️</span><span class="nav-label">Settings</span></button>
+            </div>
+        </div>
         <button class="nav-collapse" id="nav-collapse" type="button" title="Collapse menu"><span class="nav-ico">«</span><span class="nav-label">Collapse</span></button>
     </nav>
 
@@ -74,6 +80,7 @@
     <div id="standalone-tab" class="tab-content"></div>
     <div id="forward-tab" class="tab-content"></div>
     <div id="competitors-tab" class="tab-content"></div>
+    <div id="settings-tab" class="tab-content"></div>
 
     <!-- Apple Pay SDK Log Debugger -->
     <div id="apple-pay-debugger" class="context-area" style="display: none; margin-top: 20px; border: 1px solid #E2E8F0; background: #F8FAFC;">

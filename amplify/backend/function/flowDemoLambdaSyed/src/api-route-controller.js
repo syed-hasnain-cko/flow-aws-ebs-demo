@@ -6,6 +6,8 @@ const { X509Certificate } = require('crypto');
 require('dotenv').config()
 const {Checkout} = require('checkout-sdk-node');
 const config = require('./config');
+const accountConfig = require('./account-config');
+accountConfig.install(config);   // makes config.sk/pk/… request-aware (custom account from the Settings page, else env defaults)
 const fs = require("fs");
 
 const {
@@ -15,9 +17,12 @@ const {
 
 const secretsManager = new SecretsManagerClient();
 
-const cko = new Checkout(config.sk, { pk: config.pk, timeout: 10000 });
+// Resolves to the SDK client for the account active on THIS request (custom credentials from Settings, else the env defaults).
+const cko = new Proxy({}, { get: (_t, prop) => accountConfig.getCko(config)[prop] });
 
-const API_SECRET_KEY = config.sk;
+// Custom account (Settings page): opens the sealed token for THIS request only, then the /account routes. Must stay above every other route.
+router.use(accountConfig.middleware);
+router.use('/account', accountConfig.router);
 
 const webhookEventStore = new Map();
 
@@ -29,9 +34,9 @@ router.post('/payment-sessions', async (req, res) => {
   // secret key instead of the global SECRET_KEY, without affecting any other tab.
   const { overrideSecretKey, ...sessionBody } = req.body;
   try {
-      const response = await axios.post(`${process.env.GW_URL}/payment-sessions`, sessionBody, {
+      const response = await axios.post(`${accountConfig.gwUrl()}/payment-sessions`, sessionBody, {
           headers: {
-              Authorization: `Bearer ${overrideSecretKey || API_SECRET_KEY}`,
+              Authorization: `Bearer ${overrideSecretKey || config.sk}`,
           },
       });
       res.send(response.data);
@@ -43,9 +48,9 @@ router.post('/payment-sessions', async (req, res) => {
 
 router.post('/payment-setups', async (req, res) => {
     try {
-        const response = await axios.post(`${process.env.GW_URL}/payments/setups`, req.body, {
+        const response = await axios.post(`${accountConfig.gwUrl()}/payments/setups`, req.body, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
                 'Content-Type': 'application/json'
             },
         });
@@ -58,9 +63,9 @@ router.post('/payment-setups', async (req, res) => {
 
 router.put('/update-payment-setups', async (req, res) => {
     try {
-        const response = await axios.put(`${process.env.GW_URL}/payments/setups/${req.query.setupId}`, req.body, {
+        const response = await axios.put(`${accountConfig.gwUrl()}/payments/setups/${req.query.setupId}`, req.body, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
                 'Content-Type': 'application/json'
             },
         });
@@ -73,8 +78,8 @@ router.put('/update-payment-setups', async (req, res) => {
 router.post('/confirm-payment-setups', async (req, res) => {
     try {
         const response = await axios.post(
-            `${process.env.GW_URL}/payments/setups/${req.query.setupId}/confirm/${req.query.methodName}`, {},
-            { headers: { Authorization: `Bearer ${API_SECRET_KEY}` } }
+            `${accountConfig.gwUrl()}/payments/setups/${req.query.setupId}/confirm/${req.query.methodName}`, {},
+            { headers: { Authorization: `Bearer ${config.sk}` } }
         );
         res.send(response.data);
     } catch (error) {
@@ -88,8 +93,8 @@ router.post('/confirm-payment-setups', async (req, res) => {
 router.get('/get-payment-setup', async (req, res) => {
   try {
       const response = await axios.get(
-          `${process.env.GW_URL}/payments/setups/${req.query.setupId}`, 
-          { headers: { Authorization: `Bearer ${API_SECRET_KEY}` } }
+          `${accountConfig.gwUrl()}/payments/setups/${req.query.setupId}`, 
+          { headers: { Authorization: `Bearer ${config.sk}` } }
       );
       res.send(response.data);
   } catch (error) {
@@ -99,9 +104,9 @@ router.get('/get-payment-setup', async (req, res) => {
 
 router.get('/get-payment-details', async(req, res) => {
     try {
-        const response = await axios.get(`${process.env.GW_URL}/payments/${req.query.paymentId}`, {
+        const response = await axios.get(`${accountConfig.gwUrl()}/payments/${req.query.paymentId}`, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
             },
         });
         res.send(response.data);
@@ -112,9 +117,9 @@ router.get('/get-payment-details', async(req, res) => {
 
 router.get('/get-payment-actions', async(req, res) => {
     try {
-        const response = await axios.get(`${process.env.GW_URL}/payments/${req.query.paymentId}/actions`, {
+        const response = await axios.get(`${accountConfig.gwUrl()}/payments/${req.query.paymentId}/actions`, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
             },
         });
         res.send(response.data);
@@ -128,9 +133,9 @@ router.post('/capture-payment', async(req,res) => {
         // Optional partial-capture amount (minor units) — forwarded only when
         // present, so every existing caller (full capture, no body) is unaffected.
         const captureBody = req.body?.amount ? { amount: req.body.amount } : {};
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/captures`, captureBody, {
+        const response = await axios.post(`${accountConfig.gwUrl()}/payments/${req.query.paymentId}/captures`, captureBody, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
             },
         });
         res.send(response.data);
@@ -146,11 +151,11 @@ router.post('/capture-payment', async(req,res) => {
 // No existing route covers this CKO endpoint (POST /payments/{id}/authorizations).
 router.post('/increment-authorization', async (req, res) => {
     try {
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/authorizations`, {
+        const response = await axios.post(`${accountConfig.gwUrl()}/payments/${req.query.paymentId}/authorizations`, {
             amount: req.body.amount,
             reference: req.body.reference,
         }, {
-            headers: { Authorization: `Bearer ${API_SECRET_KEY}` },
+            headers: { Authorization: `Bearer ${config.sk}` },
         });
         res.send(response.data);
     } catch (error) {
@@ -160,9 +165,9 @@ router.post('/increment-authorization', async (req, res) => {
 
 router.post('/void-payment', async(req,res) => {
     try{
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/voids`,{}, {
+        const response = await axios.post(`${accountConfig.gwUrl()}/payments/${req.query.paymentId}/voids`,{}, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
             },
         });
         res.send(response.data);
@@ -174,9 +179,9 @@ router.post('/void-payment', async(req,res) => {
 
 router.post('/refund-payment', async(req,res) => {
     try{
-        const response = await axios.post(`${process.env.GW_URL}/payments/${req.query.paymentId}/refunds`, {}, {
+        const response = await axios.post(`${accountConfig.gwUrl()}/payments/${req.query.paymentId}/refunds`, {}, {
             headers: {
-                Authorization: `Bearer ${API_SECRET_KEY}`,
+                Authorization: `Bearer ${config.sk}`,
             },
         });
         res.send(response.data);
@@ -464,11 +469,11 @@ router.post("/submit-payment-session", async (req, res) => {
 
   try {
       const response = await axios.post(
-          `${process.env.GW_URL}/payment-sessions/${paymentSessionId}/submit`,
+          `${accountConfig.gwUrl()}/payment-sessions/${paymentSessionId}/submit`,
           sessionReq,
           {
               headers: {
-                  Authorization: `Bearer ${API_SECRET_KEY}`,
+                  Authorization: `Bearer ${config.sk}`,
               },
           }
       );
@@ -497,7 +502,7 @@ router.post("/submit-payment-session", async (req, res) => {
   });
 
   router.post('/webhook', (req, res) => {
-    if (req.headers['authorization'] !== process.env.WEBHOOK_SECRET) {
+    if (!accountConfig.webhookSecrets().includes(req.headers['authorization'])) {
         return res.sendStatus(401);
     }
 
@@ -541,11 +546,11 @@ router.get('/webhook-event', (req, res) => {
 router.post('/card-metadata', async (req, res) => {
   try {
       const response = await axios.post(
-          `${process.env.GW_URL}/metadata/card`,
+          `${accountConfig.gwUrl()}/metadata/card`,
           req.body,
           {
               headers: {
-                  Authorization:  `Bearer ${API_SECRET_KEY}`,
+                  Authorization:  `Bearer ${config.sk}`,
                   'Content-Type': 'application/json',
               },
           }
@@ -565,7 +570,7 @@ router.post('/payouts', async (req, res) => {
       const configState = {
           currencyAccountId:   config.currencyAccountId   || 'MISSING',
           processingChannelId: config.processingChannelId || 'MISSING',
-          gwUrl:               process.env.GW_URL          || 'MISSING',
+          gwUrl:               accountConfig.gwUrl()         || 'MISSING',
       };
       console.log('[/payouts] config state:', JSON.stringify(configState));
 
@@ -593,9 +598,9 @@ router.post('/payouts', async (req, res) => {
           destType: payoutBody.destination?.type,
       }));
 
-      const response = await axios.post(`${process.env.GW_URL}/payments`, payoutBody, {
+      const response = await axios.post(`${accountConfig.gwUrl()}/payments`, payoutBody, {
           headers: {
-              Authorization:  `Bearer ${API_SECRET_KEY}`,
+              Authorization:  `Bearer ${config.sk}`,
               'Content-Type': 'application/json',
           },
       });

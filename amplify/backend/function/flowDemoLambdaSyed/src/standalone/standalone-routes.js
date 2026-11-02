@@ -37,7 +37,7 @@ const axios = require('axios');
 const router = require('express').Router();
 const config = require('../config');
 
-const GW_URL = process.env.GW_URL;
+const accountConfig = require('../account-config');
 
 // ---------------------------------------------------------------------------
 // OAuth access token (client_credentials), cached per scope string.
@@ -49,7 +49,9 @@ function oauthConfigured() {
 }
 
 async function getAccessToken(scope) {
-  const cached = tokenCache[scope];
+  // keyed by client + URL too, so a token minted for one account is never reused for another
+  const cacheKey = `${config.ckoAccessKeyId}|${config.ckoAccessUrl}|${scope}`;
+  const cached = tokenCache[cacheKey];
   // Refresh 60s early so a token never expires mid-request.
   if (cached && cached.expiresAt - 60000 > Date.now()) return cached.token;
 
@@ -62,11 +64,11 @@ async function getAccessToken(scope) {
   const resp = await axios.post(config.ckoAccessUrl, body.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
-  tokenCache[scope] = {
+  tokenCache[cacheKey] = {
     token: resp.data.access_token,
     expiresAt: Date.now() + (resp.data.expires_in || 3600) * 1000,
   };
-  return tokenCache[scope].token;
+  return tokenCache[cacheKey].token;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +77,7 @@ async function getAccessToken(scope) {
 async function forward(req, res, { method, path, body, params, scope, defaultAuth }) {
   const requested = (req.headers['x-auth-mode'] || '').toLowerCase();
   const authMode = requested === 'oauth' || requested === 'secret' ? requested : defaultAuth;
-  const upstream = `${method.toUpperCase()} ${GW_URL}${path}`;
+  const upstream = `${method.toUpperCase()} ${accountConfig.gwUrl()}${path}`;
 
   try {
     let bearer;
@@ -102,7 +104,7 @@ async function forward(req, res, { method, path, body, params, scope, defaultAut
 
     const response = await axios({
       method,
-      url: `${GW_URL}${path}`,
+      url: `${accountConfig.gwUrl()}${path}`,
       data: body,
       params,
       headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
@@ -144,7 +146,7 @@ router.get('/config', (_req, res) => {
   res.json({
     oauthConfigured: oauthConfigured(),
     processingChannelId: config.processingChannelId,
-    gwUrlSet: !!GW_URL,
+    gwUrlSet: !!accountConfig.gwUrl(),
   });
 });
 
