@@ -91,6 +91,7 @@
         if (r.status === 422) { render(); showErrors(r.data.errors); showToast('Some values are not valid — see the highlighted fields.', 'error'); return; }
         if (!r.ok) { render(); showToast((r.data && r.data.error) || `Save failed (HTTP ${r.status})`, 'error'); return; }
         AccountConfig.set(r.data);
+        if (r.data.token) localStorage.setItem('cko-webhook-offer', '1');   // webhooks.js offers to create a workflow after the reload
         showToast(r.data.token ? 'Saved — now using your account. Reloading…' : 'Back on the default account. Reloading…');
         setTimeout(() => location.reload(), 900);
     }

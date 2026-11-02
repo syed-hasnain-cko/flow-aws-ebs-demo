@@ -70,6 +70,18 @@ function registerWebhook(secret, until) {
     webhookRegistry.set(secret, until || Date.now() + 8 * 3600 * 1000);
     if (webhookRegistry.size > 50) [...webhookRegistry.keys()].slice(0, webhookRegistry.size - 50).forEach(k => webhookRegistry.delete(k));
 }
+// While any custom account is active (sealed or used recently) incoming webhooks are accepted WITHOUT checking the
+// secret: a custom account's webhooks are signed/authorised for its own processing channel, which this app can't know.
+const customSeen = new Map();                                            // token tail → expiry ms (this container only)
+function markCustom(until) {
+    customSeen.set(String(until), until || Date.now() + 8 * 3600 * 1000);
+    if (customSeen.size > 50) customSeen.delete(customSeen.keys().next().value);
+}
+function customAccountActive() {
+    const now = Date.now(); let any = false;
+    for (const [k, exp] of customSeen) { if (exp > now) any = true; else customSeen.delete(k); }
+    return any;
+}
 function webhookSecrets() {
     const now = Date.now(), out = [base.webhookSecret];
     for (const [s, exp] of webhookRegistry) { if (exp > now) out.push(s); else webhookRegistry.delete(s); }
@@ -160,6 +172,7 @@ function middleware(req, res, next) {
     if (status !== 'ok') { res.setHeader('x-account-config', status); return next(); }       // fall back to the env defaults and tell the browser
     res.setHeader('x-account-config', 'active');
     if (p.cfg.webhookSecret) registerWebhook(p.cfg.webhookSecret, p.exp);
+    markCustom(p.exp);
     als.run({ cfg: p.cfg, exp: p.exp }, next);
 }
 
@@ -197,6 +210,7 @@ router.post('/seal', (req, res) => {
     const exp = Date.now() + hours * 3600 * 1000;
     const token = seal({ v: 1, iat: Date.now(), exp, cfg: merged });
     registerWebhook(merged.webhookSecret, exp);
+    markCustom(exp);
     res.json({
         token, expiresAt: exp, active: true, custom: maskedSet(k => merged[k]),
         // non-secret values the browser needs to initialise Flow / wallets for this account
@@ -229,4 +243,4 @@ router.post('/test', async (req, res) => {
     res.json({ results });
 });
 
-module.exports = { install, middleware, router, gwUrl, getCko, webhookSecrets, isCustomActive, FIELDS, _test: { seal, unseal, validate, mask } };
+module.exports = { install, middleware, router, gwUrl, getCko, webhookSecrets, customAccountActive, isCustomActive, FIELDS, _test: { seal, unseal, validate, mask } };

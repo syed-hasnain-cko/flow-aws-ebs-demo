@@ -1,0 +1,76 @@
+<div class="context-area" id="wh-root">
+    <h2 class="section-header">Webhooks</h2>
+    <p class="settings-sub">Backed by the Checkout.com <strong>Workflows API</strong>: events are stored by Checkout.com (not in this app's memory), so delivery status and replay work across Lambda containers. Uses the active account (default or your custom one).</p>
+
+    <div class="button-group" style="margin-bottom:14px;">
+        <button class="main-button wh-view-btn" data-view="manage" type="button">⚙️ Manage workflows</button>
+        <button class="main-button wh-view-btn" data-view="inspect" type="button" style="opacity:.6">🔍 Inspector</button>
+    </div>
+
+    <!-- ============ MANAGE ============ -->
+    <div id="wh-view-manage">
+        <div class="button-group">
+            <button id="wh-refresh" class="main-button" type="button">↻ Refresh list</button>
+            <button id="wh-new" class="main-button" type="button">＋ New workflow</button>
+            <button id="wh-use-app" class="main-button" type="button" title="Creates a workflow that sends all events to this app's /webhook endpoint">⚡ Send events to this app</button>
+        </div>
+        <div id="wh-list" class="settings-sub" style="margin-top:12px;">Click “Refresh list” to load your workflows.</div>
+
+        <div id="wh-editor" style="display:none;margin-top:18px;border:1px solid var(--border);border-radius:10px;padding:16px;">
+            <h3 id="wh-editor-title" style="margin-top:0">New workflow</h3>
+            <div class="inline-form">
+                <div class="form-group"><label class="text-label" for="wh-name">Name</label><input id="wh-name" class="text-input" value="Webhook inspector workflow"></div>
+                <div class="form-group"><label class="toggle-label" for="wh-active">Active</label><label class="switch"><input type="checkbox" id="wh-active" checked><span class="slider round"></span></label></div>
+            </div>
+            <div class="inline-form">
+                <div class="form-group" style="flex:2"><label class="text-label" for="wh-url">Webhook URL (https)</label><input id="wh-url" class="text-input" placeholder="https://…/webhook"></div>
+                <div class="form-group"><label class="text-label" for="wh-auth">Authorization header <span style="opacity:.6">(optional)</span></label><input id="wh-auth" class="text-input" autocomplete="off" placeholder="sent as Authorization"></div>
+                <div class="form-group"><label class="text-label" for="wh-sigkey">HMAC signature key <span style="opacity:.6">(optional)</span></label><input id="wh-sigkey" class="text-input" autocomplete="off" placeholder="HMACSHA256 key"></div>
+            </div>
+            <div class="inline-form">
+                <div class="form-group"><label class="text-label" for="wh-pc">Processing channel ids <span style="opacity:.6">(optional, comma separated)</span></label><input id="wh-pc" class="text-input" placeholder="pc_…"></div>
+            </div>
+            <div class="settings-sub" id="wh-auth-note" style="display:none;margin:4px 0 8px;">Headers and signature key are not returned by Checkout.com — leave blank to keep the existing ones.</div>
+            <label class="text-label">Events <span id="wh-ev-count" style="opacity:.7"></span></label>
+            <div style="margin:6px 0"><input id="wh-ev-filter" class="text-input" placeholder="filter event types…" style="max-width:280px"></div>
+            <div id="wh-events" style="max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;">Loading event types…</div>
+            <details style="margin-top:10px"><summary>Request preview</summary><pre id="wh-preview" class="json-code-block"></pre></details>
+            <div class="button-group" style="margin-top:12px;">
+                <button id="wh-save" class="main-button" type="button">Save workflow</button>
+                <button id="wh-cancel" class="main-button" type="button" style="opacity:.7">Cancel</button>
+            </div>
+        </div>
+
+        <div id="wh-test" style="display:none;margin-top:18px;border:1px solid var(--border);border-radius:10px;padding:16px;"></div>
+        <details id="wh-raw-wrap" style="display:none;margin-top:14px"><summary>Raw workflow</summary><pre id="wh-raw" class="json-code-block"></pre></details>
+    </div>
+
+    <!-- ============ INSPECTOR ============ -->
+    <div id="wh-view-inspect" style="display:none">
+        <div class="inline-form">
+            <div class="form-group" style="flex:2"><label class="text-label" for="wh-subject">Subject id (payment, dispute, …)</label><input id="wh-subject" class="text-input" placeholder="pay_… / dsp_…"></div>
+            <div class="form-group" style="align-self:flex-end"><button id="wh-find" class="main-button" type="button">Find events</button></div>
+            <div class="form-group" style="align-self:flex-end"><button id="wh-replay-subject" class="main-button" type="button" title="Replays all events of this subject to every matching workflow">↺ Replay all</button></div>
+        </div>
+        <div class="settings-sub">Events and delivery attempts come from Checkout.com, so they are complete even when this app's Lambda container changed.</div>
+        <div id="wh-events-list" style="margin-top:12px;"></div>
+        <div id="wh-event-detail" style="margin-top:14px;"></div>
+        <details style="margin-top:18px"><summary>Live feed received by this app (this Lambda container only)</summary>
+            <div class="button-group" style="margin-top:8px"><button id="wh-live-refresh" class="main-button" type="button">↻ Refresh live feed</button></div>
+            <div id="wh-live" class="settings-sub"></div>
+        </details>
+    </div>
+</div>
+
+<!-- offer shown after a new account is saved -->
+<div id="wh-offer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:var(--bg);color:var(--text);border:1px solid var(--border-strong);border-radius:12px;max-width:480px;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.4)">
+        <h3 style="margin-top:0">Receive webhooks for this account?</h3>
+        <p class="settings-sub">Your account has its own webhook configuration. Want this app to create a workflow that sends your account's events to <code id="wh-offer-url"></code>? Incoming webhooks are accepted without checking a secret while a custom account is active.</p>
+        <div class="button-group">
+            <button id="wh-offer-yes" class="main-button" type="button">Yes, create it</button>
+            <button id="wh-offer-edit" class="main-button" type="button" style="opacity:.8">Let me choose events</button>
+            <button id="wh-offer-no" class="main-button" type="button" style="opacity:.6">Not now</button>
+        </div>
+    </div>
+</div>

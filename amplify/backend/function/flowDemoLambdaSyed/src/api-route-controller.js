@@ -502,7 +502,8 @@ router.post("/submit-payment-session", async (req, res) => {
   });
 
   router.post('/webhook', (req, res) => {
-    if (!accountConfig.webhookSecrets().includes(req.headers['authorization'])) {
+    // custom account active → secret not validated (it belongs to the visitor's own processing channel)
+    if (!accountConfig.customAccountActive() && !accountConfig.webhookSecrets().includes(req.headers['authorization'])) {
         return res.sendStatus(401);
     }
 

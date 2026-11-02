@@ -206,6 +206,7 @@ router.post('/instruments', (req, res) =>
 //              POST   /payments/{pay_…}/captures | /voids | /refunds
 //   Links/HPP: POST   /payment-links | /hosted-payments
 //              GET    /payment-links/{pl_…} | /hosted-payments/{hpp_…}
+//   Workflows: /workflows, /workflows/{wf_…}[/actions|/conditions|/test], /workflows/event-types, /workflows/events/… (see WF_RE)
 // Instrument CREATION from the UI keeps using the existing POST /standalone/instruments route.
 // The default auth is the secret key; the scope below only matters when the UI forces OAuth.
 // ---------------------------------------------------------------------------
@@ -217,6 +218,19 @@ const PAY_READ = /^\/payments\/pay_[A-Za-z0-9]{10,60}(\/actions)?$/;
 const LINK_CREATE = /^\/(payment-links|hosted-payments)$/;
 const LINK_READ = /^\/(payment-links\/pl_|hosted-payments\/hpp_)[A-Za-z0-9_\-]{4,60}$/;
 const PAY_ACTION = /^\/payments\/pay_[A-Za-z0-9]{10,60}\/(captures|voids|refunds)$/;
+// Workflows API (webhook management): workflows, their conditions/actions, events, delivery status, reflow
+const WID = '[a-z]{2,5}_[a-z0-9]{10,40}';
+const WF_RE = {
+  GET:    [/^\/workflows$/, /^\/workflows\/event-types$/, new RegExp(`^/workflows/${WID}$`), new RegExp(`^/workflows/events/${WID}$`),
+           new RegExp(`^/workflows/events/${WID}/actions/${WID}$`), new RegExp(`^/workflows/events/subject/${WID}$`)],
+  POST:   [/^\/workflows$/, new RegExp(`^/workflows/${WID}/(test|actions|conditions)$`), /^\/workflows\/events\/reflow$/,
+           new RegExp(`^/workflows/events/${WID}/reflow$`), new RegExp(`^/workflows/events/${WID}/workflow/${WID}/reflow$`),
+           new RegExp(`^/workflows/events/subject/${WID}/reflow$`), new RegExp(`^/workflows/events/subject/${WID}/workflow/${WID}/reflow$`)],
+  PATCH:  [new RegExp(`^/workflows/${WID}$`)],
+  PUT:    [new RegExp(`^/workflows/${WID}/(actions|conditions)/${WID}$`)],
+  DELETE: [new RegExp(`^/workflows/${WID}$`), new RegExp(`^/workflows/${WID}/(actions|conditions)/${WID}$`)],
+};
+const isWorkflowCall = (m, p) => (WF_RE[m] || []).some(r => r.test(p));
 
 router.post('/vault', (req, res) => {
   const { method, path, body } = req.body || {};
@@ -225,14 +239,15 @@ router.post('/vault', (req, res) => {
   const allowed =
     (m === 'POST' && (VAULT_COLLECTION.test(p) || PAY_SEARCH.test(p) || PAY_ACTION.test(p) || LINK_CREATE.test(p))) ||
     (['GET', 'PATCH', 'DELETE'].includes(m) && VAULT_ITEM.test(p)) ||
-    (m === 'GET' && (VAULT_VALIDATION.test(p) || PAY_READ.test(p) || LINK_READ.test(p)));
+    (m === 'GET' && (VAULT_VALIDATION.test(p) || PAY_READ.test(p) || LINK_READ.test(p))) ||
+    isWorkflowCall(m, p);
   if (!allowed || p.includes('..')) {
     return res.status(400).json({ upstream_status: 400, upstream: null, auth_mode: null, cko_request_id: null,
       data: { error: `proxy does not allow ${m || '?'} ${p || '?'}` } });
   }
   return forward(req, res, {
-    method: m.toLowerCase(), path: p, body: ['POST', 'PATCH'].includes(m) ? (body || {}) : undefined,
-    scope: /^\/(payments|payment-links|hosted-payments)/.test(p) ? 'payments:search gateway' : 'vault vault:instruments vault:customers', defaultAuth: 'secret',
+    method: m.toLowerCase(), path: p, body: ['POST', 'PATCH', 'PUT'].includes(m) ? (body || {}) : undefined,
+    scope: /^\/workflows/.test(p) ? 'flow flow:workflows flow:events flow:reflow' : /^\/(payments|payment-links|hosted-payments)/.test(p) ? 'payments:search gateway' : 'vault vault:instruments vault:customers', defaultAuth: 'secret',
   });
 });
 

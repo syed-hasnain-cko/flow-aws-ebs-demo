@@ -895,3 +895,13 @@ A token can't be revoked before it expires (stateless) — keep durations short,
 
 ### Deploy notes
 `/release` handles it: creates the `/account` + `/account/{proxy+}` API Gateway resources and adds `CONFIG_SEAL_KEY` (generated into local `.env`, `copy-local` in `env.manifest.json`) to the Lambda. Verified locally (no AWS): masked defaults, seal/test/reset, URL allowlist, tampered token → defaults, per-field fallback, webhook registry, 23 Playwright checks on the Settings flow.
+
+---
+
+## Session Summary (2026-11-05) — Webhooks tab (Workflows API) + webhook auth with custom accounts
+
+- **Webhook auth**: while any custom account is active (sealed/used; in-memory per container, `accountConfig.customAccountActive()`), `POST /webhook` accepts events WITHOUT checking the secret (it belongs to the visitor's own processing channel). Default account: secret still required.
+- **Webhooks nav item** (📡, Tools group): `tabs/webhooks.html`, `modules/webhooks.js`. Two views: **Manage** (list/create/edit/enable-disable/test/delete workflows, event picker from `GET /workflows/event-types`, "Send events to this app" = workflow → `<apiBase>/webhook`) and **Inspector** (events by subject id, per-event delivery status/attempts, replay by event / event+workflow / subject). Events come from Checkout.com, so they survive Lambda container changes. A collapsed "live feed" still shows this container's buffer.
+- **No new API Gateway route**: `POST /standalone/vault` allowlist now passes the `/workflows/*` calls (`WF_RE` in `standalone-routes.js`, incl. PUT). **Redeploy the Lambda.** Key needs scopes `flow`, `flow:workflows`, `flow:events`, `flow:reflow`.
+- After **Save** in Settings with a custom account, `localStorage['cko-webhook-offer']` makes the next load show a dialog offering to create the workflow (yes / choose events / not now).
+- Not verified against the live API: response shapes of `event-types` and subject events are parsed defensively.
