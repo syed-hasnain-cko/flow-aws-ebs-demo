@@ -83,8 +83,20 @@
             <div><label for="lk-description">description</label><input type="text" id="lk-description" class="text-input" placeholder="Payment for Gold Necklace"></div>
             <div><label for="lk-display-name">display_name (merchant name shown)</label><input type="text" id="lk-display-name" class="text-input" placeholder="The Jewelry Shop"></div>
             <div><label for="lk-locale">locale</label><select id="lk-locale" class="select-input"></select></div>
-            <div><label for="lk-payment-type">payment_type</label><select id="lk-payment-type" class="select-input"><option>Regular</option><option>Recurring</option></select></div>
+            <div><label for="lk-payment-type">payment_type</label><select id="lk-payment-type" class="select-input"><option>Regular</option><option>Recurring</option><option>Unscheduled</option><option>Installment</option></select></div>
             <div><label for="lk-auth-type">authorization_type</label><select id="lk-auth-type" class="select-input"><option>Final</option><option>Estimated</option></select></div>
+        </div>
+        <div class="lk-grid" style="margin-top:10px;">
+            <div style="grid-column:1 / -1;">
+                <label for="lk-store">Save card for future use · card.store_payment_details</label>
+                <select id="lk-store" class="select-input">
+                    <option value="collect_consent" selected>Ask the customer for consent (collect_consent)</option>
+                    <option value="enabled">Always save the card (enabled)</option>
+                    <option value="disabled">Never save the card (disabled)</option>
+                    <option value="">Don't send — use the account default</option>
+                </select>
+                <div class="lk-note" style="margin-top:4px;">With consent, the page shows a "save my card for future payments" checkbox and the card is stored only if the customer ticks it. Applies to card payments on both Payment Links and Hosted Payments Pages; the saved <code>src_</code> id arrives on the payment, so it can be reused for Unscheduled / Recurring / Installment payments.</div>
+            </div>
         </div>
 
         <!-- Payment Link only -->
@@ -166,7 +178,6 @@
             <div><label for="lk-3ds-ex">3ds.exemption</label><select id="lk-3ds-ex" class="select-input"><option value="">(none)</option><option>low_value</option><option>secure_corporate_payment</option><option>trusted_listing</option><option>transaction_risk_assessment</option><option>3ds_outage</option><option>sca_delegation</option><option>out_of_sca_scope</option><option>other</option><option>low_risk_program</option><option>recurring_operation</option></select></div>
             <div><label for="lk-risk">risk.enabled</label><select id="lk-risk" class="select-input"><option value="">Account default (on)</option><option value="false">Off</option></select></div>
             <div><label for="lk-retry">customer_retry.max_attempts (0–5)</label><input type="number" id="lk-retry" class="text-input" min="0" max="5" placeholder="5"></div>
-            <div><label for="lk-store">card.store_payment_details</label><select id="lk-store" class="select-input"><option value="">(default)</option><option>disabled</option><option>enabled</option><option>collect_consent</option></select></div>
         </div>
         <div style="display:flex; gap:18px; flex-wrap:wrap; margin-top:12px;">
             <label class="lk-note" style="display:flex; gap:6px; align-items:center;"><input type="checkbox" id="lk-3ds-n3d"> 3ds.attempt_n3d</label>

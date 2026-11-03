@@ -270,7 +270,7 @@
     }
 
     const readHist = () => { try { return JSON.parse(localStorage.getItem(LS_HIST) || '[]'); } catch (e) { return []; } };
-    const writeHist = (h) => { try { localStorage.setItem(LS_HIST, JSON.stringify(h.slice(0, 12))); } catch (e) { /* ignore */ } };
+    const writeHist = (h) => { window.Common.Store.setJSON(LS_HIST, h.slice(0, 12)); };
 
     async function create() {
         const { body, errors } = buildBody();

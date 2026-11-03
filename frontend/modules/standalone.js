@@ -69,7 +69,7 @@
     const show = (id, display = '') => { const e = $(id); if (e) e.style.display = display; };
     const hide = (id) => { const e = $(id); if (e) e.style.display = 'none'; };
     const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } };
-    const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage full — ignore */ } };
+    const lsSet = (k, v) => { window.Common.Store.setJSON(k, v); };
     const tabActive = () => $('standalone-tab')?.classList.contains('active');
     const jsonOf = (o) => JSON.stringify(o, null, 2);
 
@@ -718,7 +718,7 @@
     function markConsumed(sid, info) {
         const all = readConsumed();
         all[sid] = { ...info, at: Date.now() };
-        try { localStorage.setItem(LS_CONSUMED, JSON.stringify(all)); } catch (e) { /* storage full */ }
+        window.Common.Store.setJSON(LS_CONSUMED, all);
     }
 
     // locked: Step 3 cannot be used right now; reason explains why and what to do.
@@ -831,7 +831,7 @@
         const all = readSnaps();
         all[state.sid] = snap;
         Object.keys(all).sort((a, b) => all[b].saved_at - all[a].saved_at).slice(10).forEach(k => delete all[k]);
-        try { localStorage.setItem(LS_SNAPSHOTS, JSON.stringify(all)); localStorage.setItem(LS_LAST_SID, state.sid); } catch (e) { /* storage full */ }
+        if (window.Common.Store.setJSON(LS_SNAPSHOTS, all)) window.Common.Store.set(LS_LAST_SID, state.sid);
     }
 
     // Shows/hides every conditional block from current field values (used at init and after a restore).
@@ -913,7 +913,7 @@
     // Start over: forget the current session (and its snapshot) without touching saved cards or tokens.
     function resetSessionState() {
         stopPolling();
-        const all = readSnaps(); delete all[state.sid]; try { localStorage.setItem(LS_SNAPSHOTS, JSON.stringify(all)); localStorage.removeItem(LS_LAST_SID); } catch (e) { /* ignore */ }
+        const all = readSnaps(); delete all[state.sid]; try { window.Common.Store.setJSON(LS_SNAPSHOTS, all); localStorage.removeItem(LS_LAST_SID); } catch (e) { /* ignore */ }
         Object.assign(state, { sid: null, session: null, redirectHref: null, sessionSource: null, lastPaymentId: null, prefilled: {}, payAuth: 'sid' });
         syncDependentUi();
         ['sa-3ds-sid', 'sa-pay-eci', 'sa-pay-cryptogram', 'sa-pay-xid', 'sa-pay-version', 'sa-pay-reference', 'sa-pay-cvv'].forEach(id => { if ($(id)) $(id).value = ''; });

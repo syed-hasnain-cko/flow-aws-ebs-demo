@@ -36,7 +36,7 @@
     // Directory persistence
     // =====================================================================
     function save() {
-        try { localStorage.setItem(LS_DIR, JSON.stringify({ customers: state.customers, loose: state.loose, seededDefault: true })); } catch (e) { /* storage full */ }
+        window.Common.Store.setJSON(LS_DIR, { customers: state.customers, loose: state.loose, seededDefault: true });
     }
     function load() {
         let dir = null;

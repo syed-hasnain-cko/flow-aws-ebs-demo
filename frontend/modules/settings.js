@@ -5,7 +5,7 @@
 
 (function () {
     const API = (window.APP_CONFIG && window.APP_CONFIG.apiBaseUrl) || '';
-    const { $, esc } = window.Common;
+    const { $, esc, Store, confirmDialog } = window.Common;
     let cfg = null;
     const pendingClear = new Set();
 
@@ -95,15 +95,77 @@
         setTimeout(() => location.reload(), 900);
     }
 
-    function resetAll() {
-        if (!confirm('Forget your custom configuration and go back to the server defaults?')) return;
+    async function resetAll() {
+        if (!(await confirmDialog({ title: 'Reset to defaults?', text: 'Forget your custom configuration and go back to the server defaults.', confirmLabel: 'Reset', danger: true }))) return;
         AccountConfig.reset();
         showToast('Back on the default account. Reloading…');
         setTimeout(() => location.reload(), 600);
     }
 
+        // =====================================================================
+    // Browser storage panel
+    // =====================================================================
+    const kb = (chars) => chars >= 1024 * 100 ? `${(chars / 1024 / 1024).toFixed(2)} MB` : `${Math.max(1, Math.round(chars / 1024))} KB`;
+
+    function renderStorage() {
+        if (!$('store-table')) return;
+        const rows = Store.usage();
+        const total = rows.reduce((n, r) => n + r.chars, 0);
+        const local = rows.filter(r => r.area === 'local').reduce((n, r) => n + r.chars, 0);
+        const pct = Math.min(100, Math.round(local / Store.quotaChars * 100));
+        $('store-meter-fill').style.width = pct + '%';
+        $('store-meter-fill').style.background = pct > 80 ? 'var(--error)' : pct > 50 ? '#f59e0b' : 'var(--primary)';
+        $('store-summary').textContent = `${kb(local)} of ~5 MB used in local storage (${pct}%) · ${rows.length} items, ${kb(total)} including this tab's session data`;
+        $('store-table').innerHTML = rows.length ? `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <tr style="text-align:left;color:var(--text-secondary);font-size:10px;text-transform:uppercase;letter-spacing:.04em;"><th style="padding:5px 8px;">Data</th><th>Where</th><th>Entries</th><th>Size</th><th></th></tr>
+            ${rows.map(r => `<tr style="border-top:1px solid var(--border);">
+                <td style="padding:7px 8px;"><div style="color:var(--text-primary);font-weight:600;">${esc(r.label)}</div><div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-secondary);">${esc(r.key)}${r.sensitive ? ' · not exported' : ''}</div></td>
+                <td style="color:var(--text-secondary);">${r.area === 'session' ? 'this tab' : 'browser'}</td>
+                <td style="color:var(--text-secondary);">${r.entries ?? '—'}</td>
+                <td style="color:var(--text-primary);white-space:nowrap;">${kb(r.chars)}</td>
+                <td style="text-align:right;"><button type="button" class="copy-btn" data-store-clear="${esc(r.key)}" data-area="${r.area}">Clear</button></td></tr>`).join('')}
+        </table>` : '<div style="font-size:12.5px;color:var(--text-secondary);">Nothing saved yet.</div>';
+    }
+
+    async function onStoreClick(e) {
+        const b = e.target.closest('[data-store-clear]'); if (!b) return;
+        const key = b.dataset.storeClear;
+        const ok = await confirmDialog({ title: 'Clear this data?', text: `${(Store.POLICIES[key] || {}).label || key} will be removed from this browser. This cannot be undone.`, confirmLabel: 'Clear', danger: true });
+        if (!ok) return;
+        Store.clearKey(key, b.dataset.area);
+        showToast('Cleared'); renderStorage();
+    }
+
+    function exportStorage() {
+        const blob = new Blob([JSON.stringify(Store.exportAll(), null, 2)], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `cko-demo-storage-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    async function importStorage(file) {
+        if (!file) return;
+        try {
+            const n = Store.importAll(JSON.parse(await file.text()));
+            showToast(`Imported ${n} item${n === 1 ? '' : 's'} — reloading…`);
+            setTimeout(() => location.reload(), 800);
+        } catch (err) { showToast('Import failed: ' + err.message, 'error'); }
+        $('store-file').value = '';
+    }
+
+    function initStorage() {
+        if (!$('store-table')) return;
+        $('store-table').addEventListener('click', onStoreClick);
+        $('store-prune').addEventListener('click', () => { Store.prune(); renderStorage(); showToast('Old entries trimmed'); });
+        $('store-export').addEventListener('click', exportStorage);
+        $('store-import').addEventListener('click', () => $('store-file').click());
+        $('store-file').addEventListener('change', (e) => importStorage(e.target.files[0]));
+        renderStorage();
+    }
+
     function init() {
         if (!$('settings-root')) return;
+        initStorage();
         $('settings-test').addEventListener('click', test);
         $('settings-save').addEventListener('click', save);
         $('settings-reset').addEventListener('click', resetAll);
@@ -114,6 +176,6 @@
         });
         load();
     }
-    window.refreshSettings = load;   // called when the tab is opened
+    window.refreshSettings = () => { renderStorage(); return load(); };   // called when the tab is opened
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

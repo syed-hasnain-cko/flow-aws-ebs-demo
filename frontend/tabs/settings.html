@@ -29,6 +29,22 @@
     <div id="settings-test-result" style="margin-top:12px;"></div>
 
     <hr style="margin:26px 0;border:0;border-top:1px solid var(--border);">
+    <h3 style="margin:0 0 6px;font-size:14px;">Browser storage</h3>
+    <p style="color:var(--text-secondary);font-size:12.5px;line-height:1.6;margin:0 0 10px;">
+        Saved cards, tokens, 3DS states and history live in this browser only (about 5 MB is available). Old entries are trimmed automatically on every page load; clear or back up anything here.
+    </p>
+    <div id="store-meter" style="height:8px;border-radius:6px;background:var(--bg-subtle);border:1px solid var(--border);overflow:hidden;"><div id="store-meter-fill" style="height:100%;width:0;background:var(--primary);"></div></div>
+    <div id="store-summary" style="font-size:12px;color:var(--text-secondary);margin:6px 0 10px;"></div>
+    <div id="store-table" style="overflow-x:auto;"></div>
+    <div class="button-group" style="margin-top:10px;gap:8px;flex-wrap:wrap;">
+        <button id="store-prune" class="copy-btn" type="button">Trim old entries now</button>
+        <button id="store-export" class="copy-btn" type="button">Export backup (JSON)</button>
+        <button id="store-import" class="copy-btn" type="button">Import backup…</button>
+        <input type="file" id="store-file" accept="application/json,.json" style="display:none;">
+    </div>
+    <div style="font-size:11.5px;color:var(--text-secondary);margin-top:6px;">Backups never include credentials or the sealed account token (marked <em>not exported</em>).</div>
+
+    <hr style="margin:26px 0;border:0;border-top:1px solid var(--border);">
     <h3 style="margin:0 0 8px;font-size:14px;">Good to know</h3>
     <ul style="color:var(--text-secondary);font-size:12.5px;line-height:1.7;margin:0;padding-left:18px;">
         <li><strong>Webhooks:</strong> in your Checkout.com dashboard point a workflow at <code id="settings-webhook-url"></code> with the header <code>Authorization: &lt;your webhook secret&gt;</code> — events for your account then show up in the app. Verification of custom secrets is per server instance, so re-save if a webhook is rejected after a long idle period.</li>
