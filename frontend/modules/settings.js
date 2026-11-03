@@ -5,8 +5,7 @@
 
 (function () {
     const API = (window.APP_CONFIG && window.APP_CONFIG.apiBaseUrl) || '';
-    const $ = (id) => document.getElementById(id);
-    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const { $, esc } = window.Common;
     let cfg = null;
     const pendingClear = new Set();
 

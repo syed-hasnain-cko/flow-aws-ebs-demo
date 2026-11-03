@@ -21,9 +21,7 @@
         ['4485040371536584', 'Visa · 3DS frictionless'], ['4243754271700719', 'Visa · 3DS challenge'],
     ];
 
-    const $ = (id) => document.getElementById(id);
-    const val = (id) => $(id)?.value ?? '';
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const { $, val, esc } = window.Common;
     const visible = () => $('sa-panel-vault') && $('sa-panel-vault').style.display !== 'none';
 
     const state = {

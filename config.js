@@ -10,7 +10,6 @@ var config = {
       appleMerchantId: "merchant.sandbox.syed",
       googleMerchantId: "12345678901234567890",
       subdomain: "ecommerce.eu",
-      ngrokToken: "***REMOVED-SECRET-1***",
       // Forward API — separate credentials so switching accounts for Forward testing
       // never touches the SECRET_KEY/PROCESSING_CHANNEL_ID used by every other tab.
       forwardSecretKey: process.env.FORWARD_SECRET_KEY || process.env.SECRET_KEY,

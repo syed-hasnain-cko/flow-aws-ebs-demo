@@ -13,10 +13,8 @@
     const LS_HIST = 'cko-links-history';
     const FINAL = ['Payment Received', 'Expired', 'Canceled', 'Cancelled', 'Paid', 'Failed'];
 
-    const $ = (id) => document.getElementById(id);
-    const val = (id) => $(id)?.value ?? '';
+    const { $, val, esc, money } = window.Common;
     const trim = (id) => val(id).trim();
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     const state = {
         kind: 'pl', pmMode: 'all', pmSel: new Set(), products: [],
@@ -323,7 +321,6 @@
     // =====================================================================
     const badgeClass = (s) => (s === 'Payment Received' || s === 'Paid' ? 'good' : /Expired|Cancel|Fail/.test(s || '') ? 'bad' : 'warn');
     const chip = (v, label) => v ? `<span class="lk-cid" data-lk-copy="${esc(v)}" title="Click to copy">${esc(label || v)}</span>` : '';
-    function money(a, cur) { const base = (typeof CURRENCIES !== 'undefined' && CURRENCIES.find(c => c.iso4217 === cur)?.base) || 100; try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: cur }).format(a / base); } catch (e) { return `${a / base} ${cur}`; } }
     function countdownText(iso) {
         if (!iso) return '';
         const ms = new Date(iso).getTime() - Date.now();

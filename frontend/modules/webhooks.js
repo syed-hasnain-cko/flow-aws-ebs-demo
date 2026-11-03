@@ -5,8 +5,7 @@
 // =============================================
 
 (function () {
-    const $ = (id) => document.getElementById(id);
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const { $, esc } = window.Common;
     const API = () => window.APP_CONFIG?.apiBaseUrl || '';
     const OFFER_KEY = 'cko-webhook-offer';
     const st = { types: null, editing: null, selected: new Set(), busy: false, workflows: [] };

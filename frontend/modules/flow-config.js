@@ -9,10 +9,8 @@
 // =============================================
 
 (function () {
-    const $ = (id) => document.getElementById(id);
-    const val = (id) => $(id)?.value ?? '';
+    const { $, val, esc } = window.Common;
     const trim = (id) => val(id).trim();
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
     const SECTIONS = ['methods', 'wallets', 'stored', 'risk', 'more'];
     const state = { sec: 'methods', pmMode: 'default', pmSel: new Set() };

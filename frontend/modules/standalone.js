@@ -64,12 +64,10 @@
     const RESULT_BOXES = ['sa-3ds-create-res', 'sa-3ds-session-res', 'sa-pay-res', 'sa-pay-details-res'];
 
     // ----- DOM helpers -----
-    const $ = (id) => document.getElementById(id);
-    const val = (id) => $(id)?.value ?? '';
+    const { $, val, esc } = window.Common;
     const checked = (id) => $(id)?.checked ?? false;
     const show = (id, display = '') => { const e = $(id); if (e) e.style.display = display; };
     const hide = (id) => { const e = $(id); if (e) e.style.display = 'none'; };
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } };
     const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage full — ignore */ } };
     const tabActive = () => $('standalone-tab')?.classList.contains('active');

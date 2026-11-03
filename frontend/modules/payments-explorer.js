@@ -11,9 +11,7 @@
 
     const API_BASE = window.APP_CONFIG?.apiBaseUrl || '';
 
-    const $ = (id) => document.getElementById(id);
-    const val = (id) => $(id)?.value ?? '';
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const { $, val, esc, money } = window.Common;
     const tabActive = () => $('payments-tab')?.classList.contains('active');
 
     const state = { results: [], selected: null, pay: null, actions: [], events: [], busy: false, loaded: false, lastQuery: null, watching: null };
@@ -63,13 +61,6 @@
     // =====================================================================
     // Helpers
     // =====================================================================
-    function money(amount, currency) {
-        if (amount === undefined || amount === null) return '—';
-        const base = (typeof CURRENCIES !== 'undefined' && CURRENCIES.find(c => c.iso4217 === currency)?.base) || 100;
-        const n = amount / base;
-        try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n); }
-        catch (e) { return `${n.toFixed(Math.log10(base))} ${currency || ''}`.trim(); }
-    }
     function statusClass(s) {
         const v = String(s || '').toLowerCase();
         if (/^(captured|paid|authorized|card verified)$/.test(v)) return 'good';

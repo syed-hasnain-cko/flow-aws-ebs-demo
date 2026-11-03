@@ -12,8 +12,7 @@
 // =============================================
 
 (function () {
-    const $ = (id) => document.getElementById(id);
-    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const { $, esc } = window.Common;
     const apiBase = () => window.APP_CONFIG.apiBaseUrl;
 
     // ─── Reference data ──────────────────────────────────────────────────────────
