@@ -815,6 +815,7 @@ const LINK_PAYMENT_METHODS = [
     { id: 'applepay',    label: 'Apple Pay',     group: 'Cards & wallets', countries: null, currencies: null, needs: [], note: 'currency + country must be supported by Apple Pay' },
     { id: 'googlepay',   label: 'Google Pay',    group: 'Cards & wallets', countries: null, currencies: null, needs: [], note: 'currency + country must be supported by Google Pay' },
     { id: 'paypal',      label: 'PayPal',        group: 'Cards & wallets', countries: null, currencies: null, needs: ['products'] },
+    { id: 'remember_me', label: 'Remember Me', group: 'Cards & wallets', countries: null, currencies: null, needs: [], note: 'saves the card for faster checkout — works alongside Cards; use "Everything except these" to switch it off' },
     { id: 'stored_card', label: 'Stored cards',  group: 'Cards & wallets', countries: null, currencies: null, needs: ['stored customer id'], hppOnly: true },
     // Bank & local
     { id: 'ideal',       label: 'iDEAL',         group: 'Bank & local', countries: ['NL'], currencies: ['EUR'], needs: [] },

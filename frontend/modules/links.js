@@ -107,7 +107,7 @@
         if (Object.keys(cfg).length) b.payment_method_configuration = cfg;
 
         const sel = [...state.pmSel].filter(id => !(id === 'stored_card' && state.kind !== 'hpp'));
-        if (state.pmMode === 'allow') { if (!sel.length) errors.push('pick at least one payment method (or choose “Show everything available”)'); else b.allow_payment_methods = sel; }
+        if (state.pmMode === 'allow') { if (!sel.length) errors.push('pick at least one payment method (or choose “Show everything available”)'); else if (sel.every(id => id === 'remember_me')) errors.push('Remember Me is not a payment method on its own — also pick Cards or another method'); else b.allow_payment_methods = sel; }
         if (state.pmMode === 'deny' && sel.length) b.disabled_payment_methods = sel;
 
         if (state.kind === 'pl') {

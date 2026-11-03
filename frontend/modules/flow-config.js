@@ -27,7 +27,7 @@
 
     function methodList() {
         const base = (typeof LINK_PAYMENT_METHODS !== 'undefined' ? LINK_PAYMENT_METHODS : []).map(m => ({ id: m.id, label: m.label, countries: m.countries, currencies: m.currencies }));
-        return [...base, ...EXTRA_METHODS];
+        return [...base, ...EXTRA_METHODS.filter(x => !base.some(b => b.id === x.id))];
     }
     function compatOk(m) {
         const c = val('country-select'), cur = val('currency-select');
