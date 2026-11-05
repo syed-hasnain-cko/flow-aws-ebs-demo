@@ -163,6 +163,10 @@ window.openTab = function (evt, tabName) {
         clearSetupTabState(); // defined in modules/payment-setup.js
     }
 
+    if (tabName !== 'smart-dunning-tab' && window.stopSmartDunningWatch) {
+        window.stopSmartDunningWatch(); // defined in modules/smart-dunning.js
+    }
+
     if (tabName !== 'competitors-tab' && window.stopStripeWebhookPolling) {
         window.stopStripeWebhookPolling(); // defined in modules/competitors/stripe.js
     }

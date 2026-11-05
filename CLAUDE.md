@@ -176,5 +176,6 @@ Per-feature history, design decisions, verified sandbox facts and pitfalls were 
 | [`docs/auth-types.md`](docs/auth-types.md) | Authorization Types tab + AFT |
 | [`docs/standalone-suite.md`](docs/standalone-suite.md) | Standalone Suite (3DS, Network Tokens, RTAU, Vault) |
 | [`docs/payments-links-flow.md`](docs/payments-links-flow.md) | Payments Explorer, Hosted Page & Links, Checkout Flow options |
+| [`docs/smart-dunning.md`](docs/smart-dunning.md) | Smart Dunning tab (retry schedules, webhooks, test cards) |
 | [`docs/app-shell.md`](docs/app-shell.md) | App shell: left navigation + docked API log |
 | [`docs/account-and-webhooks.md`](docs/account-and-webhooks.md) | Account Settings (BYO account) + Webhooks tab |

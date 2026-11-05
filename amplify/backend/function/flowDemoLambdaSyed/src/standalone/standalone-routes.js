@@ -203,7 +203,7 @@ router.post('/instruments', (req, res) =>
 //              GET    /validation/bank-accounts/{country}/{currency}
 //   Payments:  POST   /payments/search
 //              GET    /payments/{pay_…} | /payments/{pay_…}/actions
-//              POST   /payments/{pay_…}/captures | /voids | /refunds
+//              POST   /payments/{pay_…}/captures | /voids | /refunds | /cancellations (cancel a Smart Dunning retry schedule)
 //   Links/HPP: POST   /payment-links | /hosted-payments
 //              GET    /payment-links/{pl_…} | /hosted-payments/{hpp_…}
 //   Workflows: /workflows, /workflows/{wf_…}[/actions|/conditions|/test], /workflows/event-types, /workflows/events/… (see WF_RE)
@@ -217,7 +217,7 @@ const PAY_SEARCH = /^\/payments\/search$/;
 const PAY_READ = /^\/payments\/pay_[A-Za-z0-9]{10,60}(\/actions)?$/;
 const LINK_CREATE = /^\/(payment-links|hosted-payments)$/;
 const LINK_READ = /^\/(payment-links\/pl_|hosted-payments\/hpp_)[A-Za-z0-9_\-]{4,60}$/;
-const PAY_ACTION = /^\/payments\/pay_[A-Za-z0-9]{10,60}\/(captures|voids|refunds)$/;
+const PAY_ACTION = /^\/payments\/pay_[A-Za-z0-9]{10,60}\/(captures|voids|refunds|cancellations)$/;
 // Workflows API (webhook management): workflows, their conditions/actions, events, delivery status, reflow
 const WID = '[a-z]{2,5}_[a-z0-9]{10,40}';
 const WF_RE = {

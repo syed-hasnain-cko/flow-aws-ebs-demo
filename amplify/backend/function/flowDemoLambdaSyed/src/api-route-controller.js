@@ -773,6 +773,9 @@ router.post("/payments", async (req, res) => {
           sender:                  req.body.sender,
           recipient:               req.body.recipient,
           instruction:             req.body.instruction,
+          // Optional — Smart Dunning tab: scheduled retries ({ enabled, dunning: { enabled, max_attempts, end_after_days }, downtime }).
+          // Undefined for every other caller.
+          retry:                   req.body.retry,
       });
       res.send({ payment });
   } catch (error) {
