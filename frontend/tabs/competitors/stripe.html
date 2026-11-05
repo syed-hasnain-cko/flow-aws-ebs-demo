@@ -284,8 +284,11 @@
 
     <div class="inline-form" style="grid-template-columns: repeat(3, 1fr); margin-top:16px;">
         <div class="form-group">
-            <label for="stripe-link-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
-            <input type="number" id="stripe-link-amount" class="text-input" value="1000" placeholder="1000 = 10.00">
+            <label for="stripe-link-mode" class="text-label" style="color:var(--text-secondary)">Amount</label>
+            <select id="stripe-link-mode" class="select-input">
+                <option value="fixed">Fixed amount</option>
+                <option value="custom">Customer chooses the amount</option>
+            </select>
         </div>
         <div class="form-group">
             <label for="stripe-link-currency" class="text-label" style="color:var(--text-secondary)">Currency</label>
@@ -296,6 +299,39 @@
             <input type="text" id="stripe-link-product" class="text-input" placeholder="Test product" value="Competitor Testing Item">
         </div>
     </div>
+    <div id="stripe-link-fixed" class="inline-form" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="form-group">
+            <label for="stripe-link-amount" class="text-label" style="color:var(--text-secondary)">Amount (minor units)</label>
+            <input type="number" id="stripe-link-amount" class="text-input" value="1000" placeholder="1000 = 10.00">
+        </div>
+    </div>
+    <div id="stripe-link-custom" class="inline-form" style="grid-template-columns: repeat(3, 1fr); display:none;">
+        <div class="form-group">
+            <label for="stripe-link-min" class="text-label" style="color:var(--text-secondary)">Minimum <small>(optional)</small></label>
+            <input type="number" id="stripe-link-min" class="text-input" placeholder="500">
+        </div>
+        <div class="form-group">
+            <label for="stripe-link-max" class="text-label" style="color:var(--text-secondary)">Maximum <small>(optional)</small></label>
+            <input type="number" id="stripe-link-max" class="text-input" placeholder="100000">
+        </div>
+        <div class="form-group">
+            <label for="stripe-link-preset" class="text-label" style="color:var(--text-secondary)">Pre-filled amount <small>(optional)</small></label>
+            <input type="number" id="stripe-link-preset" class="text-input" placeholder="1000">
+        </div>
+    </div>
+    <div class="inline-form" style="grid-template-columns: 1fr 2fr;">
+        <div class="form-group">
+            <label for="stripe-link-limit" class="text-label" style="color:var(--text-secondary)">Max completed payments</label>
+            <input type="number" id="stripe-link-limit" class="text-input" min="1" placeholder="Empty = unlimited, reusable">
+        </div>
+        <div class="form-group">
+            <label for="stripe-link-inactive" class="text-label" style="color:var(--text-secondary)">Message shown once the link is inactive <small>(optional)</small></label>
+            <input type="text" id="stripe-link-inactive" class="text-input" placeholder="This payment link is no longer available.">
+        </div>
+    </div>
+    <p class="pe-note" style="font-size:12px; color:var(--text-secondary); margin:4px 0 0;">
+        A Stripe link never expires and can be sent any number of times — each visit starts a new Checkout Session. It stops only when you deactivate it or the payment cap is reached.
+    </p>
 
     <div class="button-group" style="margin-top:16px;">
         <button id="stripe-link-create-btn" class="main-button">Create Payment Link</button>
@@ -310,7 +346,9 @@
                 <input type="text" id="stripe-link-url" class="text-input" readonly style="flex:1; min-width:0; font-family:monospace; font-size:13px;">
                 <button id="stripe-link-copy-btn" class="copy-btn" style="flex-shrink:0;">Copy</button>
                 <a id="stripe-link-open-btn" href="#" target="_blank" class="main-button" style="flex-shrink:0; padding:10px 16px;">Open</a>
+                <button id="stripe-link-toggle-btn" class="copy-btn" style="flex-shrink:0;">Deactivate</button>
             </div>
+            <div id="stripe-link-state" style="font-size:12px; margin-top:6px; color:var(--text-secondary);"></div>
         </div>
     </div>
 

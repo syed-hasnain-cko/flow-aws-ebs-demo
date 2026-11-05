@@ -225,22 +225,45 @@ router.post('/payment-element/session', async (req, res) => {
 });
 
 // ─── Payment Links (no-code, hosted URL) ────────────────────────────
+// A Payment Link is a reusable URL: every visit makes a new Checkout Session, and it
+// never expires. It stops only when deactivated (active=false) or when
+// restrictions.completed_sessions.limit completed payments is reached.
+// amount_mode 'fixed'  → price_data.unit_amount
+// amount_mode 'custom' → customer types the amount: a Price with custom_unit_amount
+//                        (payment_links price_data has no custom_unit_amount, so the Price is made first)
 router.post('/payment-links', async (req, res) => {
-    const { amount, currency, product_name, return_base } = req.body || {};
-    if (!amount || !currency) {
-        return res.status(400).json({ error: 'amount and currency are required' });
+    const { amount, currency, product_name, return_base, amount_mode, min_amount, max_amount, preset_amount, max_payments, inactive_message } = req.body || {};
+    const custom = amount_mode === 'custom';
+    if (!currency || (!custom && !amount)) {
+        return res.status(400).json({ error: custom ? 'currency is required' : 'amount and currency are required' });
     }
+    const name = product_name || 'Competitor Testing — Stripe Payment Link';
+    const int = (v) => (v === undefined || v === null || v === '' ? undefined : parseInt(v, 10));
     try {
+        let lineItem;
+        if (custom) {
+            const [min, max, preset] = [int(min_amount), int(max_amount), int(preset_amount)];
+            setUpstream(res, 'POST', '/v1/prices');
+            const price = await stripe().prices.create({
+                currency,
+                product_data: { name },
+                custom_unit_amount: {
+                    enabled: true,
+                    ...(min ? { minimum: min } : {}),
+                    ...(max ? { maximum: max } : {}),
+                    ...(preset ? { preset } : {}),
+                },
+            });
+            lineItem = { price: price.id, quantity: 1 };
+        } else {
+            lineItem = { price_data: { currency, unit_amount: amount, product_data: { name } }, quantity: 1 };
+        }
+        const limit = int(max_payments);
         setUpstream(res, 'POST', '/v1/payment_links');
         const link = await stripe().paymentLinks.create({
-            line_items: [{
-                price_data: {
-                    currency,
-                    unit_amount: amount,
-                    product_data: { name: product_name || 'Competitor Testing — Stripe Payment Link' },
-                },
-                quantity: 1,
-            }],
+            line_items: [lineItem],
+            ...(limit ? { restrictions: { completed_sessions: { limit } } } : {}),
+            ...(inactive_message ? { inactive_message: String(inactive_message).slice(0, 500) } : {}),
             // Optional — if not provided, the buyer sees Stripe's default
             // confirmation page instead of landing on our success.html.
             ...(return_base ? {
@@ -250,10 +273,33 @@ router.post('/payment-links', async (req, res) => {
                 },
             } : {}),
         });
-        log('info', '/payment-links', 'link_created', { id: link.id });
+        log('info', '/payment-links', 'link_created', { id: link.id, custom, limit });
         res.json(link);
     } catch (error) {
         log('error', '/payment-links', 'link_error', { message: error.message });
+        res.status(error.statusCode || 500).json({ error: error.message });
+    }
+});
+
+router.get('/payment-links/:id', async (req, res) => {
+    try {
+        setUpstream(res, 'GET', `/v1/payment_links/${encodeURIComponent(req.params.id)}`);
+        res.json(await stripe().paymentLinks.retrieve(req.params.id));
+    } catch (error) {
+        res.status(error.statusCode || 500).json({ error: error.message });
+    }
+});
+
+// Deactivate / reactivate (POST, not PATCH, so the API Gateway CORS mock needs no change).
+router.post('/payment-links/:id/active', async (req, res) => {
+    const active = !!(req.body && req.body.active);
+    try {
+        setUpstream(res, 'POST', `/v1/payment_links/${encodeURIComponent(req.params.id)}`);
+        const link = await stripe().paymentLinks.update(req.params.id, { active });
+        log('info', '/payment-links/active', 'link_toggled', { id: link.id, active });
+        res.json(link);
+    } catch (error) {
+        log('error', '/payment-links/active', 'toggle_error', { message: error.message });
         res.status(error.statusCode || 500).json({ error: error.message });
     }
 });

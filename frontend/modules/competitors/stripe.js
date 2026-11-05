@@ -510,22 +510,43 @@
     }
 
     // ─── Payment Links (no-code, hosted URL) ──────────────────────────────
+    let currentLink = null;
+
+    function showLink(link) {
+        currentLink = link;
+        document.getElementById('stripe-link-result').style.display = 'block';
+        document.getElementById('stripe-link-url').value = link.url;
+        document.getElementById('stripe-link-open-btn').href = link.url;
+        document.getElementById('stripe-link-toggle-btn').textContent = link.active ? 'Deactivate' : 'Reactivate';
+        const cap = link.restrictions?.completed_sessions;
+        document.getElementById('stripe-link-state').textContent =
+            `${link.active ? '● Active' : '○ Inactive'} · ${link.id}` +
+            (cap ? ` · ${cap.count ?? 0} of ${cap.limit} payments used` : ' · reusable, no payment cap');
+        renderResult('stripe-link-result-container', 'stripe-link-result-json', link);
+    }
+
     async function onCreatePaymentLink() {
         const statusEl = document.getElementById('stripe-link-status');
-        const amount = parseInt(document.getElementById('stripe-link-amount').value, 10);
+        const num = (id) => parseInt(document.getElementById(id).value, 10) || undefined;
+        const custom = document.getElementById('stripe-link-mode').value === 'custom';
+        const amount = num('stripe-link-amount');
         const currency = document.getElementById('stripe-link-currency').value;
         const productName = document.getElementById('stripe-link-product').value;
-        if (!amount || !currency) {
-            setStatus(statusEl, 'error', 'Amount and currency are required.');
+        if (!currency || (!custom && !amount)) {
+            setStatus(statusEl, 'error', custom ? 'Currency is required.' : 'Amount and currency are required.');
             return;
         }
 
         setStatus(statusEl, 'action', 'Creating Payment Link...');
         const body = {
-            amount,
             currency,
             product_name: productName,
             return_base: window.location.origin,
+            ...(custom
+                ? { amount_mode: 'custom', min_amount: num('stripe-link-min'), max_amount: num('stripe-link-max'), preset_amount: num('stripe-link-preset') }
+                : { amount }),
+            max_payments: num('stripe-link-limit'),
+            inactive_message: document.getElementById('stripe-link-inactive').value.trim() || undefined,
         };
         const res = await fetch(`${STRIPE_BASE()}/payment-links`, {
             method: 'POST',
@@ -541,10 +562,25 @@
         }
 
         setStatus(statusEl, 'ready', 'Payment Link created.');
-        document.getElementById('stripe-link-result').style.display = 'block';
-        document.getElementById('stripe-link-url').value = link.url;
-        document.getElementById('stripe-link-open-btn').href = link.url;
-        renderResult('stripe-link-result-container', 'stripe-link-result-json', link);
+        showLink(link);
+    }
+
+    async function onToggleLink() {
+        if (!currentLink) return;
+        const statusEl = document.getElementById('stripe-link-status');
+        const active = !currentLink.active;
+        setStatus(statusEl, 'action', active ? 'Reactivating...' : 'Deactivating...');
+        const body = { active };
+        const res = await fetch(`${STRIPE_BASE()}/payment-links/${encodeURIComponent(currentLink.id)}/active`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const link = await res.json();
+        await addToApiLog('POST', withUpstream(res, active ? 'reactivate Payment Link' : 'deactivate Payment Link', `/competitors/stripe/payment-links/${currentLink.id}/active`), res.ok ? 200 : res.status, body, link);
+        if (!res.ok) { setStatus(statusEl, 'error', link.error || 'Update failed.'); return; }
+        setStatus(statusEl, 'ready', active ? 'Link is active again.' : 'Link deactivated — visitors now see the inactive message.');
+        showLink(link);
     }
 
     // ─── Wiring ───────────────────────────────────────────────────────────
@@ -587,6 +623,12 @@
         document.getElementById('stripe-pe-init-btn')?.addEventListener('click', onLoadPaymentElement);
         document.getElementById('stripe-pe-pay-btn')?.addEventListener('click', onPaymentElementSubmit);
         document.getElementById('stripe-link-create-btn')?.addEventListener('click', onCreatePaymentLink);
+        document.getElementById('stripe-link-toggle-btn')?.addEventListener('click', onToggleLink);
+        document.getElementById('stripe-link-mode')?.addEventListener('change', (e) => {
+            const custom = e.target.value === 'custom';
+            document.getElementById('stripe-link-fixed').style.display = custom ? 'none' : '';
+            document.getElementById('stripe-link-custom').style.display = custom ? '' : 'none';
+        });
         document.getElementById('stripe-link-copy-btn')?.addEventListener('click', async () => {
             await navigator.clipboard.writeText(document.getElementById('stripe-link-url').value);
             showToast('Payment Link copied.');

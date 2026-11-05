@@ -105,3 +105,11 @@ Theme work is uncommitted. Deploy `stripe-routes.js` to Lambda for embedded bran
 - Theming: `PartnerTheme.stripeFormAppearance()` = Payment Element appearance **without `rules`** (unsupported by the form). Appearance is fixed at init, so `mountCheckoutForm()` re-inits with the SAME client secret on `themechange` (no new session).
 - Backend: `POST /competitors/stripe/checkout/session` accepts `mode: 'form'`. **Lambda redeploy of `stripe-routes.js` needed**; no new API Gateway route.
 - Unlike the older embedded Checkout (`embedded_page`, white inner panel), the whole form follows the theme.
+
+---
+
+## Stripe Payment Links — reusable links (2026-11-06)
+
+- Payment Links mode now supports **Fixed amount** or **Customer chooses the amount** (Price with `custom_unit_amount {enabled, minimum, maximum, preset}`; made via `POST /v1/prices` first because `payment_links` `price_data` has no `custom_unit_amount`), **Max completed payments** (`restrictions.completed_sessions.limit`), an **inactive message**, and a **Deactivate / Reactivate** button (`POST /competitors/stripe/payment-links/:id/active`, POST not PATCH so the API Gateway CORS mock needs no change).
+- Stripe links have **no expiry** and are reusable (each visit = new Checkout Session); they stop only via `active=false` or the payment cap. Response counter is `restrictions.completed_sessions.count` / `.limit`.
+- Routes: `POST /payment-links`, `GET /payment-links/:id`, `POST /payment-links/:id/active`. Unverified against live Stripe sandbox until first use — check the API log for 4xx.
