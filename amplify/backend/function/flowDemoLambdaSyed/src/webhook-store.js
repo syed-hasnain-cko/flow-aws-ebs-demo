@@ -4,7 +4,9 @@
 // Every Lambda container used to keep webhooks in its OWN memory, so an event delivered to container A was invisible to a
 // browser poll answered by container B. This module keeps them in one DynamoDB table (TTL'd) that every container reads.
 //
-//   put(ns, key, payload, { uid, ring, ttlSec })  → store an event under  <ns>#<key>   (and, with ring:true, in the <ns> ring buffer)
+//   put(ns, key, payload, { uid, ring, slot, ttlSec }) → store an event under <ns>#<key> (with ring:true also in the <ns> ring buffer).
+//                                                    slot:true = ONE item per key that each new event overwrites (the old Map.set
+//                                                    behaviour) — consuming it is a single atomic delete, so exactly one caller wins.
 //   take(ns, key, 'latest' | 'oldest')            → consume: 'latest' returns the newest event and clears the slot (old
 //                                                    one-slot behaviour); 'oldest' returns the oldest and removes only it (a queue)
 //   all(ns, key)                                  → every unexpired event for the key, oldest first, NOT consumed
@@ -98,11 +100,14 @@ async function put(ns, key, payload, opts = {}) {
         const receivedAt = Date.now();
         const uid = String(opts.uid || `${receivedAt}-${crypto.randomBytes(4).toString('hex')}`);
         const ev = { ...payload, receivedAt, uid, expiresAt: receivedAt + (opts.ttlSec || DEFAULT_TTL_SEC) * 1000 };
-        const entry = { sk: `${pad(receivedAt)}#${uid}`, ev };
+        const entry = { sk: opts.slot ? 'slot' : `${pad(receivedAt)}#${uid}`, ev };
         const pks = [];
         if (key) pks.push(`${ns}#${key}`);
         if (opts.ring) pks.push(`${ns}#${RING}`);
-        await Promise.all(pks.map(async (pk) => { if (!(await dbPut(pk, entry))) memAdd(pk, entry); }));
+        await Promise.all(pks.map(async (pk) => {
+            if (await dbPut(pk, entry)) return;
+            if (opts.slot && pk === `${ns}#${key}`) mem.set(pk, [entry]); else memAdd(pk, entry);      // DynamoDB failed → this container's memory
+        }));
         return publicEvent(ev);
     } catch (e) { console.log('[webhook-store] put failed:', e.message); return null; }
 }

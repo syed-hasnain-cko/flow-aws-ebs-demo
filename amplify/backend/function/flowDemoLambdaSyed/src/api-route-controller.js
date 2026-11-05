@@ -515,7 +515,7 @@ router.post("/submit-payment-session", async (req, res) => {
     //  - one-slot-per-id store read by /webhook-event (success/failure pages, Payments Setup, Payouts, Wallets, Auth Types, Disputes)
     //  - the Standalone Suite's non-consuming buffer (also covers events with no data.id, e.g. network_token_update, card_updated)
     await Promise.all([
-        paymentId ? webhookStore.put('cko', paymentId, { type: event.type, data: event.data }, { uid: event.id }) : null,
+        paymentId ? webhookStore.put('cko', paymentId, { type: event.type, data: event.data }, { uid: event.id, slot: true }) : null,
         standaloneRoutes.recordWebhook(event),
     ]);
     if (paymentId) console.log(`Webhook stored: type=${event.type}, paymentId=${paymentId}`);

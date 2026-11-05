@@ -370,7 +370,7 @@ router.post('/webhook', async (req, res) => {
 
     const obj = event.data.object;
     if (obj?.id) {
-        await webhookStore.put('stripe', obj.id, { type: event.type, data: obj }, { uid: event.id });
+        await webhookStore.put('stripe', obj.id, { type: event.type, data: obj }, { uid: event.id, slot: true });
         log('info', '/webhook', 'event_stored', { type: event.type, id: obj.id });
     }
     res.sendStatus(200);
