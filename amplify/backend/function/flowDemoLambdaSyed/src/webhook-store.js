@@ -66,7 +66,13 @@ async function dbPut(pk, entry) {
 async function dbQuery(pk, forward, limit) {
     const r = await send(m => new m.QueryCommand({ TableName: TABLE, KeyConditionExpression: 'pk = :p', ExpressionAttributeValues: { ':p': { S: pk } }, ScanIndexForward: forward, Limit: limit, ConsistentRead: true }));
     if (!r || !r.Items) return [];
-    return r.Items.map(it => { try { return { sk: it.sk.S, ev: JSON.parse(it.json.S) }; } catch (e) { return null; } }).filter(x => x && alive(x.ev));
+    return r.Items.map(it => { try { return { sk: it.sk.S, ev: JSON.parse(it.json.S), db: true }; } catch (e) { return null; } }).filter(x => x && alive(x.ev));
+}
+// Atomic: DeleteItem with ALL_OLD returns the item only to the ONE caller that actually removed it — that is what makes
+// "consume" exactly-once when several containers (or several polls) race for the same event.
+async function dbClaim(pk, sk) {
+    const r = await send(m => new m.DeleteItemCommand({ TableName: TABLE, Key: { pk: { S: pk }, sk: { S: sk } }, ReturnValues: 'ALL_OLD' }));
+    return !!(r && r.Attributes);
 }
 async function dbDelete(pk, entries) {
     for (let i = 0; i < entries.length; i += 25) {
@@ -106,14 +112,23 @@ async function take(ns, key, mode = 'latest') {
         const pk = `${ns}#${key}`;
         const oldest = mode === 'oldest';
         const rows = await list(pk, oldest, oldest ? 5 : 25);
-        if (!rows.length) return null;
-        // latest: clear the slot, like the old Map.delete · oldest: remove the one returned (and any redelivery of it)
-        const gone = oldest ? rows.filter(r => r.ev.uid === rows[0].ev.uid) : rows;
-        const uids = new Set(gone.map(r => r.ev.uid));
-        const rest = memList(pk).filter(x => !uids.has(x.ev.uid));
-        if (rest.length) mem.set(pk, rest); else mem.delete(pk);
-        await dbDelete(pk, gone.flatMap(r => r.dups));
-        return publicEvent(rows[0].ev);
+        // latest (a one-slot store): only the newest event can win; if someone else already took it the slot is gone → null.
+        // oldest (a queue): a caller that loses a race moves on to the next event.
+        for (const row of oldest ? rows : rows.slice(0, 1)) {
+            const memUids = new Set(memList(pk).map(x => x.ev.uid));
+            let won;
+            if (row.db) won = await dbClaim(pk, row.dups.find(d => d.db).sk);
+            else { won = memUids.has(row.ev.uid); }
+            if (!won) continue;
+            // winner: also remove redelivered copies and (latest) everything else in the slot — best effort, nobody else can return them as "this" event
+            const others = oldest ? row.dups.filter(d => d.sk !== row.sk) : rows.flatMap(r => r.dups).filter(d => d.sk !== row.sk);
+            const uids = new Set([row.ev.uid, ...others.map(d => d.ev.uid)]);
+            const rest = memList(pk).filter(x => !uids.has(x.ev.uid));
+            if (rest.length) mem.set(pk, rest); else mem.delete(pk);
+            await dbDelete(pk, others.filter(d => d.db));
+            return publicEvent(row.ev);
+        }
+        return null;
     } catch (e) { console.log('[webhook-store] take failed:', e.message); return null; }
 }
 

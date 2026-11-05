@@ -31,7 +31,7 @@
         { n: '5420951756276171', scheme: 'Mastercard', cc: 'TN', code: '20061', note: 'Activity amount limit exceeded' },
     ];
 
-    const state = { payId: null, first: null, pay: null, actions: [], events: [], ckoEvents: [], timer: null, startedAt: 0, endedAt: 0, cancelRequested: false, busy: false };
+    const state = { openRows: new Set(), rowScroll: new Map(), tlHtml: '', payId: null, first: null, pay: null, actions: [], events: [], ckoEvents: [], timer: null, startedAt: 0, endedAt: 0, cancelRequested: false, busy: false };
 
     // ---- HTTP (same allowlisted proxy as the Payments tab; only the Checkout.com exchange is logged) ------------------
     async function pcall(method, path, body, quiet) {
@@ -136,7 +136,7 @@
             await addToApiLog('POST', 'MIT with Smart Dunning - /payments', res.status, body, data, 'https://api.sandbox.checkout.com/payments');
             const pay = data.payment || data;
             if (!pay || !pay.id) return showError(`Checkout.com rejected the request: ${errText(data)}`);
-            Object.assign(state, { payId: pay.id, first: pay, pay, actions: [], events: [], ckoEvents: [], cancelRequested: false });
+            Object.assign(state, { payId: pay.id, first: pay, pay, actions: [], events: [], ckoEvents: [], cancelRequested: false, tlHtml: '' }); state.openRows.clear(); state.rowScroll.clear();
             saveRun();
             startWatch();
         } catch (err) {
@@ -278,6 +278,8 @@
         groups.forEach(g => g.rows.sort((x, y) => (x.rank - y.rank) || (ms(x.at) - ms(y.at))));
         return groups;
     }
+    const rowKey = (r) => `${r.src}|${r.title}|${r.at}`;
+    const rawBlock = (r) => { const k = esc(rowKey(r)); return `<details data-k="${k}"${state.openRows.has(rowKey(r)) ? ' open' : ''}><summary>Raw JSON</summary><pre class="sd-pre" data-k="${k}">${esc(JSON.stringify(r.raw, null, 2))}</pre></details>`; };
     function renderTimeline(fin) {
         const groups = timelineGroups(), base = groups[0].at;
         const label = (g) => g.act && g.act.response_code === '30047' ? `Retry ${g.i} · schedule canceled` : g.i === 0 ? 'Initial MIT' : `Retry ${g.i}`;
@@ -289,11 +291,17 @@
                 <span class="sd-gc">${x ? esc(`${x.response_code || ''} ${x.response_summary || ''}`.trim()) : ''}</span>
                 <span class="tm">${x ? esc(fmtTime(x.processed_on)) + off : ''}</span></div>
                 ${g.rows.map(r => `<div class="sd-r"><div class="r1"><span class="src">${esc(r.src)}</span><b>${esc(r.title)}</b><span class="tm">${esc(fmtTime(r.at))}</span></div>
-                    ${r.text ? `<div class="tx">${esc(r.text)}</div>` : ''}<details><summary>Raw JSON</summary><pre class="sd-pre">${esc(JSON.stringify(r.raw, null, 2))}</pre></details></div>`).join('')}</div>`;
+                    ${r.text ? `<div class="tx">${esc(r.text)}</div>` : ''}${rawBlock(r)}</div>`).join('')}</div>`;
         }).join('');
         const next = fin && fin.inProgress && state.pay?.retry?.next_attempt_on;
         if (next) html += `<div class="sd-g pending"><div class="sd-gh"><span class="sd-gn">Retry ${groups.length}</span><span class="sd-badge">Scheduled</span><span class="tm">${esc(fmtTime(next))} · +${Math.round((ms(next) - base) / 1000)}s</span></div></div>`;
-        $('sd-timeline').innerHTML = html;
+        // The tab re-renders every few seconds while listening. Rebuilding identical HTML would close every open Raw JSON block and
+        // reset its scroll, so: skip when nothing changed, and when something did, put back what the user had open / scrolled to.
+        if (html === state.tlHtml) return;
+        state.tlHtml = html;
+        const box = $('sd-timeline');
+        box.innerHTML = html;
+        box.querySelectorAll('pre[data-k]').forEach(pre => { const y = state.rowScroll.get(pre.dataset.k); if (y) pre.scrollTop = y; });
     }
 
     function updateRun() { renderRun(); }
@@ -335,7 +343,7 @@
     }
     async function openRun(id) {
         stopWatch();
-        Object.assign(state, { payId: id, first: null, pay: null, actions: [], events: [], ckoEvents: [], cancelRequested: false });
+        Object.assign(state, { payId: id, first: null, pay: null, actions: [], events: [], ckoEvents: [], cancelRequested: false, tlHtml: '' }); state.openRows.clear(); state.rowScroll.clear();
         await refreshPayment(true); await pollEvents();
         const fin = finalInfo();
         if (fin && fin.inProgress) startWatch(); else renderRun();
@@ -363,6 +371,8 @@
         $('sd-cancel').addEventListener('click', cancelSchedule);
         $('sd-refresh').addEventListener('click', async () => { await refreshPayment(false); await pollEvents(); await pullCkoEvents(false); renderRun(); });
         $('sd-stop').addEventListener('click', stopWatch);
+        $('sd-timeline').addEventListener('toggle', (e) => { const k = e.target.dataset && e.target.dataset.k; if (k) (e.target.open ? state.openRows.add(k) : state.openRows.delete(k)); }, true);
+        $('sd-timeline').addEventListener('scroll', (e) => { const k = e.target.dataset && e.target.dataset.k; if (k) state.rowScroll.set(k, e.target.scrollTop); }, true);
         $('sd-card-table').addEventListener('click', (e) => {
             const l = e.target.closest('[data-load]'), c = e.target.closest('[data-copy]');
             if (l) { setCard(CARDS.find(x => x.n === l.dataset.load)); showToast('Card loaded into the form'); }
