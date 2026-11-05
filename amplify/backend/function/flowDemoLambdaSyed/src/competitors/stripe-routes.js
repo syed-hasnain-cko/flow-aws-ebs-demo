@@ -48,9 +48,9 @@ function setUpstream(res, method, path) {
     res.set('Access-Control-Expose-Headers', 'X-Upstream-Endpoint');
 }
 
-// In-memory store for webhook events, keyed by object id (PaymentIntent id, etc).
+// Webhook events, keyed by object id (PaymentIntent id, etc), in the shared store (../webhook-store.js).
 // Same 2-minute-poll-then-delete pattern as the Checkout.com /webhook-event route.
-const webhookEventStore = new Map();
+const webhookStore = require('../webhook-store');
 
 router.get('/config', (_req, res) => {
     res.json({ publishableKey: config.stripePublishableKey });
@@ -359,7 +359,7 @@ router.post('/refund', async (req, res) => {
 // ─── Webhooks ────────────────────────────────────────────────────────
 // Signature verification requires the raw request body bytes, captured
 // via the bodyParser.json({ verify }) hook added in app.js — req.rawBody.
-router.post('/webhook', (req, res) => {
+router.post('/webhook', async (req, res) => {
     let event;
     try {
         event = stripe().webhooks.constructEvent(req.rawBody, req.headers['stripe-signature'], config.stripeWebhookSecret);
@@ -370,20 +370,19 @@ router.post('/webhook', (req, res) => {
 
     const obj = event.data.object;
     if (obj?.id) {
-        webhookEventStore.set(obj.id, { type: event.type, data: obj, receivedAt: Date.now() });
+        await webhookStore.put('stripe', obj.id, { type: event.type, data: obj }, { uid: event.id });
         log('info', '/webhook', 'event_stored', { type: event.type, id: obj.id });
     }
     res.sendStatus(200);
 });
 
-router.get('/webhook-event', (req, res) => {
+router.get('/webhook-event', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id query param is required' });
 
-    const event = webhookEventStore.get(id);
+    const event = await webhookStore.take('stripe', id, 'latest');
     if (!event) return res.status(404).json({ found: false });
 
-    webhookEventStore.delete(id);
     res.json({ found: true, ...event });
 });
 

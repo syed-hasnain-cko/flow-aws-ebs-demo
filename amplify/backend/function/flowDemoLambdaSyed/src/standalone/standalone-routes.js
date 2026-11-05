@@ -252,47 +252,39 @@ router.post('/vault', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Webhook ring buffer (non-consuming)
+// Webhook ring buffer (non-consuming) — kept in the shared store (../webhook-store.js), so every Lambda container sees every event
 // ---------------------------------------------------------------------------
-const WEBHOOK_BUFFER_MAX = 200;
-const webhookBuffer = [];
-let webhookSeq = 0;
+const webhookStore = require('../webhook-store');
 
-// Called from the existing POST /webhook handler once it has authenticated the
-// request. Never throws — a buffer problem must not fail CKO's delivery.
-function recordWebhook(event) {
+// Called from the existing POST /webhook handler once it has authenticated the request. Never throws — a store problem
+// must not fail CKO's delivery.
+async function recordWebhook(event) {
   try {
     if (!event || !event.type) return;
-    webhookSeq += 1;
-    webhookBuffer.push({
-      seq: webhookSeq,
-      received_at: new Date().toISOString(),
-      event_id: event.id || null,
-      type: event.type,
-      created_on: event.created_on || null,
-      data: event.data || null,
-    });
-    if (webhookBuffer.length > WEBHOOK_BUFFER_MAX) webhookBuffer.shift();
+    await webhookStore.put('cko', null, { event_id: event.id || null, type: event.type, created_on: event.created_on || null, data: event.data || null }, { ring: true, uid: event.id });
   } catch (e) {
     console.log('[standalone] recordWebhook failed:', e.message);
   }
 }
 
 // GET /standalone/webhook-events?since=<seq>&types=a,b&match=<substring>
-//   since — only events newer than this seq (UI passes the last seq it saw)
+//   since — only events newer than this seq (seq = the time the event was received, in ms — comparable across containers)
 //   types — comma list of exact event types, or prefixes ending in "*"
 //   match — comma-separated substrings; an event passes if its JSON contains
 //           ANY of them (correlate by payment id, session id, nt id, src_ id…)
-router.get('/webhook-events', (req, res) => {
+router.get('/webhook-events', async (req, res) => {
   const since = parseInt(req.query.since || '0', 10) || 0;
   const types = (req.query.types || '').split(',').map(s => s.trim()).filter(Boolean);
   const matches = (req.query.match || '').toString().split(',').map(s => s.trim()).filter(Boolean);
 
   const typeOk = (t) => !types.length || types.some(p => (p.endsWith('*') ? t.startsWith(p.slice(0, -1)) : t === p));
-  const events = webhookBuffer.filter(e =>
+  const buffered = (await webhookStore.recent('cko', 200)).reverse().map(e => ({    // oldest first, as before
+    seq: e.receivedAt, received_at: new Date(e.receivedAt).toISOString(), event_id: e.event_id || null, type: e.type, created_on: e.created_on || null, data: e.data || null,
+  }));
+  const events = buffered.filter(e =>
     e.seq > since && typeOk(e.type) && (!matches.length || matches.some(m => JSON.stringify(e.data).includes(m))));
 
-  res.json({ events, last_seq: webhookSeq, buffered: webhookBuffer.length });
+  res.json({ events, last_seq: buffered.length ? buffered[buffered.length - 1].seq : 0, buffered: buffered.length });
 });
 
 module.exports = router;

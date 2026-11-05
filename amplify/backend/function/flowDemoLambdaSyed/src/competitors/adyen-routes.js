@@ -72,38 +72,19 @@ function newReference(prefix = 'cko-demo') {
 // Webhook events are kept per lookup key (pspReference AND merchantReference
 // AND originalReference, so a poller can use whichever id it has). Each key
 // holds a queue so AUTHORISATION followed by CAPTURE both get delivered.
-// Same 2-minute poll-then-delete idea as every other partner.
-const webhookEventStore = new Map();
-const WEBHOOK_TTL_MS = 5 * 60 * 1000;
+// Same 2-minute poll-then-delete idea as every other partner — in the shared store (../webhook-store.js), so every
+// Lambda container sees every event:  ns 'adyen' = the consumed queue (5 min), ns 'adyen-hist' = a non-consuming
+// copy of every event, so a refreshed/re-opened success page can rebuild what the queue already delivered once (`?peek=1`, 1 h).
+const webhookStore = require('../webhook-store');
+const WEBHOOK_TTL_SEC = 5 * 60;
+const WEBHOOK_HISTORY_TTL_SEC = 60 * 60;
 
-// Non-consuming copy of every event, so a refreshed/re-opened success page can
-// rebuild what the queue above already delivered once (`?peek=1`).
-const webhookHistory = new Map();
-const WEBHOOK_HISTORY_TTL_MS = 60 * 60 * 1000;
-
-function storeWebhookEvent(key, event) {
+async function storeWebhookEvent(key, event, uid) {
     if (!key) return;
-    const queue = webhookEventStore.get(key) || [];
-    queue.push(event);
-    webhookEventStore.set(key, queue);
-    const history = webhookHistory.get(key) || [];
-    history.push(event);
-    webhookHistory.set(key, history);
-}
-
-function pruneWebhookStore() {
-    const cutoff = Date.now() - WEBHOOK_TTL_MS;
-    for (const [key, queue] of webhookEventStore) {
-        const fresh = queue.filter(e => e.receivedAt >= cutoff);
-        if (fresh.length) webhookEventStore.set(key, fresh);
-        else webhookEventStore.delete(key);
-    }
-    const historyCutoff = Date.now() - WEBHOOK_HISTORY_TTL_MS;
-    for (const [key, events] of webhookHistory) {
-        const fresh = events.filter(e => e.receivedAt >= historyCutoff);
-        if (fresh.length) webhookHistory.set(key, fresh);
-        else webhookHistory.delete(key);
-    }
+    await Promise.all([
+        webhookStore.put('adyen', key, event, { uid, ttlSec: WEBHOOK_TTL_SEC }),
+        webhookStore.put('adyen-hist', key, event, { uid, ttlSec: WEBHOOK_HISTORY_TTL_SEC }),
+    ]);
 }
 
 router.get('/config', (_req, res) => {
@@ -324,7 +305,7 @@ function hmacValid(item) {
     return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-router.post('/webhook', (req, res) => {
+router.post('/webhook', async (req, res) => {
     const items = req.body?.notificationItems;
     if (!Array.isArray(items)) return res.status(400).send('Invalid notification payload');
 
@@ -337,32 +318,28 @@ router.post('/webhook', (req, res) => {
         }
     }
 
-    pruneWebhookStore();
     for (const wrapper of items) {
         const item = wrapper.NotificationRequestItem;
-        const event = { type: item.eventCode, success: item.success, data: item, receivedAt: Date.now() };
-        [item.pspReference, item.merchantReference, item.originalReference].forEach(key => storeWebhookEvent(key, event));
+        const event = { type: item.eventCode, success: item.success, data: item };
+        const uid = [item.pspReference, item.eventCode, item.success, item.eventDate].join('|');
+        await Promise.all([item.pspReference, item.merchantReference, item.originalReference].map(key => storeWebhookEvent(key, event, uid)));
         log('info', '/webhook', 'event_stored', { eventCode: item.eventCode, pspReference: item.pspReference });
     }
     res.status(200).send('[accepted]');
 });
 
-router.get('/webhook-event', (req, res) => {
+router.get('/webhook-event', async (req, res) => {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id query param is required' });
 
     // ?peek=1 → every event seen for this id, without consuming the queue.
     if (req.query.peek) {
-        pruneWebhookStore();
-        const events = webhookHistory.get(id) || [];
+        const events = await webhookStore.all('adyen-hist', id);
         return res.json({ found: events.length > 0, events });
     }
 
-    const queue = webhookEventStore.get(id);
-    if (!queue || !queue.length) return res.status(404).json({ found: false });
-
-    const event = queue.shift();
-    if (!queue.length) webhookEventStore.delete(id);
+    const event = await webhookStore.take('adyen', id, 'oldest');   // queue: oldest first, one per call
+    if (!event) return res.status(404).json({ found: false });
     res.json({ found: true, ...event });
 });
 

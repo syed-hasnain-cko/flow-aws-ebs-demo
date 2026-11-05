@@ -28,3 +28,24 @@ A token can't be revoked before it expires (stateless) — keep durations short,
 - **No new API Gateway route**: `POST /standalone/vault` allowlist now passes the `/workflows/*` calls (`WF_RE` in `standalone-routes.js`, incl. PUT). **Redeploy the Lambda.** Key needs scopes `flow`, `flow:workflows`, `flow:events`, `flow:reflow`.
 - After **Save** in Settings with a custom account, `localStorage['cko-webhook-offer']` makes the next load show a dialog offering to create the workflow (yes / choose events / not now).
 - Not verified against the live API: response shapes of `event-types` and subject events are parsed defensively.
+
+---
+
+## Shared webhook event store (2026-11-05)
+
+**Problem**: every Lambda container kept webhooks in its own memory, so an event delivered to container A was invisible to a poll answered by container B (measured on the live API: 22 of 30 simultaneous reads missed an event that Checkout.com had delivered successfully). Affected every tab that waits for a webhook.
+
+**Now**: all webhook endpoints read and write one DynamoDB table, `flowDemoWebhookEvents-staging` (on-demand, TTL attribute `ttl`, 15 min default; Adyen queue 5 min / history 1 h). Code: `amplify/.../src/webhook-store.js` (`put`, `take('latest'|'oldest')`, `all`, `recent`). Table keys: `pk` = `<namespace>#<id>` (or `<namespace>#__ALL` for the ring buffer), `sk` = `<receivedAt ms>#<event id>`. Redelivered events (same event id) collapse into one and a consume removes every copy.
+
+| Endpoint | Namespace | Behaviour (unchanged for callers) |
+|---|---|---|
+| `POST /webhook` → `GET /webhook-event?paymentId=` | `cko` | newest event per id, consumed on read (success/failure pages, Payment Setup, Payouts, Wallets, Auth Types, Disputes) |
+| `GET /standalone/webhook-events` | `cko` ring (`__ALL`, newest 200) | non-consuming; `seq` is now the receive time in ms (comparable across containers) |
+| Stripe `/webhook` → `/webhook-event?id=` | `stripe` | newest per id, consumed |
+| Adyen `/webhook` → `/webhook-event?id=` (+ `peek=1`) | `adyen` (queue, oldest first) / `adyen-hist` | queue consumed one per call; peek is non-consuming |
+
+**Safety net**: if a DynamoDB write fails (outage, missing permission, SDK absent) the event is kept in that container's memory and reads merge both — worst case is the old per-container behaviour, never a dropped event or a failed 200 to Checkout.com. While DynamoDB is healthy nothing is mirrored in memory (otherwise one container could re-serve an event another already consumed). Reads use `ConsistentRead`; expired items are filtered on read because DynamoDB TTL deletes lazily.
+
+**AWS resources**: `npm run webhook:store` (dry run) / `-- --apply` creates the table, enables TTL and adds the inline policy `flowDemoWebhookEventsAccess` (PutItem/GetItem/Query/DeleteItem/BatchWriteItem on that one table) to the Lambda's execution role. Idempotent. Created 2026-11-05. The Lambda uses the AWS SDK v3 provided by the Node.js runtime (not bundled in the zip). `WEBHOOK_TABLE` env var overrides the table name (has a default, so `lambda:env` does not require it).
+
+**Verify after a deploy**: make a payment, wait ~10 s, then fire 30 simultaneous `GET /standalone/webhook-events?match=<pay_id>&cb=<n>` reads — every read should see the event (before: 8/30, then 0/30).

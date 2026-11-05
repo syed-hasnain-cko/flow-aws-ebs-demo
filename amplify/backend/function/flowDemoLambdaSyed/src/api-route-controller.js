@@ -24,7 +24,8 @@ const cko = new Proxy({}, { get: (_t, prop) => accountConfig.getCko(config)[prop
 router.use(accountConfig.middleware);
 router.use('/account', accountConfig.router);
 
-const webhookEventStore = new Map();
+// Webhook events live in the shared store (DynamoDB, with an in-memory safety net) — see webhook-store.js.
+const webhookStore = require('./webhook-store');
 
 router.post('/payment-sessions', async (req, res) => {
   if (!req.body || !req.body.amount || !req.body.currency) {
@@ -501,7 +502,7 @@ router.post("/submit-payment-session", async (req, res) => {
     });
   });
 
-  router.post('/webhook', (req, res) => {
+  router.post('/webhook', async (req, res) => {
     // custom account active → secret not validated (it belongs to the visitor's own processing channel)
     if (!accountConfig.customAccountActive() && !accountConfig.webhookSecrets().includes(req.headers['authorization'])) {
         return res.sendStatus(401);
@@ -510,37 +511,31 @@ router.post("/submit-payment-session", async (req, res) => {
     const event = req.body;
     const paymentId = event?.data?.id;
 
-    if (paymentId) {
-        webhookEventStore.set(paymentId, {
-            type: event.type,
-            data: event.data,
-            receivedAt: Date.now()
-        });
-        console.log(`Webhook stored: type=${event.type}, paymentId=${paymentId}`);
-    }
-
-    // Additive: also copy the event into the Standalone Suite tab's non-consuming
-    // buffer (covers events with no data.id, e.g. network_token_update, card_updated).
-    // recordWebhook never throws, so this can't affect the 200 CKO needs.
-    standaloneRoutes.recordWebhook(event);
+    // Both stores write to the shared table and never throw, so nothing here can affect the 200 CKO needs.
+    //  - one-slot-per-id store read by /webhook-event (success/failure pages, Payments Setup, Payouts, Wallets, Auth Types, Disputes)
+    //  - the Standalone Suite's non-consuming buffer (also covers events with no data.id, e.g. network_token_update, card_updated)
+    await Promise.all([
+        paymentId ? webhookStore.put('cko', paymentId, { type: event.type, data: event.data }, { uid: event.id }) : null,
+        standaloneRoutes.recordWebhook(event),
+    ]);
+    if (paymentId) console.log(`Webhook stored: type=${event.type}, paymentId=${paymentId}`);
 
     res.sendStatus(200);
 });
 
-router.get('/webhook-event', (req, res) => {
+router.get('/webhook-event', async (req, res) => {
     const { paymentId } = req.query;
 
     if (!paymentId) {
         return res.status(400).send({ error: 'paymentId query param is required' });
     }
 
-    const event = webhookEventStore.get(paymentId);
+    const event = await webhookStore.take('cko', paymentId, 'latest');   // consumes the slot, like before
 
     if (!event) {
         return res.status(404).send({ found: false });
     }
 
-    webhookEventStore.delete(paymentId);
     res.send({ found: true, ...event });
 });
 
