@@ -3,12 +3,6 @@
     .sd-card { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); padding:16px; margin-top:14px; }
     .sd-card > h3 { margin:0 0 4px; font-size:15px; color:var(--text-primary); display:flex; gap:8px; align-items:center; }
     .sd-step { display:inline-flex; width:22px; height:22px; border-radius:50%; background:var(--primary); color:#fff; font-size:12px; align-items:center; justify-content:center; flex-shrink:0; }
-    .sd-scn { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px; margin-top:10px; }
-    .sd-scn button { text-align:left; border:1px solid var(--border); background:var(--bg-subtle); color:var(--text-primary); border-radius:10px; padding:10px 12px; cursor:pointer; font:inherit; }
-    .sd-scn button:hover { border-color:var(--primary); }
-    .sd-scn button.active { border-color:var(--primary); box-shadow:inset 3px 0 0 var(--primary); background:var(--bg-card); }
-    .sd-scn b { display:block; font-size:13px; }
-    .sd-scn span { display:block; font-size:11px; color:var(--text-secondary); margin-top:3px; line-height:1.5; }
     .sd-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:12px 16px; margin-top:12px; }
     .sd-grid label.l { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
     .sd-grid .text-input, .sd-grid .select-input { width:100%; box-sizing:border-box; }
@@ -30,22 +24,22 @@
     .sd-final.good { border-color:var(--success); } .sd-final.bad { border-color:var(--error); } .sd-final.warn { border-color:#f59e0b; }
     .sd-final .t { font-size:15px; font-weight:700; color:var(--text-primary); }
     .sd-final .d { font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.6; }
-    .sd-tl { margin:12px 0 0; padding:0; list-style:none; border-left:2px solid var(--border); }
-    .sd-tl li { position:relative; margin:0 0 10px 14px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-subtle); font-size:12px; }
-    .sd-tl li::before { content:''; position:absolute; left:-22px; top:14px; width:10px; height:10px; border-radius:50%; background:var(--border); border:2px solid var(--bg-card); }
-    .sd-tl li.good::before { background:var(--success); } .sd-tl li.bad::before { background:var(--error); } .sd-tl li.warn::before { background:#f59e0b; } .sd-tl li.info::before { background:var(--primary); }
-    .sd-tl .r1 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .sd-tl .src { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); }
-    .sd-tl .tm { margin-left:auto; font-size:11px; color:var(--text-secondary); font-family:'JetBrains Mono', monospace; }
-    .sd-tl .tx { margin-top:4px; color:var(--text-primary); line-height:1.6; }
-    .sd-tl details > summary { cursor:pointer; font-size:11px; color:var(--text-secondary); margin-top:4px; }
+    .sd-g { margin-top:12px; border:1px solid var(--border); border-left:4px solid var(--border); border-radius:10px; background:var(--bg-subtle); padding:10px 12px; }
+    .sd-g.good { border-left-color:var(--success); } .sd-g.bad { border-left-color:var(--error); } .sd-g.warn { border-left-color:#f59e0b; }
+    .sd-g.pending { border-style:dashed; background:transparent; opacity:.8; }
+    .sd-gh { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .sd-gn { font-size:14px; font-weight:700; color:var(--text-primary); }
+    .sd-gc { font-size:12px; color:var(--text-primary); }
+    .sd-g .tm { margin-left:auto; font-size:11px; color:var(--text-secondary); font-family:'JetBrains Mono', monospace; white-space:nowrap; }
+    .sd-r { margin:8px 0 0 10px; padding:6px 0 0 12px; border-left:2px solid var(--border); font-size:12px; }
+    .sd-r .r1 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .sd-r .src { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); min-width:62px; }
+    .sd-r .tx { margin-top:3px; color:var(--text-primary); line-height:1.6; }
+    .sd-r details > summary { cursor:pointer; font-size:11px; color:var(--text-secondary); margin-top:3px; }
     .sd-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
     .sd-table th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); padding:5px 8px; border-bottom:1px solid var(--border); }
     .sd-table td { padding:7px 8px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:top; }
     .sd-table code { font-family:'JetBrains Mono', monospace; font-size:12px; }
-    .sd-filter { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
-    .sd-filter button { border:1px solid var(--border); background:var(--bg-subtle); color:var(--text-primary); border-radius:20px; padding:3px 12px; font-size:11px; cursor:pointer; }
-    .sd-filter button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
     .sd-events { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
     .sd-events code { background:var(--bg-subtle); border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-size:11px; }
     .sd-runs { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
@@ -57,17 +51,11 @@
     <p class="sd-note" style="margin-top:-6px;">
         Recover failed <b>merchant-initiated</b> payments (recurring / unscheduled). When an MIT is soft-declined, Checkout.com schedules retries at the best times
         and sends webhooks at every step. Pick a scenario, tune the retry schedule, run it and watch the whole life of the payment — every attempt, every webhook and the final state.
-        Needs a direct Checkout.com integration. In the <b>sandbox</b> the schedule is simulated: <b>three retries, 30 seconds apart</b>, regardless of the values below.
+        Needs a direct Checkout.com integration. In the <b>sandbox</b> the schedule is compressed (retries about 30 seconds apart) regardless of the values below. The tab listens for webhooks and updates by itself; <b>Refresh</b> reloads on demand.
     </p>
 
     <div class="sd-card">
-        <h3><span class="sd-step">1</span> Pick a scenario</h3>
-        <div class="sd-scn" id="sd-scenarios"></div>
-        <div id="sd-scn-note" class="sd-note" style="margin-top:8px;"></div>
-    </div>
-
-    <div class="sd-card">
-        <h3><span class="sd-step">2</span> Configure the retry schedule</h3>
+        <h3><span class="sd-step">1</span> Configure the retry schedule</h3>
         <div class="sd-grid">
             <div>
                 <label class="sd-toggle"><input type="checkbox" id="sd-dunning" checked><span><b>Smart Dunning retries</b><small><code>retry.dunning.enabled</code> — retry soft declines at optimal times</small></span></label>
@@ -103,10 +91,10 @@
         </div>
         <div class="sd-grid">
             <div style="grid-column:1/-1;">
-                <label class="l" for="sd-prev">Previous payment id <small>(links the MIT to its first payment — optional)</small></label>
+                <label class="l" for="sd-prev">Previous payment id <small>(optional — “Create initial payment” uses the card below and fills this in once approved; a Visa card is declined 43102 on this account, a Mastercard works)</small></label>
                 <div style="display:flex; gap:8px;">
                     <input type="text" id="sd-prev" class="text-input" placeholder="pay_…" style="flex:1; min-width:0;">
-                    <button type="button" id="sd-initial" class="copy-btn" style="flex-shrink:0;" title="Takes a Visa 4242… payment (stored card, customer present) and fills the id">Create initial payment</button>
+                    <button type="button" id="sd-initial" class="copy-btn" style="flex-shrink:0;" title="Takes a customer-present payment with the card, amount and currency below; the id is filled in once it is approved">Create initial payment</button>
                 </div>
             </div>
         </div>
@@ -121,41 +109,38 @@
         <div class="button-group" style="margin-top:14px;">
             <button id="sd-run" class="main-button" type="button">Run MIT with Smart Dunning</button>
         </div>
+        <div class="sd-note" style="margin-top:8px;">What to expect with these cards: the POST returns <b>Retry Scheduled</b> (<code>payment_retry_scheduled</code>), about 30 s later the first retry is approved (<code>payment_approved</code>) and the payment ends <b>Authorized</b>. Press <b>Cancel retry schedule</b> within those 30 s to end it <b>Declined</b> (30047, <code>payment_declined</code>).</div>
         <div id="sd-error" style="display:none; margin-top:10px; color:var(--error); font-size:12px;"></div>
     </div>
 
     <div class="sd-card" id="sd-run-card" style="display:none;">
         <div class="sd-head">
-            <h3 style="margin:0;"><span class="sd-step">3</span> Live run <span id="sd-pay-chip"></span></h3>
+            <h3 style="margin:0;"><span class="sd-step">2</span> Live run <span id="sd-pay-chip"></span></h3>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <span id="sd-status" class="sd-badge">—</span>
                 <button id="sd-cancel" class="copy-btn" type="button" disabled title="POST /payments/{id}/cancellations">Cancel retry schedule</button>
                 <button id="sd-refresh" class="copy-btn" type="button">↻ Refresh</button>
-                <button id="sd-stop" class="copy-btn" type="button">Stop watching</button>
+                <button id="sd-stop" class="copy-btn" type="button">Stop listening</button>
             </div>
         </div>
         <div id="sd-watch" class="sd-note" style="margin-top:6px;"></div>
         <div id="sd-final"></div>
-        <h4 style="margin:16px 0 0; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary);">What happened, attempt by attempt</h4>
-        <table class="sd-table" id="sd-attempts"></table>
-        <h4 style="margin:16px 0 0; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary);">Timeline — API response, webhooks and payment actions</h4>
-        <ul class="sd-tl" id="sd-timeline"></ul>
+        <h4 style="margin:16px 0 0; font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary);">Timeline — attempt by attempt, oldest first</h4>
+        <div id="sd-timeline"></div>
     </div>
 
     <div class="sd-card">
         <h3>Webhooks to subscribe to</h3>
         <p class="sd-note" style="margin:4px 0 0;">Create a workflow with these events and send it to this app (Webhooks tab → “Send events to this app”) to see them in the timeline above.</p>
         <div class="sd-events">
-            <code>payment_declined</code><code>payment_retry_scheduled</code><code>payment_approved</code><code>payment_canceled</code><code>payment_captured</code>
+            <code>payment_retry_scheduled</code><code>payment_approved</code><code>payment_declined</code>
         </div>
-        <p class="sd-note" style="margin:8px 0 0;"><code>payment_retry_scheduled</code> fires when an attempt fails and carries <code>retry.attempts_made / max_attempts / next_attempt_on / ends_on</code>.
-            <code>payment_approved</code> / <code>payment_declined</code> also carry the <code>retry</code> object. All attempts share one <code>pay_</code> id.</p>
+        <p class="sd-note" style="margin:8px 0 0;">Observed: the first declined attempt sends <code>payment_retry_scheduled</code> (no <code>payment_declined</code>); an approved retry sends <code>payment_approved</code> with <code>retry.attempts_made</code>; canceling the schedule ends with <code>payment_declined</code>. All attempts share one <code>pay_</code> id.</p>
     </div>
 
     <div class="sd-card">
         <h3>Test cards</h3>
-        <p class="sd-note" style="margin:4px 0 0;">Load a card into the form above. Only the first two are documented to drive the sandbox retry schedule; the others decline with a code that is (or is not) eligible for Smart Dunning, so you can see how the first attempt behaves.</p>
-        <div class="sd-filter" id="sd-card-filter"></div>
+        <p class="sd-note" style="margin:4px 0 0;">Every card below was <b>tried on the demo sandbox</b>: the first attempt declines with the code shown, then the <b>first retry (≈30 s later) is approved</b>. The two cards named in the Smart Dunning docs approve straight away on this account, so they are not listed. No card was found that is approved on a later retry or that ends declined, and “max retries”, amount and scheme don’t change that.</p>
         <table class="sd-table" id="sd-card-table"></table>
     </div>
 

@@ -26,7 +26,7 @@
     document.getElementById('auth-types-tab').innerHTML = loadSync('tabs/auth-types.html?v=20261104g');
     document.getElementById('links-tab').innerHTML = loadSync('tabs/links.html?v=20261106b');
     document.getElementById('payments-tab').innerHTML = loadSync('tabs/payments.html?v=20261103c');
-    document.getElementById('smart-dunning-tab').innerHTML = loadSync('tabs/smart-dunning.html?v=20261106e');
+    document.getElementById('smart-dunning-tab').innerHTML = loadSync('tabs/smart-dunning.html?v=20261106h');
     document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261103c');
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
