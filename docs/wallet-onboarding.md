@@ -24,8 +24,12 @@ Google Pay has no "list entities" endpoint → the Merchants list is built from 
 ## Server rules (`/wallet-onboarding/call`)
 Only the 7 allowlisted operations; server-side validation (hostnames — no scheme/path/IP, `ent_…`, email, base64 certificate, protocol); account prefix `[a-z0-9]{1,24}`; key shape must match the environment; response = `{upstream, upstream_status, cko_request_id, duration_ms, request, data, auth (masked)}` like the other tabs. Calls refused before Checkout.com (validation, expired key, missing production confirmation) are not written to the API log.
 
-## Not verified against the real API (check the API log on first use)
-Response bodies of `GET …/state` and `GET …/domains` (the UI reads `state|status|enrollment_state` and `domains|web_domains|items`, or a plain array, and always shows the raw JSON); error codes for already-enrolled domains/entities; the sandbox returns `404` (empty body) for unknown entities on every Google sub-resource.
+## Observed on the live API (2026-11-06, sandbox, after the first release)
+- An entity that is **not enrolled** answers every Google call (`state`, `domains`, `domain`) with **HTTP 400** and `{"requestId":"0","errorType":"INVALID_REQUEST","errorCodes":["Entity not onboarded for entityId: ent_…"]}` — camelCase `errorCodes`, no `cko-request-id` header. (A malformed id such as `ent_probe000…` gets an empty 404 instead.) The UI treats both as "not enrolled": the state pill reads NOT ENROLLED, "Look up & add" refuses to add it, and the message says to enroll it first.
+- Apple enroll / CSR / certificate and Google enroll accepted a secret key, a public key and an OAuth token in the sandbox (empty/invalid bodies, so nothing was created); `/applepay/enrollments` and `/googlepay/enrollments` rejected an OAuth token without the matching scope with 401.
+
+## Still not verified against the real API (check the API log on first use)
+Response bodies of a **successful** `GET …/state` and `GET …/domains` (the UI reads `state|status|enrollment_state` and `domains|web_domains|items`, or a plain array, and always shows the raw JSON); the error codes for an already-enrolled domain/entity.
 
 ## Tests (scratchpad, not in the repo)
 Backend with stubbed Checkout.com + a generated Apple-style certificate (validation, credential paths, sealing/tamper/expiry, production guard, 204/422 relay, certificate inspection) and a jsdom page talking to the real routes (profile modal, bulk domains, CSR download, certificate upload with warnings, Google enroll/domains/merchants, production confirm, expired key).

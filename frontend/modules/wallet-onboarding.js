@@ -152,6 +152,8 @@
     // Calling the backend
     // =====================================================================
     const SCOPE = { 'apple.enroll': 'vault:apme-enrollment', 'google.enroll': 'vault:gpayme-enrollment', 'google.domain': 'vault:gpayme-enrollment', 'google.state': 'vault:gpayme-enrollment', 'google.domains': 'vault:gpayme-enrollment' };
+    // Checkout.com answers an entity that is not enrolled with HTTP 400 + errorCodes ["Entity not onboarded for entityId: …"] (seen live); older/other paths may use 404
+    const notEnrolled = (r) => !!r && !r.ok && !r.local && String(r.op || '').startsWith('google.') && (r.status === 404 || /not onboarded/i.test(JSON.stringify(r.data || '')));
     const stateOf = (d) => (d && typeof d === 'object' ? (d.state || d.status || d.enrollment_state || d.enrollmentState || '') : '');
     function domainsOf(d) {
         const arr = Array.isArray(d) ? d : (d && (d.domains || d.web_domains || d.webDomains || d.items || d.data)) || [];
@@ -194,8 +196,9 @@
         if (r.local) return { ok: false, text: r.text };
         if (r.ok) return { ok: true, text: (OK_TEXT[r.op] || (() => 'Done.'))(r) };
         const d = r.data || {}, codes = d.error_codes || d.errorCodes || [];
-        let t = codes.length ? codes.map(c => CODE_HELP[c] || String(c).replace(/_/g, ' ')).join(' · ') : '';
-        if (!t) t = ({ 401: 'Not authorised.', 403: 'Not allowed for this key.', 404: r.op.startsWith('google.') ? 'Entity not found, or not enrolled with Google Pay.' : 'Not found.', 409: 'Conflict — it may already exist.', 422: 'Checkout.com rejected the request.', 429: 'Too many requests — wait a moment and retry.' })[r.status] || (r.status >= 500 ? 'Checkout.com had a problem — try again.' : `HTTP ${r.status}`);
+        let t = codes.length && !notEnrolled(r) ? codes.map(c => CODE_HELP[c] || String(c).replace(/_/g, ' ')).join(' · ') : '';
+        if (notEnrolled(r)) t = r.op === 'google.domain' ? 'This entity is not enrolled with Google Pay yet — enroll it on the first tab, then register domains.' : 'This entity is not enrolled with Google Pay yet.';
+        if (!t) t = ({ 401: 'Not authorised.', 403: 'Not allowed for this key.', 404: 'Not found.', 409: 'Conflict — it may already exist.', 422: 'Checkout.com rejected the request.', 429: 'Too many requests — wait a moment and retry.' })[r.status] || (r.status >= 500 ? 'Checkout.com had a problem — try again.' : `HTTP ${r.status}`);
         if ((r.status === 401 || r.status === 403) && SCOPE[r.op]) t += ` Check the key’s environment and that it has the scope ${SCOPE[r.op]}.`;
         return { ok: false, text: t };
     }
@@ -373,9 +376,9 @@
     async function refreshEntity(entityId, profile) {
         const p = profile === undefined ? current() : profile, pid = p ? p.id : 'default';
         const s = await call('google.state', { entity_id: entityId }, { profile: p });
-        const d = s.ok || s.status === 404 ? await call('google.domains', { entity_id: entityId }, { profile: p }) : { ok: false, data: null, local: true, op: 'google.domains', text: 'skipped' };
+        const d = s.ok || notEnrolled(s) ? await call('google.domains', { entity_id: entityId }, { profile: p }) : { ok: false, data: null, local: true, op: 'google.domains', text: 'skipped' };
         // a lookup only ADDS an entity that exists; one already in the list keeps being updated (e.g. it stopped being enrolled)
-        if (s.ok || gAll().some(x => x.pid === pid && x.entityId === entityId)) gUpsert(pid, entityId, { state: s.ok ? (stateOf(s.data) || 'ENROLLED') : s.status === 404 ? 'NOT ENROLLED' : s.local ? 'unknown' : `error ${s.status}`, domains: d.ok ? domainsOf(d.data) : [], checkedAt: now() });
+        if (s.ok || gAll().some(x => x.pid === pid && x.entityId === entityId)) gUpsert(pid, entityId, { state: s.ok ? (stateOf(s.data) || 'ENROLLED') : notEnrolled(s) ? 'NOT ENROLLED' : s.local ? 'unknown' : `error ${s.status}`, domains: d.ok ? domainsOf(d.data) : [], checkedAt: now() });
         return { s, d };
     }
     async function enrollEntity() {
@@ -413,7 +416,7 @@
         $('wo-g-dom-state').innerHTML = '';
         $('wo-g-registered').innerHTML = '<div class="wo-note" style="margin-top:8px;">Reading…</div>';
         const { s, d } = await refreshEntity(e);
-        $('wo-g-dom-state').innerHTML = s.ok ? statePill(stateOf(s.data) || 'ENROLLED') : s.status === 404 ? pill('not enrolled', 'bad') : '';
+        $('wo-g-dom-state').innerHTML = s.ok ? statePill(stateOf(s.data) || 'ENROLLED') : notEnrolled(s) ? pill('not enrolled', 'bad') : '';
         const list = domainsOf(d.data);
         $('wo-g-registered').innerHTML = d.ok ? (list.length ? `<div class="wo-chips">${list.map(x => `<span class="wo-chip">${esc(x)}</span>`).join('')}</div>` : '<div class="wo-note" style="margin-top:8px;">No domains registered yet.</div>')
             : resultCard(s.ok ? d : s, s.ok ? 'Registered domains' : 'Enrollment state');
