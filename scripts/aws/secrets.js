@@ -185,4 +185,4 @@ async function main() {
 }
 
 if (require.main === module) main().then(() => log('')).catch(e => fail(e.message));
-module.exports = { secretNames, secretsStatus, readSecret };
+module.exports = { secretNames, secretsStatus, readSecret, liveChecks };

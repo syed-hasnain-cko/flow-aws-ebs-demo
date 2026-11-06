@@ -38,8 +38,7 @@ throttling/WAF, Amplify response headers, Lambda role contents, Lambda env var n
 4. `npm audit --omit=dev`: root 21 (3 critical, 13 high), Lambda 8 (1 critical, 5 high) — reachability not triaged.
 5. Older modules build HTML with `innerHTML` and no `esc()` (payment-setup, forward, disputes, wallets-flow, auth-types, payouts) — no exploit confirmed.
 6. Apple/Google Pay tokenization payloads are written to the Lambda logs (`api-route-controller.js` "Google Pay tokenization outcome" / "Apple Pay tokenization outcome").
-7. Third-party scripts without SRI, no verified CSP / security headers on the Amplify site; secrets are plain Lambda env vars and the Lambda role has
-   `SecretsManagerReadWrite` (seen 2026-11-05).
+7. Third-party scripts without SRI, no verified CSP / security headers on the Amplify site; (secrets are no longer plain Lambda env vars and the Lambda role no longer has `SecretsManagerReadWrite` — see "Lambda role" below).
 
 
 ## Secrets handling (2026-11-06)
@@ -66,3 +65,18 @@ Found in the public repo's history (232 commits): the Checkout.com sandbox secre
 - Verified afterwards on the local repo (all refs + worktrees): 0 of the 2 known secret values, 0 private-key blocks, none of the 11 values now in Secrets Manager.
 - Backups of the OLD history (contain the secrets, git-ignored): `.aws-backups/pre-history-rewrite-*.bundle` — delete when no longer needed. Anyone who cloned before still has the old history, and GitHub keeps cached views / hidden pull-request refs of old commits until it purges them (GitHub support can do that).
 - Re-doing it later: `git filter-repo` (pip, in a venv) on a fresh `git clone --mirror`; `--replace-text` with `literal:<value>==>***REMOVED***` lines and `--invert-paths --path-regex '^(.*/)?certificates/.*$'`; verify; `git push --force <url> <only the branches that exist on GitHub>`; then reset local branches to the rewritten refs and `git reflog expire --expire=now --all && git gc --prune=now`. Linked worktrees' HEADs also count as roots — move them (filter-repo's `commit-map` gives old→new).
+
+
+### Lambda role — least privilege (2026-11-06)
+Role `flowsyeddemoLambdaRolebb0654fe-staging` used to have the managed policy `SecretsManagerReadWrite` (read, write, delete and list EVERY secret in the account). It now has only inline policies:
+
+| Policy | Allows |
+|---|---|
+| `flowDemoSecretsAccess` | `secretsmanager:GetSecretValue` on exactly 3 secrets: `flowdemo/staging/app-secrets`, `sandbox/WalletsTestSuite/ApplePaySyedCert`, `sandbox/WalletsTestSuite/ApplePaySyedKey` (the code only ever calls `GetSecretValue`; the secrets use the default AWS-managed key, so no KMS grant is needed) |
+| `flowDemoWebhookEventsAccess` | PutItem/GetItem/Query/DeleteItem/BatchWriteItem on the `flowDemoWebhookEvents-staging` table only |
+| `lambda-execution-policy` | CloudWatch Logs for this function (Amplify-managed) |
+
+- Verified: after the change the function configuration was refreshed (all containers replaced → real cold starts); the loader logged "11 value(s) loaded" on two fresh containers, 0 AccessDenied entries, and all 10 live checks passed (main key accepted by Checkout.com, Stripe key accepted by Stripe, OAuth client, Forward keys, webhook secret, sealing key, API reachable, Apple Pay route reading both certificate secrets). IAM policy simulator: allowed = those 3 secrets, logs, the webhook table; implicitDeny = any other secret, PutSecretValue, DeleteSecret, CreateSecret, ListSecrets.
+- The managed policy was attached by hand — it is not in Amplify's CloudFormation template, so `amplify push` will not re-add it, and the extra inline policies are not touched by it.
+- **Adding another secret the Lambda must read**: add its ARN to `flowDemoSecretsAccess` (`aws iam put-role-policy …`), otherwise the read fails with AccessDenied. The app secret already holds any new value added through `npm run secrets:sync`, so that route needs no IAM change.
+- Rollback: `aws iam attach-role-policy --role-name flowsyeddemoLambdaRolebb0654fe-staging --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite --profile cko-syed-testing-playground`.
