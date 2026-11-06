@@ -1,0 +1,190 @@
+<style>
+    .wo-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .wo-note code, .wo-card code { font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:4px; padding:0 5px; }
+    .wo-card { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); padding:14px 16px; margin-top:12px; }
+    .wo-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .wo-bar .select-input { width:auto; min-width:230px; }
+    .wo-grow { flex:1; min-width:200px; }
+    .wo-seg { display:inline-flex; margin-top:14px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    .wo-seg button { border:0; background:var(--bg-subtle); color:var(--text-primary); padding:9px 22px; font:inherit; font-weight:600; cursor:pointer; }
+    .wo-seg button + button { border-left:1px solid var(--border); }
+    .wo-seg button.active { background:var(--primary); color:#fff; }
+    .wo-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-top:12px; border-bottom:1px solid var(--border); }
+    .wo-tabs button { border:0; background:transparent; color:var(--text-secondary); padding:8px 14px; font:inherit; font-size:13px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+    .wo-tabs button.active { color:var(--text-primary); border-bottom-color:var(--primary); }
+    .wo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px 16px; margin-top:10px; }
+    .wo-grid label.l, .wo-field label.l { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
+    .wo-grid .text-input, .wo-grid .select-input, .wo-field .text-input, .wo-field .select-input, .wo-field textarea { width:100%; box-sizing:border-box; }
+    .wo-field { margin-top:10px; }
+    .wo-field textarea { font-family:'JetBrains Mono', monospace; font-size:12px; resize:vertical; }
+    .wo-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+    .wo-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; min-height:4px; }
+    .wo-chip { font-size:11px; font-family:'JetBrains Mono', monospace; padding:2px 9px; border-radius:20px; border:1px solid var(--border); background:var(--bg-subtle); color:var(--text-primary); }
+    .wo-chip.bad { border-color:var(--error); color:var(--error); }
+    .wo-pill { font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; border:1px solid var(--border); color:var(--text-secondary); background:var(--bg-subtle); white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
+    .wo-pill.good { background:var(--success); border-color:var(--success); color:#fff; } .wo-pill.bad { background:var(--error); border-color:var(--error); color:#fff; }
+    .wo-pill.warn { background:#f59e0b; border-color:#f59e0b; color:#fff; } .wo-pill.info { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .wo-flag { margin-top:10px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-subtle); font-size:12px; line-height:1.6; color:var(--text-secondary); }
+    .wo-flag.warn { border-color:#f59e0b; } .wo-flag.bad { border-color:var(--error); } .wo-flag.good { border-color:var(--success); }
+    .wo-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+    .wo-table th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); padding:5px 8px; border-bottom:1px solid var(--border); }
+    .wo-table td { padding:7px 8px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:top; overflow-wrap:anywhere; }
+    .wo-res { margin-top:12px; border:1px solid var(--border); border-left:4px solid var(--border); border-radius:10px; padding:10px 14px; background:var(--bg-subtle); }
+    .wo-res.good { border-left-color:var(--success); } .wo-res.bad { border-left-color:var(--error); }
+    .wo-res .h { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .wo-res .h b { font-size:14px; color:var(--text-primary); }
+    .wo-res .m { margin-left:auto; font-size:11px; color:var(--text-secondary); font-family:'JetBrains Mono', monospace; }
+    .wo-res .t { margin-top:5px; font-size:12px; color:var(--text-primary); line-height:1.6; }
+    .wo-kv { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:6px 16px; margin-top:8px; }
+    .wo-kv .k { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); } .wo-kv .v { font-size:12px; color:var(--text-primary); overflow-wrap:anywhere; }
+    details.wo-d { margin-top:6px; } details.wo-d > summary { cursor:pointer; font-size:11px; color:var(--text-secondary); }
+    .wo-pre { margin:6px 0 0; padding:9px; max-height:240px; overflow:auto; font-size:11px; font-family:'JetBrains Mono', monospace; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; white-space:pre-wrap; word-break:break-all; color:var(--text-primary); }
+    .wo-copy { cursor:pointer; font-family:'JetBrains Mono', monospace; font-size:11px; padding:1px 7px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); }
+    .wo-copy:hover { border-color:var(--primary); }
+    .wo-drop { margin-top:10px; border:1.5px dashed var(--border); border-radius:10px; padding:14px; text-align:center; font-size:12px; color:var(--text-secondary); cursor:pointer; }
+    .wo-drop.over { border-color:var(--primary); background:var(--bg-subtle); }
+    .wo-steps { margin:8px 0 0; padding-left:18px; font-size:12px; color:var(--text-secondary); line-height:1.7; }
+    .wo-modal-back { position:fixed; inset:0; z-index:100000; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px; }
+    .wo-modal { width:100%; max-width:520px; max-height:92vh; overflow:auto; background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); border-radius:14px; padding:18px 20px; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+    .wo-modal h3 { margin:0 0 4px; font-size:17px; }
+    .wo-modal .err { color:var(--error); font-size:12px; margin-top:8px; min-height:16px; }
+    #wo-root .main-button:disabled, #wo-root .copy-btn:disabled { opacity:.4; cursor:not-allowed; }
+    #wo-root [hidden] { display:none !important; }
+</style>
+
+<div class="context-area" id="wo-root">
+    <h2 class="section-header">Wallet Onboarding</h2>
+    <p class="wo-note" style="margin-top:-6px;">Set up Apple Pay and Google Pay for a merchant account with Checkout.com — one request per domain, with the full request and response shown for every action.</p>
+
+    <div class="wo-card">
+        <div class="wo-bar">
+            <div>
+                <label class="l" for="wo-profile" style="display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Merchant account</label>
+                <select id="wo-profile" class="select-input"></select>
+            </div>
+            <div>
+                <label class="l" for="wo-auth" style="display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;" title="Which key authorises the calls. Apple enrollment and Google Pay need a secret key with the scope shown on each tab.">Call with</label>
+                <select id="wo-auth" class="select-input" style="min-width:140px;"><option value="secret">Secret key</option><option value="public">Public key</option></select>
+            </div>
+            <div class="wo-actions" style="margin-top:18px;">
+                <button type="button" id="wo-prof-new" class="copy-btn">+ New merchant</button>
+                <button type="button" id="wo-prof-edit" class="copy-btn">Edit</button>
+                <button type="button" id="wo-prof-del" class="copy-btn">Remove</button>
+            </div>
+        </div>
+        <div id="wo-prof-info" class="wo-note" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="wo-seg" id="wo-wallet"><button type="button" data-w="apple"> Apple Pay</button><button type="button" data-w="google">Google Pay</button></div>
+
+    <!-- ─────────────────────────── Apple Pay ─────────────────────────── -->
+    <div id="wo-apple" hidden>
+        <div class="wo-tabs" id="wo-ap-tabs">
+            <button type="button" data-at="domains">Domains <span class="wo-note">(Flow web)</span></button>
+            <button type="button" data-at="csr">Certificate signing request</button>
+            <button type="button" data-at="cert">Payment processing certificate</button>
+            <button type="button" data-at="activity">Activity</button>
+        </div>
+
+        <div class="wo-card" id="wo-ap-domains">
+            <div class="wo-note">Enroll every domain that shows the Apple Pay button in <b>Flow web</b> — one request per domain.</div>
+            <div class="wo-flag warn">Needs a secret key with scope <code>vault:apme-enrollment</code>, HTTPS on each domain, and custom domains switched on for the account by Checkout.com.</div>
+            <div class="wo-field">
+                <label class="l" for="wo-ap-dom-input">Domains <small>(one per line, or separated by commas)</small></label>
+                <textarea id="wo-ap-dom-input" rows="4" placeholder="shop.example.com&#10;pay.example.com"></textarea>
+                <div id="wo-ap-dom-chips" class="wo-chips"></div>
+            </div>
+            <div class="wo-actions">
+                <button type="button" id="wo-ap-dom-run" class="main-button">Enroll domains</button>
+                <button type="button" id="wo-ap-dom-retry" class="copy-btn" hidden>Retry failed</button>
+                <button type="button" id="wo-ap-dom-clear" class="copy-btn">Clear</button>
+                <span id="wo-ap-dom-sum" class="wo-note"></span>
+            </div>
+            <div id="wo-ap-dom-results"></div>
+        </div>
+
+        <div class="wo-card" id="wo-ap-csr" hidden>
+            <div class="wo-note">For a <b>direct integration</b> (you decrypt nothing yourself — Checkout.com does): generate a signing request, give it to Apple, then upload the certificate Apple returns.</div>
+            <div class="wo-grid">
+                <div><label class="l" for="wo-ap-mid">Apple Merchant ID <small>(for your records and the file name)</small></label><input id="wo-ap-mid" class="text-input" placeholder="merchant.com.example.sandbox" autocomplete="off"></div>
+                <div><label class="l" for="wo-ap-proto">Encryption</label>
+                    <select id="wo-ap-proto" class="select-input"><option value="ec_v1">EC (ec_v1) — standard</option><option value="rsa_v1">RSA (rsa_v1) — China processing</option></select></div>
+            </div>
+            <div class="wo-flag warn">The signing request is valid for <b>24 hours</b> — create the certificate in your Apple Developer account within that time, or generate a new one.</div>
+            <div class="wo-actions"><button type="button" id="wo-ap-csr-run" class="main-button">Generate signing request</button></div>
+            <div id="wo-ap-csr-out"></div>
+        </div>
+
+        <div class="wo-card" id="wo-ap-cert" hidden>
+            <div class="wo-note">Upload the <b>Apple Pay Payment Processing</b> certificate (<code>apple_pay.cer</code>) you downloaded from Apple. The file is read here and checked before anything is sent.</div>
+            <div class="wo-drop" id="wo-ap-drop">Drop the <code>.cer</code> file here or click to choose<input type="file" id="wo-ap-cert-file" accept=".cer,.crt,.pem,.txt,.der" hidden></div>
+            <details class="wo-d"><summary>or paste the certificate (PEM or base64)</summary><textarea id="wo-ap-cert-paste" rows="4" class="text-input" style="width:100%;box-sizing:border-box;font-family:'JetBrains Mono',monospace;font-size:11px;" placeholder="-----BEGIN CERTIFICATE----- …"></textarea></details>
+            <div class="wo-grid"><div><label class="l" for="wo-ap-cert-mid">Apple Merchant ID <small>(checked against the certificate)</small></label><input id="wo-ap-cert-mid" class="text-input" placeholder="merchant.com.example.sandbox" autocomplete="off"></div></div>
+            <div id="wo-ap-cert-info"></div>
+            <div class="wo-actions"><button type="button" id="wo-ap-cert-run" class="main-button" disabled>Upload certificate</button></div>
+            <div id="wo-ap-cert-out"></div>
+        </div>
+
+        <div class="wo-card" id="wo-ap-activity" hidden>
+            <div class="wo-actions" style="margin-top:0;"><b style="font-size:14px;">Apple Pay activity</b><span class="wo-note">Apple Pay has no read endpoints, so everything done from this tab is kept here (this browser only).</span>
+                <span style="flex:1"></span><button type="button" id="wo-ap-act-export" class="copy-btn">Export</button><button type="button" id="wo-ap-act-clear" class="copy-btn">Clear</button></div>
+            <div id="wo-ap-act-status"></div>
+            <div id="wo-ap-act-log"></div>
+        </div>
+    </div>
+
+    <!-- ─────────────────────────── Google Pay ─────────────────────────── -->
+    <div id="wo-google" hidden>
+        <div class="wo-tabs" id="wo-g-tabs">
+            <button type="button" data-gt="enroll">Enroll an entity</button>
+            <button type="button" data-gt="domains">Domains</button>
+            <button type="button" data-gt="merchants">Merchants</button>
+        </div>
+
+        <div class="wo-card" id="wo-g-enroll">
+            <div class="wo-flag warn">Needs a secret key with scope <code>vault:gpayme-enrollment</code>. Enrolling means accepting the <a href="https://payments.developers.google.com/terms/sellertos" target="_blank" rel="noopener">Google Pay terms of service</a> for this merchant.</div>
+            <div class="wo-grid">
+                <div><label class="l" for="wo-g-entity">Entity ID</label><input id="wo-g-entity" class="text-input" placeholder="ent_…" autocomplete="off" spellcheck="false"></div>
+                <div><label class="l" for="wo-g-email">Email of the person accepting the terms</label><input id="wo-g-email" class="text-input" type="email" placeholder="name@merchant.com" autocomplete="off"></div>
+            </div>
+            <label class="wo-note" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;cursor:pointer;"><input type="checkbox" id="wo-g-tos" style="margin-top:3px;"><span>I accept the Google Pay terms of service on behalf of this merchant (<code>accept_terms_of_service: true</code>).</span></label>
+            <div class="wo-actions">
+                <button type="button" id="wo-g-enroll-run" class="main-button">Enroll entity</button>
+                <button type="button" id="wo-g-check" class="copy-btn" title="Read the current enrollment state and registered domains">Check status</button>
+            </div>
+            <div id="wo-g-enroll-out"></div>
+        </div>
+
+        <div class="wo-card" id="wo-g-domains" hidden>
+            <div class="wo-grid">
+                <div><label class="l" for="wo-g-dom-entity">Entity ID</label><input id="wo-g-dom-entity" class="text-input" list="wo-g-ent-list" placeholder="ent_…" autocomplete="off" spellcheck="false"><datalist id="wo-g-ent-list"></datalist></div>
+            </div>
+            <div class="wo-actions" style="margin-top:8px;"><b style="font-size:13px;">Registered domains</b><button type="button" id="wo-g-dom-refresh" class="copy-btn">↻ Refresh</button><span id="wo-g-dom-state"></span></div>
+            <div id="wo-g-registered"></div>
+            <div class="wo-field">
+                <label class="l" for="wo-g-dom-input">Register domains <small>(one per line, or separated by commas — one request per domain)</small></label>
+                <textarea id="wo-g-dom-input" rows="3" placeholder="shop.example.com&#10;pay.example.com"></textarea>
+                <div id="wo-g-dom-chips" class="wo-chips"></div>
+            </div>
+            <div class="wo-actions">
+                <button type="button" id="wo-g-dom-run" class="main-button">Register domains</button>
+                <button type="button" id="wo-g-dom-retry" class="copy-btn" hidden>Retry failed</button>
+                <button type="button" id="wo-g-dom-clear" class="copy-btn">Clear</button>
+                <span id="wo-g-dom-sum" class="wo-note"></span>
+            </div>
+            <div id="wo-g-dom-results"></div>
+        </div>
+
+        <div class="wo-card" id="wo-g-merchants" hidden>
+            <div class="wo-note">Google Pay has no “list all merchants” endpoint, so this list holds every entity you enrolled or looked up here — each row is read live from Checkout.com when refreshed.</div>
+            <div class="wo-actions">
+                <input id="wo-g-add" class="text-input" placeholder="Add an already-enrolled entity: ent_…" style="max-width:340px;" autocomplete="off" spellcheck="false">
+                <button type="button" id="wo-g-add-btn" class="copy-btn">Look up &amp; add</button>
+                <span style="flex:1"></span>
+                <label class="wo-note" style="cursor:pointer;"><input type="checkbox" id="wo-g-all"> all merchant accounts</label>
+                <button type="button" id="wo-g-refresh-all" class="copy-btn">↻ Refresh all</button>
+            </div>
+            <div id="wo-g-table"></div>
+        </div>
+    </div>
+</div>

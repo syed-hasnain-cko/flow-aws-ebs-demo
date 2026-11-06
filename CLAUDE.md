@@ -181,4 +181,5 @@ Per-feature history, design decisions, verified sandbox facts and pitfalls were 
 | [`docs/smart-dunning.md`](docs/smart-dunning.md) | Smart Dunning tab (retry schedules, webhooks, test cards) |
 | [`docs/app-shell.md`](docs/app-shell.md) | App shell: left navigation + docked API log |
 | [`docs/account-and-webhooks.md`](docs/account-and-webhooks.md) | Account Settings (BYO account) + Webhooks tab |
+| [`docs/wallet-onboarding.md`](docs/wallet-onboarding.md) | Wallet Onboarding tab (Apple Pay domains / CSR / certificate, Google Pay enrollment), merchant profiles + sealed keys |
 | [`docs/security.md`](docs/security.md) | Security audit (2026-11-06): what was fixed (Forward credentials), what is still open |
