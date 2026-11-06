@@ -33,11 +33,13 @@ router.post('/payment-sessions', async (req, res) => {
   }
   // overrideSecretKey lets the Forward API tab tokenize using its own configured
   // secret key instead of the global SECRET_KEY, without affecting any other tab.
-  const { overrideSecretKey, ...sessionBody } = req.body;
+  // useForwardCreds: the Forward tab has no key of its own in the browser → use the Forward credentials resolved server-side
+  // (the visitor's Settings account if they set one, else the server's FORWARD_* defaults). The key never reaches the browser.
+  const { overrideSecretKey, useForwardCreds, ...sessionBody } = req.body;
   try {
       const response = await axios.post(`${accountConfig.gwUrl()}/payment-sessions`, sessionBody, {
           headers: {
-              Authorization: `Bearer ${overrideSecretKey || config.sk}`,
+              Authorization: `Bearer ${overrideSecretKey || (useForwardCreds ? forwardCreds().secretKey : config.sk)}`,
           },
       });
       res.send(response.data);
@@ -614,30 +616,77 @@ router.post('/payouts', async (req, res) => {
       return res.status(error.response?.status || 500).json(errPayload);
   }
 });
+// ── Forward API credentials ─────────────────────────────────────────────────────────────────────────
+// Which credentials the Forward tab uses, in order: a key the visitor typed into the Forward panel (sent in the request BODY,
+// never a URL) → their Settings account (sealed token) → the server's FORWARD_* defaults. The default keys never leave the server.
+function forwardCreds(overrideSecretKey) {
+    const own = accountConfig.customValue;
+    const secretKey = overrideSecretKey || own('secretKey') || config.forwardSecretKey;
+    return {
+        secretKey,
+        publicKey: own('publicKey') || config.forwardPublicKey,
+        processingChannelId: own('processingChannelId') || config.forwardProcessingChannelId,
+        source: overrideSecretKey ? 'forward-panel' : own('secretKey') ? 'settings-account' : 'server-default',
+    };
+}
+const maskKey = (v) => (v && v.length > 12 ? `${v.slice(0, 8)}…${v.slice(-4)}` : v ? '••••' : '');   // prefix + last 4 only
+const keyInfo = (v, source) => (v ? { set: true, masked: maskKey(v), ...(source ? { source } : {}) } : { set: false });
+
 router.get('/forward-config', (_req, res) => {
+  const c = forwardCreds();
+  res.set('Cache-Control', 'no-store');
   res.send({
-      publicKey: config.forwardPublicKey,
-      processingChannelId: config.forwardProcessingChannelId,
-      // Secret key is intentionally returned so the UI can pre-fill an editable
-      // field for this already-sandboxed test suite. It is only ever used for
-      // Forward API calls and stored client-side in localStorage, never in code.
-      secretKey: config.forwardSecretKey,
-      // Default auth for the built-in Stripe/Adyen destinations — sourced from env,
-      // never hardcoded. Empty string if unset; UI falls back to a placeholder.
-      stripeApiKey: config.forwardStripeApiKey,
-      adyenApiKey: config.forwardAdyenApiKey,
+      publicKey: c.publicKey,                         // public by design
+      processingChannelId: c.processingChannelId,     // not a secret
+      // Secrets are NEVER returned. These three stay empty strings so a browser still running an older version of the page
+      // sends no override and the routes below use the server-side default. Masked information is in `defaults`.
+      secretKey: '', stripeApiKey: '', adyenApiKey: '',
+      defaults: {
+          secretKey: keyInfo(c.secretKey, c.source),
+          stripeApiKey: keyInfo(config.forwardStripeApiKey, 'server-default'),
+          adyenApiKey: keyInfo(config.forwardAdyenApiKey, 'server-default'),
+      },
   });
 });
+
+// The built-in destinations (Stripe / Adyen / Checkout.com) need their API key in the destination request's headers. The browser
+// writes a placeholder instead and the server swaps in the real default — but ONLY when the destination host is that provider's
+// own host, so the open endpoint cannot be used to send a default key to a host of someone's choosing.
+const SERVER_TOKENS = [
+    { token: '{{server.secret_key}}',     label: 'Checkout.com secret key', host: /^([a-z0-9]+\.)?api\.(sandbox\.)?checkout\.com$/, value: (c) => c.secretKey },
+    { token: '{{server.stripe_api_key}}', label: 'Stripe API key',          host: /^api\.stripe\.com$/,                              value: () => config.forwardStripeApiKey },
+    { token: '{{server.adyen_api_key}}',  label: 'Adyen API key',           host: /^([a-z0-9-]+\.)*adyen\.com$/,                     value: () => config.forwardAdyenApiKey },
+];
+function resolveServerTokens(destinationRequest, creds) {
+    const raw = destinationRequest && destinationRequest.headers && destinationRequest.headers.raw;
+    if (!raw || typeof raw !== 'object') return null;
+    let host = '';
+    try { const u = new URL(String(destinationRequest.url || '')); host = u.protocol === 'https:' ? u.hostname.toLowerCase() : ''; } catch (e) { /* no valid URL */ }
+    for (const [name, v] of Object.entries(raw)) {
+        if (typeof v !== 'string') continue;
+        for (const t of SERVER_TOKENS) {
+            if (!v.includes(t.token)) continue;
+            if (!t.host.test(host)) return `${t.token} (the server's default ${t.label}) can only be sent to that provider's own host, not "${host || 'an invalid URL'}". Enter your own key instead.`;
+            const real = t.value(creds);
+            if (!real) return `The server has no default ${t.label} configured — enter your own in Forward API Config.`;
+            raw[name] = v.split(t.token).join(real);
+        }
+    }
+    return null;
+}
 
 router.post('/forward-request', async (req, res) => {
   const { overrideSecretKey, ...forwardBody } = req.body || {};
   if (!forwardBody || !forwardBody.source || !forwardBody.destination_request) {
       return res.status(400).json({ error: 'source and destination_request are required' });
   }
+  const creds = forwardCreds(overrideSecretKey);
+  const tokenError = resolveServerTokens(forwardBody.destination_request, creds);
+  if (tokenError) return res.status(400).json({ error: tokenError });
   try {
-      const response = await axios.post(`${process.env.GW_URL}/forward`, forwardBody, {
+      const response = await axios.post(`${accountConfig.gwUrl()}/forward`, forwardBody, {
           headers: {
-              Authorization: `Bearer ${overrideSecretKey || config.forwardSecretKey}`,
+              Authorization: `Bearer ${creds.secretKey}`,
               'Content-Type': 'application/json',
           },
       });
@@ -648,14 +697,23 @@ router.post('/forward-request', async (req, res) => {
   }
 });
 
+// Credentials in a URL end up in access logs and browser history — refuse them. (A page loaded before this change still sends
+// them; the message tells the visitor to reload.)
+const noKeyInUrl = (req, res) => {
+  if (req.query.overrideSecretKey === undefined) return false;
+  res.status(400).json({ error: 'Keys are no longer accepted in the URL. Reload the page (Cmd+Shift+R) to get the current version.' });
+  return true;
+};
+
 router.get('/forward-request', async (req, res) => {
-  const { id, overrideSecretKey } = req.query;
+  if (noKeyInUrl(req, res)) return;
+  const { id } = req.query;
   if (!id) {
       return res.status(400).json({ error: 'id query param is required' });
   }
   try {
-      const response = await axios.get(`${process.env.GW_URL}/forward/${id}`, {
-          headers: { Authorization: `Bearer ${overrideSecretKey || config.forwardSecretKey}` },
+      const response = await axios.get(`${accountConfig.gwUrl()}/forward/${encodeURIComponent(id)}`, {
+          headers: { Authorization: `Bearer ${forwardCreds().secretKey}` },
       });
       return res.status(response.status).json(response.data);
   } catch (error) {
@@ -663,21 +721,21 @@ router.get('/forward-request', async (req, res) => {
   }
 });
 
-router.get('/forward-customer-instruments', async (req, res) => {
-  const { customerId, overrideSecretKey } = req.query;
+// GET for the default / Settings credentials, POST when the visitor typed their own key (body, not URL).
+async function loadForwardInstruments(customerId, secretKey, res) {
   if (!customerId) {
-      return res.status(400).json({ error: 'customerId query param is required' });
+      return res.status(400).json({ error: 'customerId is required' });
   }
-  const secretKey = overrideSecretKey || config.forwardSecretKey;
+  const gw = accountConfig.gwUrl();
   try {
-      const customerRes = await axios.get(`${process.env.GW_URL}/customers/${customerId}`, {
+      const customerRes = await axios.get(`${gw}/customers/${encodeURIComponent(customerId)}`, {
           headers: { Authorization: `Bearer ${secretKey}` },
       });
       const instrumentRefs = customerRes.data?.instruments || [];
 
       const instruments = await Promise.all(instrumentRefs.map(async (ref) => {
           try {
-              const instRes = await axios.get(`${process.env.GW_URL}/instruments/${ref.id}`, {
+              const instRes = await axios.get(`${gw}/instruments/${encodeURIComponent(ref.id)}`, {
                   headers: { Authorization: `Bearer ${secretKey}` },
               });
               return instRes.data;
@@ -690,6 +748,14 @@ router.get('/forward-customer-instruments', async (req, res) => {
   } catch (error) {
       return res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
   }
+}
+router.get('/forward-customer-instruments', (req, res) => {
+  if (noKeyInUrl(req, res)) return;
+  return loadForwardInstruments(req.query.customerId, forwardCreds().secretKey, res);
+});
+router.post('/forward-customer-instruments', (req, res) => {
+  const { customerId, overrideSecretKey } = req.body || {};
+  return loadForwardInstruments(customerId, forwardCreds(overrideSecretKey).secretKey, res);
 });
 
 router.get('/forward-jwks', async (_req, res) => {

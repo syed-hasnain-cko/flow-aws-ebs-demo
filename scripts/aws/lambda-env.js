@@ -24,7 +24,9 @@ const LAMBDA_FILE = path.join(__dirname, '.env.lambda');
 const RUNTIME = /^(AWS_|LAMBDA_|_HANDLER$|TZ$|NODE_|LD_|PATH$)/;                 // provided by the Lambda runtime
 const ENV_SPECIFIC = /^(ENV|PORT|HOST|REGION|API_BASE_URL|DOMAIN.*)$|_URL$|_SECRET_NAME$/;   // never auto-copied from the local .env
 const LIMIT = 4096;
-const VALID_NAME = /^[a-zA-Z][a-zA-Z0-9_]+$/;                                  // Lambda's own rule for variable names
+const VALID_NAME = /^[a-zA-Z][a-zA-Z0-9_]+$/;
+// A name that LOOKS like a secret (and is not in the manifest) is treated as one: it belongs in the secrets store, never on the Lambda environment.
+const looksSecret = (n) => /(SECRET|_KEY|TOKEN|PASSWORD|HMAC)$/i.test(n) && !/(PUBLIC|PUBLISHABLE|CLIENT_KEY)/i.test(n);                                  // Lambda's own rule for variable names
 
 const h = (v) => crypto.createHash('sha256').update(String(v)).digest('hex');
 const parse = (f) => (fs.existsSync(f) ? dotenv.parse(fs.readFileSync(f)) : {});
@@ -61,7 +63,8 @@ function planEnv({ overwrite = [], _inject } = {}) {
     const manifest = (_inject?.manifest) || JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).vars;
     // _inject lets aws:verify exercise the decision logic with made-up inputs, without touching AWS or reading real values
     const code = _inject?.code || scanCode(), lam = _inject?.lambda || currentLambdaEnv(), local = _inject?.local || parse(path.join(ROOT, '.env')), lambdaFile = _inject?.lambdaFile || parse(LAMBDA_FILE);
-    const add = {}, report = { new: [], blocked: [], optionalMissing: [], drift: [], unused: [], overwritten: [], unknownOverwrite: [] };
+    const isSecret = (n) => (manifest[n] ? manifest[n].policy === 'secret' : looksSecret(n));    // lives in Secrets Manager (see secrets.js)
+    const add = {}, report = { new: [], blocked: [], optionalMissing: [], drift: [], unused: [], overwritten: [], unknownOverwrite: [], secretStore: [] };
 
     const resolve = (name) => {                      // → { value, source } | null
         if (name in lambdaFile) return { value: lambdaFile[name], source: 'scripts/aws/.env.lambda' };
@@ -73,6 +76,7 @@ function planEnv({ overwrite = [], _inject } = {}) {
     };
 
     for (const name of Object.keys(code).sort()) {
+        if (isSecret(name)) { report.secretStore.push(name); continue; }      // never added to the Lambda environment (secrets:sync owns it)
         if (name in lam.vars) continue;
         const r = resolve(name);
         if (r) { add[name] = r.value; report.new.push({ name, source: r.source, required: code[name].required }); }
@@ -87,6 +91,7 @@ function planEnv({ overwrite = [], _inject } = {}) {
     for (const name of Object.keys(lam.vars).sort()) {
         if (!(name in code)) report.unused.push(name);
         const policy = manifest[name]?.policy || (ENV_SPECIFIC.test(name) ? 'ask' : 'copy-local');
+        if (isSecret(name)) continue;
         if (policy === 'copy-local' && name in local && h(local[name]) !== h(lam.vars[name]) && !(name in add)) report.drift.push(name);
     }
     Object.keys(add).filter(n => !VALID_NAME.test(n)).forEach(n => { delete add[n]; report.new = report.new.filter(x => x.name !== n); report.blocked.push({ name: n, why: 'Lambda only accepts names that start with a letter and use letters, digits and underscores' }); });
@@ -97,6 +102,7 @@ function planEnv({ overwrite = [], _inject } = {}) {
 function printPlan(plan) {
     const r = plan.report;
     log(`  needs: ${plan.codeCount} variables read by the code · Lambda has ${Object.keys(plan.existing).length} · size after change ${plan.size}/${LIMIT} bytes`);
+    if (r.secretStore.length) log(`  ℹ ${r.secretStore.length} secret value(s) come from the secrets store, not the environment: ${r.secretStore.join(', ')}`);
     r.new.forEach(n => ok(`${n.name} — missing on the Lambda, will be ADDED from ${n.source}${n.required ? '' : ' (optional)'}`));
     r.overwritten.forEach(n => warn(`${n.name} — will be OVERWRITTEN from ${n.source} (--overwrite)`));
     r.optionalMissing.forEach(n => log(`  ℹ ${n} — not on the Lambda, but every use has a fallback in the code → fine`));
@@ -167,4 +173,4 @@ if (require.main === module) {
         } catch (e) { fail(e.message); }
     })();
 }
-module.exports = { planEnv, syncEnv, applyEnv, setEnv, currentLambdaEnv, scanCode, envSize };
+module.exports = { planEnv, syncEnv, applyEnv, setEnv, currentLambdaEnv, scanCode, envSize, looksSecret };

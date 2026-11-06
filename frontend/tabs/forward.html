@@ -6,7 +6,7 @@
         <span id="fwd-config-chevron" style="font-size:12px; color:var(--text-secondary); transition:transform 0.15s;">▸ expand</span>
     </div>
     <p style="font-size:12px; color:var(--text-secondary); opacity:0.75; margin:4px 0 0;">
-        Separate credentials for Forward API testing only — switching these never affects any other tab. Pre-filled from your <code>.env</code>, editable and saved to this browser only.
+        Separate credentials for Forward API testing only — switching these never affects any other tab. The server's default keys are <b>never sent to your browser</b>: leave a key empty to use the server default (or your <b>Settings</b> account, if you set one), or paste your own. Your own keys stay in this browser tab unless you tick “Remember on this device”.
     </p>
 
     <div id="fwd-config-panel" style="display:none; margin-top:16px;">
@@ -14,7 +14,7 @@
             <div class="form-group">
                 <label for="fwd-cfg-secret-key" class="text-label" style="color:var(--text-secondary)">Secret Key</label>
                 <div style="display:flex; gap:6px;">
-                    <input type="password" id="fwd-cfg-secret-key" class="text-input" placeholder="sk_sbox_...">
+                    <input type="password" id="fwd-cfg-secret-key" class="text-input" placeholder="sk_sbox_..." autocomplete="off">
                     <button type="button" id="fwd-cfg-secret-toggle" class="copy-btn" title="Show/Hide" style="flex-shrink:0;">👁</button>
                 </div>
             </div>
@@ -30,17 +30,22 @@
         <div class="inline-form" style="grid-template-columns: repeat(2, 1fr); margin-top:10px;">
             <div class="form-group">
                 <label for="fwd-cfg-stripe-key" class="text-label" style="color:var(--text-secondary)">Stripe API Key <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(destination auth for the Stripe preset)</em></label>
-                <input type="text" id="fwd-cfg-stripe-key" class="text-input" placeholder="sk_test_...">
+                <input type="password" id="fwd-cfg-stripe-key" class="text-input" placeholder="sk_test_..." autocomplete="off">
             </div>
             <div class="form-group">
                 <label for="fwd-cfg-adyen-key" class="text-label" style="color:var(--text-secondary)">Adyen API Key <em style="font-style:normal; font-size:11px; opacity:0.55; text-transform:none; letter-spacing:0;">(destination auth for the Adyen preset)</em></label>
-                <input type="text" id="fwd-cfg-adyen-key" class="text-input" placeholder="AQE...">
+                <input type="password" id="fwd-cfg-adyen-key" class="text-input" placeholder="AQE..." autocomplete="off">
             </div>
         </div>
         <div class="button-group" style="margin-top:4px;">
             <button id="fwd-cfg-save-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Save Config</button>
-            <button id="fwd-cfg-reset-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Reset to .env defaults</button>
+            <button id="fwd-cfg-reset-btn" class="main-button" style="background:var(--bg-subtle); color:var(--text-primary); border:1px solid var(--border);">Reset to server defaults</button>
         </div>
+        <label style="display:flex; gap:8px; align-items:flex-start; margin-top:10px; font-size:12px; color:var(--text-secondary); line-height:1.5; cursor:pointer;">
+            <input type="checkbox" id="fwd-cfg-remember" style="margin-top:3px;">
+            <span><b style="color:var(--text-primary);">Remember on this device</b> — keeps the keys you typed here in this browser's local storage (unencrypted; readable by any script on this site). Off = this tab only.
+            For a safer way to use your own account everywhere, add it in <b>Settings</b>: it is encrypted on the server and the browser only keeps an opaque token.</span>
+        </label>
         <div id="fwd-cfg-status" style="display:none; margin-top:8px; font-size:12px;"></div>
     </div>
 

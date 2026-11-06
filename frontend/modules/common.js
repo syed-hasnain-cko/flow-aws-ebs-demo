@@ -36,6 +36,7 @@
         'cko-suite-network-tokens': { label: 'Standalone · network tokens' },
         'cko-vault-directory':      { label: 'Vault · customers & instruments directory' },
         'cko-forward-config':       { label: 'Forward API · configuration', sensitive: true },
+        'cko-forward-remember':     { label: 'Forward API · “remember my keys on this device”' },
         'cko-forward-custom-destinations': { label: 'Forward API · custom destinations' },
         'cko-forward-destination-auth':    { label: 'Forward API · destination credentials', sensitive: true },
         'cko-account-config':       { label: 'Settings · sealed custom account token', sensitive: true },

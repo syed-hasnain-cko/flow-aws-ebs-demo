@@ -24,6 +24,7 @@ const PIN = Object.freeze({
     expectedRole: 'cko_playground_engineer',      // the SSO role this tooling expects to run as
     amplifyAppId: 'd11m29074qik0k',               // Amplify app “flow-syed-demo” (the frontend; deploys on every push to main)
     amplifyBranch: 'main',
+    appSecretId: 'flowdemo/staging/app-secrets',   // the Secrets Manager secret that holds the app's secret values (see secrets.js)
 });
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 const PROFILE = process.env.AWS_PROFILE || cfg.profile;

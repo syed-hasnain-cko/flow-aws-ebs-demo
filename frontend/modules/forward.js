@@ -11,9 +11,12 @@
     const CFG_STORAGE_KEY = 'cko-forward-config';
     const CUSTOM_DEST_STORAGE_KEY = 'cko-forward-custom-destinations';
     const DEST_AUTH_STORAGE_KEY = 'cko-forward-destination-auth'; // per-destination Authorization header override
+    const REMEMBER_KEY = 'cko-forward-remember';                  // '1' = also keep the visitor's own keys on this device (localStorage)
 
     // ─── State ──────────────────────────────────────────────────────────
     let _config = { secretKey: '', publicKey: '', processingChannelId: '', stripeKey: '', adyenKey: '' };
+    let _defaults = {};                   // masked info about the server's default keys: { secretKey: {set, masked, source}, … } — never the keys
+    let _info = { publicKey: '', processingChannelId: '' };   // the non-secret defaults the server suggested
     let _useCase = 'cit';                 // 'cit' | 'mit'
     let _source = 'instrument';           // 'token' | 'instrument' — defaults to instrument
     let _latestToken = null;
@@ -39,27 +42,61 @@
     function hide(id) { const e = document.getElementById(id); if (e) e.style.display = 'none'; }
     function el(id) { return document.getElementById(id); }
 
+    // ─── Where the visitor's own keys live ──────────────────────────────
+    // The server's default keys are NEVER sent to the browser (the server uses them when no key is sent). Keys the visitor types are kept
+    // for this tab only (sessionStorage — gone when the tab closes); "Remember on this device" additionally keeps them in localStorage,
+    // unencrypted and readable by any script on this site. A key from Settings → custom account is sealed server-side instead.
+    const remembering = () => localStorage.getItem(REMEMBER_KEY) === '1';
+    function readSecrets(key) { try { return JSON.parse(sessionStorage.getItem(key) ?? localStorage.getItem(key) ?? 'null'); } catch { return null; } }
+    function writeSecrets(key, obj) {
+        const json = JSON.stringify(obj);
+        try { sessionStorage.setItem(key, json); } catch { /* storage unavailable */ }
+        if (remembering()) localStorage.setItem(key, json); else localStorage.removeItem(key);
+    }
+    function clearSecrets(key) { sessionStorage.removeItem(key); localStorage.removeItem(key); }
+    // Same masking as the server (prefix + last 4) — used to recognise an old saved copy of a default key.
+    const maskKey = (v) => (v && v.length > 12 ? `${v.slice(0, 8)}…${v.slice(-4)}` : v ? '••••' : '');
+    const hasDefault = (k) => !!(_defaults[k] && _defaults[k].set);
+    const keyHint = (k, fallback) => {
+        const d = _defaults[k];
+        return d && d.set ? `${d.source === 'settings-account' ? 'Using your Settings account' : 'Using the server default'} (${d.masked}) — leave empty` : fallback;
+    };
+
     // ─── Config panel ───────────────────────────────────────────────────
     async function loadForwardConfig() {
-        let stored = null;
-        try { stored = JSON.parse(localStorage.getItem(CFG_STORAGE_KEY) || 'null'); } catch { /* ignore */ }
+        // Existing users: a config saved by an earlier version lived in localStorage — keep remembering it so nothing disappears.
+        if (localStorage.getItem(REMEMBER_KEY) === null && (localStorage.getItem(CFG_STORAGE_KEY) || localStorage.getItem(DEST_AUTH_STORAGE_KEY))) localStorage.setItem(REMEMBER_KEY, '1');
+        const stored = readSecrets(CFG_STORAGE_KEY) || {};
 
-        let envDefaults = { secretKey: '', publicKey: '', processingChannelId: '', stripeApiKey: '', adyenApiKey: '' };
+        let info = { publicKey: '', processingChannelId: '', defaults: {} };
         try {
             const res = await fetch(`${API_BASE}/forward-config`);
-            envDefaults = await res.json();
+            info = await res.json();
         } catch (err) {
-            showToast('Could not load Forward API defaults from backend — enter credentials manually', 'error');
+            showToast('Could not load the Forward API defaults from the backend — enter credentials manually', 'error');
+        }
+        _defaults = info.defaults || {};
+        _info = { publicKey: info.publicKey || '', processingChannelId: info.processingChannelId || '' };
+
+        // An earlier version handed the server's default keys to the browser and saved them here. Recognise such a copy (same
+        // prefix + last 4 as the server's default) and drop it: the server uses its default whenever no key is sent.
+        const isDefaultCopy = (v, k) => !!v && hasDefault(k) && _defaults[k].masked === maskKey(v);
+        const clean = {
+            secretKey: isDefaultCopy(stored.secretKey, 'secretKey') ? '' : (stored.secretKey || ''),
+            stripeKey: isDefaultCopy(stored.stripeKey, 'stripeApiKey') ? '' : (stored.stripeKey || ''),
+            adyenKey: isDefaultCopy(stored.adyenKey, 'adyenApiKey') ? '' : (stored.adyenKey || ''),
+        };
+        if (clean.secretKey !== (stored.secretKey || '') || clean.stripeKey !== (stored.stripeKey || '') || clean.adyenKey !== (stored.adyenKey || '')) {
+            writeSecrets(CFG_STORAGE_KEY, { ...stored, ...clean });                    // scrub the old plaintext copy right away
         }
 
-        // All five fields are editable in the Forward API Config panel and persisted
-        // together in `stored` when saved — env values are just the starting default.
+        // Secret keys start EMPTY (= use the server default / the Settings account); public key and channel are pre-filled.
         _config = {
-            secretKey: stored?.secretKey ?? envDefaults.secretKey ?? '',
-            publicKey: stored?.publicKey ?? envDefaults.publicKey ?? '',
-            processingChannelId: stored?.processingChannelId ?? envDefaults.processingChannelId ?? '',
-            stripeKey: stored?.stripeKey ?? envDefaults.stripeApiKey ?? '',
-            adyenKey: stored?.adyenKey ?? envDefaults.adyenApiKey ?? '',
+            secretKey: clean.secretKey,
+            publicKey: stored.publicKey || _info.publicKey,
+            processingChannelId: stored.processingChannelId || _info.processingChannelId,
+            stripeKey: clean.stripeKey,
+            adyenKey: clean.adyenKey,
         };
 
         setVal('fwd-cfg-secret-key', _config.secretKey);
@@ -67,23 +104,32 @@
         setVal('fwd-cfg-channel-id', _config.processingChannelId);
         setVal('fwd-cfg-stripe-key', _config.stripeKey);
         setVal('fwd-cfg-adyen-key', _config.adyenKey);
+        el('fwd-cfg-secret-key').placeholder = keyHint('secretKey', 'sk_sbox_...');
+        el('fwd-cfg-stripe-key').placeholder = keyHint('stripeApiKey', 'sk_test_...');
+        el('fwd-cfg-adyen-key').placeholder = keyHint('adyenApiKey', 'AQE...');
+        const rem = el('fwd-cfg-remember'); if (rem) rem.checked = remembering();
         setVal('fwd-processing-channel-display', _config.processingChannelId);
     }
 
     function saveForwardConfig() {
         _config = {
-            secretKey: val('fwd-cfg-secret-key'),
-            publicKey: val('fwd-cfg-public-key'),
-            processingChannelId: val('fwd-cfg-channel-id'),
-            stripeKey: val('fwd-cfg-stripe-key'),
-            adyenKey: val('fwd-cfg-adyen-key'),
+            secretKey: val('fwd-cfg-secret-key').trim(),
+            publicKey: val('fwd-cfg-public-key').trim(),
+            processingChannelId: val('fwd-cfg-channel-id').trim(),
+            stripeKey: val('fwd-cfg-stripe-key').trim(),
+            adyenKey: val('fwd-cfg-adyen-key').trim(),
         };
-        localStorage.setItem(CFG_STORAGE_KEY, JSON.stringify(_config));
+        // Only what differs from the server's suggestion is the visitor's own value; the rest keeps following the server / Settings account.
+        writeSecrets(CFG_STORAGE_KEY, {
+            ..._config,
+            publicKey: _config.publicKey !== _info.publicKey ? _config.publicKey : '',
+            processingChannelId: _config.processingChannelId !== _info.processingChannelId ? _config.processingChannelId : '',
+        });
         setVal('fwd-processing-channel-display', _config.processingChannelId);
         const statusEl = el('fwd-cfg-status');
         statusEl.style.display = '';
         statusEl.style.color = 'var(--success)';
-        statusEl.textContent = '✓ Saved to this browser. Used only for Forward API calls on this tab.';
+        statusEl.textContent = remembering() ? '✓ Saved on this device. Used only for Forward API calls on this tab.' : '✓ Saved for this browser tab only (cleared when the tab closes). Tick “Remember on this device” to keep it.';
         setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
         // Re-mount tokenizer with new creds if token source is active
         if (_source === 'token') mountTokenCardField();
@@ -91,9 +137,9 @@
     }
 
     async function resetForwardConfig() {
-        localStorage.removeItem(CFG_STORAGE_KEY);
+        clearSecrets(CFG_STORAGE_KEY);
         await loadForwardConfig();
-        showToast('Forward API config reset to .env defaults', 'success');
+        showToast('Forward API config reset to the server defaults', 'success');
         if (_source === 'token') mountTokenCardField();
         refreshActiveDestinationCreds();
     }
@@ -153,7 +199,7 @@
         if (!_config.publicKey || !_config.processingChannelId) {
             host.innerHTML = `<div style="font-size:12px; color:var(--error); padding:12px 0;">
                 ⚠️ No public key / processing channel ID configured. Open <strong>Forward API Config</strong> above
-                and fill them in (or click "Reset to .env defaults" if <code>GET /forward-config</code> isn't reachable yet —
+                and fill them in (or click "Reset to server defaults" if <code>GET /forward-config</code> isn't reachable yet —
                 check the new backend routes are deployed).</div>`;
             el('fwd-tokenize-btn').disabled = true;
             return;
@@ -171,7 +217,8 @@
                 failure_url: `${window.location.origin}/failure.html`,
                 disabled_payment_methods: ['remember_me'],
                 billing: { address: { country: 'DE' } },
-                overrideSecretKey: _config.secretKey,
+                // own key typed in the panel → send it (body, never a URL); otherwise the server uses its Forward / Settings-account key
+                ...(_config.secretKey ? { overrideSecretKey: _config.secretKey } : { useForwardCreds: true }),
             };
             const sessionRes = await fetch(`${API_BASE}/payment-sessions`, {
                 method: 'POST',
@@ -179,7 +226,7 @@
                 body: JSON.stringify(sessionBody),
             });
             const paymentSession = await sessionRes.json();
-            addToApiLog('POST', '/payment-sessions (forward tokenizer)', sessionRes.status, { ...sessionBody, overrideSecretKey: '•••' }, paymentSession);
+            addToApiLog('POST', '/payment-sessions (forward tokenizer)', sessionRes.status, { ...sessionBody, ...(sessionBody.overrideSecretKey ? { overrideSecretKey: '•••' } : {}) }, paymentSession);
 
             if (!paymentSession?.id) throw new Error('Payment session creation failed: ' + JSON.stringify(paymentSession));
 
@@ -236,10 +283,14 @@
         hint.textContent = '';
 
         try {
-            const url = `${API_BASE}/forward-customer-instruments?customerId=${encodeURIComponent(customerId)}&overrideSecretKey=${encodeURIComponent(_config.secretKey)}`;
-            const res = await fetch(url);
+            // POST + body: a key must never travel in a URL (access logs, browser history).
+            const res = await fetch(`${API_BASE}/forward-customer-instruments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customerId, ...(_config.secretKey ? { overrideSecretKey: _config.secretKey } : {}) }),
+            });
             const data = await res.json();
-            addToApiLog('GET', '/forward-customer-instruments', res.status, { customerId, overrideSecretKey: '•••' }, data);
+            addToApiLog('POST', '/forward-customer-instruments', res.status, { customerId, ...(_config.secretKey ? { overrideSecretKey: '•••' } : {}) }, data);
 
             if (!res.ok) throw new Error(data?.error?.error_type || data?.error || `Request failed (${res.status})`);
 
@@ -294,12 +345,12 @@
     // custom) independently, persisted per browser — separate from the
     // one-off raw headers editing in section 4.
     function getAuthOverrides() {
-        try { return JSON.parse(localStorage.getItem(DEST_AUTH_STORAGE_KEY) || '{}'); } catch { return {}; }
+        return readSecrets(DEST_AUTH_STORAGE_KEY) || {};
     }
     function setAuthOverride(key, value) {
         const overrides = getAuthOverrides();
         if (value) overrides[key] = value; else delete overrides[key];
-        localStorage.setItem(DEST_AUTH_STORAGE_KEY, JSON.stringify(overrides));
+        writeSecrets(DEST_AUTH_STORAGE_KEY, overrides);
     }
 
     // Resolves what the Authorization header value should actually be for a
@@ -311,13 +362,14 @@
         const overrides = getAuthOverrides();
         if (overrides[dest.key]) return overrides[dest.key];
         if (dest.autoAuth === 'forwardConfigSecretKey') {
-            return `Bearer ${_config.secretKey || '<set a secret key in Forward API Config>'}`;
+            // empty = the server default (or the Settings account): the server swaps this placeholder in, the key never reaches the browser
+            return `Bearer ${_config.secretKey || (hasDefault('secretKey') ? '{{server.secret_key}}' : '<set a secret key in Forward API Config>')}`;
         }
         if (dest.autoAuth === 'forwardConfigStripeKey') {
-            return `Bearer ${_config.stripeKey || '<set Stripe API Key in Forward API Config>'}`;
+            return `Bearer ${_config.stripeKey || (hasDefault('stripeApiKey') ? '{{server.stripe_api_key}}' : '<set Stripe API Key in Forward API Config>')}`;
         }
         if (dest.autoAuth === 'forwardConfigAdyenKey') {
-            return _config.adyenKey || '<set Adyen API Key in Forward API Config>';
+            return _config.adyenKey || (hasDefault('adyenApiKey') ? '{{server.adyen_api_key}}' : '<set Adyen API Key in Forward API Config>');
         }
         const headerName = authHeaderName(dest).toLowerCase();
         const authHeader = (dest.headers || []).find(h => h.key.toLowerCase() === headerName);
@@ -362,7 +414,7 @@
         const current = resolveAuthValue(dest);
         const isAuto = !!dest.autoAuth && !getAuthOverrides()[dest.key];
         // All three keys now live in the Forward API Config panel — that panel itself
-        // defaults from .env until edited, so "auto" always just means "from that panel".
+        // follows the server defaults until edited, so "auto" always just means "from that panel".
         const autoSourceLabel = dest.autoAuth ? 'Forward API Config' : '';
         box.style.display = 'flex';
         box.innerHTML = `
@@ -1008,7 +1060,7 @@
         btn.disabled = true;
         btn.textContent = 'Forwarding…';
 
-        const reqPayload = { ...body, overrideSecretKey: _config.secretKey };
+        const reqPayload = { ...body, ...(_config.secretKey ? { overrideSecretKey: _config.secretKey } : {}) };   // none → the server's default / Settings account
         const logRequest = { ...body }; // never log the secret key
 
         try {
@@ -1151,6 +1203,11 @@
         el('fwd-config-toggle').addEventListener('click', toggleConfigPanel);
         el('fwd-cfg-save-btn').addEventListener('click', saveForwardConfig);
         el('fwd-cfg-reset-btn').addEventListener('click', resetForwardConfig);
+        el('fwd-cfg-remember')?.addEventListener('change', (e) => {
+            const keys = [CFG_STORAGE_KEY, DEST_AUTH_STORAGE_KEY];
+            if (e.target.checked) { localStorage.setItem(REMEMBER_KEY, '1'); keys.forEach(k => { const v = sessionStorage.getItem(k); if (v) localStorage.setItem(k, v); }); }
+            else { localStorage.removeItem(REMEMBER_KEY); keys.forEach(k => localStorage.removeItem(k)); }
+        });
         el('fwd-cfg-secret-toggle').addEventListener('click', () => {
             const input = el('fwd-cfg-secret-key');
             input.type = input.type === 'password' ? 'text' : 'password';

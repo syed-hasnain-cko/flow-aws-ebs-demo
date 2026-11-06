@@ -17,7 +17,8 @@
     "aws:verify": "node scripts/aws/verify.js",
     "release": "node scripts/aws/release.js",
     "lambda:env": "node scripts/aws/lambda-env.js",
-    "webhook:store": "node scripts/aws/webhook-store.js"
+    "webhook:store": "node scripts/aws/webhook-store.js",
+    "secrets:sync": "node scripts/aws/secrets.js"
   },
   "keywords": [],
   "author": "",

@@ -15,6 +15,7 @@ const { aws, guard, PIN, ROOT, FRONTEND_URL, smokeTest, log, ok, warn, hasFlag, 
 const { deploy } = require('./lambda-deploy');
 const { syncRoutes } = require('./api-sync');
 const { planEnv, syncEnv } = require('./lambda-env');
+const { secretsStatus } = require('./secrets');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' }).trim();
 
@@ -46,6 +47,10 @@ function banner(complete, lines) {
             const overwrite = (flagValue('--overwrite') || '').split(',').filter(Boolean);
             const pre = planEnv({ overwrite });
             if (pre.report.blocked.length) { await syncEnv({ apply: false, overwrite }); }
+            // secret values are not on the Lambda environment any more — make sure the code is not about to need one that exists nowhere
+            const sec = secretsStatus();
+            if (sec.blocked.length) throw new Error(`BLOCKED ${sec.blocked.map(b => b.name).join(', ')} — the code reads these secret value(s) but they are neither in the secrets store nor on the Lambda. Put the value in .env (or scripts/aws/.env.lambda), then run:  npm run secrets:sync -- --apply   (nothing was changed)`);
+            if (!sec.exists) log('  ⚠ the secrets store does not exist yet — run  npm run secrets:sync -- --apply  (secret values are still read from the Lambda environment until then)');
             log('\n[1/4] API Gateway routes');
             const sr = await syncRoutes({ apply });
             done.routes = sr.missing.length ? `${sr.plan.length} API Gateway resource(s) created` : 'all routes already reachable';

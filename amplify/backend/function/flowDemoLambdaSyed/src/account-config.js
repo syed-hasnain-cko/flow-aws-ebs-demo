@@ -61,6 +61,7 @@ function install(config) {
 }
 
 const gwUrl = () => effective('gwUrl');
+const customValue = (k) => custom(k) || '';           // the visitor's own value for a field on THIS request ('' when they use the server default)
 const isCustomActive = () => !!ctx()?.cfg;
 
 // ── webhook secrets: the default one plus those of accounts currently being tested ────────────────
@@ -243,4 +244,4 @@ router.post('/test', async (req, res) => {
     res.json({ results });
 });
 
-module.exports = { install, middleware, router, gwUrl, getCko, webhookSecrets, customAccountActive, isCustomActive, FIELDS, _test: { seal, unseal, validate, mask } };
+module.exports = { install, middleware, router, gwUrl, customValue, getCko, webhookSecrets, customAccountActive, isCustomActive, FIELDS, _test: { seal, unseal, validate, mask } };
