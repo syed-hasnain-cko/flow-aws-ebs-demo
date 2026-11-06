@@ -43,3 +43,6 @@ amplify/team-provider-info.json
 .aws-build/
 .aws-backups/
 scripts/aws/.env.lambda
+
+# Claude Code session worktrees (local scratch checkouts, never tracked)
+.claude/worktrees/
