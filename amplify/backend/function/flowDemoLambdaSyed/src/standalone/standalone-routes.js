@@ -161,6 +161,22 @@ router.get('/session', (req, res) => {
   return forward(req, res, { method: 'get', path: `/sessions/${id}`, scope: 'sessions:browser sessions:app', defaultAuth: 'oauth' });
 });
 
+// Non-hosted sessions: the merchant's browser drives the steps after "create" (3DS Method → channel data → challenge → complete).
+// The id is validated (sid_…) and the body is passed through as-is; the browser never sees an OAuth token.
+const SID = /^sid_[A-Za-z0-9]{10,60}$/;
+function sessionStep(method, suffix) {
+  return (req, res) => {
+    const id = String(req.query.id || '');
+    if (!SID.test(id)) {
+      return res.status(400).json({ upstream_status: 400, upstream: null, auth_mode: null, cko_request_id: null, data: { error: 'id must be a session id (sid_…)' } });
+    }
+    return forward(req, res, { method, path: `/sessions/${id}/${suffix}`, body: method === 'post' && !Object.keys(req.body || {}).length ? undefined : req.body, scope: 'sessions:browser sessions:app', defaultAuth: 'oauth' });
+  };
+}
+router.put('/session-collect-data', sessionStep('put', 'collect-data'));            // PUT  /sessions/{id}/collect-data
+router.put('/session-issuer-fingerprint', sessionStep('put', 'issuer-fingerprint')); // PUT  /sessions/{id}/issuer-fingerprint
+router.post('/session-complete', sessionStep('post', 'complete'));                  // POST /sessions/{id}/complete
+
 // ---------------------------------------------------------------------------
 // Network Tokens — secret key by default
 // ---------------------------------------------------------------------------

@@ -889,7 +889,7 @@
         const st = s.status;
         let cls = 'info', icon = '⏳', msg, jump = false;
         if (!isFinalStatus(st)) {
-            msg = (s.next_actions || []).includes('challenge_cardholder') ? '<strong>Challenge required (non_hosted).</strong> Non-hosted sessions leave the challenge UI to you, and this tester has none — create a <strong>hosted</strong> session for challenge cards.'
+            msg = (s.next_actions || []).includes('challenge_cardholder') ? '<strong>Challenge required (non_hosted).</strong> Non-hosted sessions leave the challenge UI to you — run it end to end (with a choice of presentation themes) in the <strong>3DS Non-hosted</strong> tab, or create a <strong>hosted</strong> session here.'
                 : st === 'pending' && (s.next_actions || []).some(a => a === 'collect_channel_data' || a === 'issuer_fingerprint') ? '<strong>Waiting for channel data.</strong> This non-hosted session was created without <code>channel_data</code> — switch on “Redirectless frictionless” so it is sent with the session.'
                 : st === 'pending' ? 'Waiting for the cardholder — redirect them to the hosted page (Step 2). This page keeps polling and restores itself when they come back.'
                 : st === 'challenged' ? 'The issuer requires a challenge — redirect the cardholder to the hosted page (Step 2) and complete it (password <code>Checkout1!</code>).'

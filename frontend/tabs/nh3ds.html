@@ -1,0 +1,148 @@
+<style>
+    .nh-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .nh-card { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); padding:16px; margin-top:14px; }
+    .nh-card > h3 { margin:0 0 4px; font-size:15px; color:var(--text-primary); display:flex; gap:8px; align-items:center; }
+    .nh-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px 16px; margin-top:12px; }
+    .nh-grid label.l { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
+    .nh-grid .text-input, .nh-grid .select-input { width:100%; box-sizing:border-box; }
+    .nh-toggle { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--text-primary); line-height:1.5; cursor:pointer; }
+    .nh-toggle input { margin-top:3px; }
+    .nh-toggle small { display:block; color:var(--text-secondary); }
+    .nh-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+    .nh-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; border:1px solid var(--border); background:var(--bg-subtle); color:var(--text-secondary); white-space:nowrap; }
+    .nh-badge.good { background:var(--success); border-color:var(--success); color:#fff; }
+    .nh-badge.warn { background:#f59e0b; border-color:#f59e0b; color:#fff; }
+    .nh-badge.bad  { background:var(--error); border-color:var(--error); color:#fff; }
+    .nh-badge.info { background:var(--primary); border-color:var(--primary); color:#fff; }
+
+    /* theme gallery */
+    .nh-themes { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-top:12px; }
+    .nh-theme { border:2px solid var(--border); border-radius:10px; padding:8px; cursor:pointer; background:var(--bg-subtle); transition:border-color .15s; }
+    .nh-theme:hover { border-color:var(--primary); }
+    .nh-theme.on { border-color:var(--primary); box-shadow:0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent); }
+    .nh-theme .t { font-size:12px; font-weight:700; color:var(--text-primary); margin-top:6px; }
+    .nh-theme .d { font-size:11px; color:var(--text-secondary); line-height:1.4; }
+    .nh-mini { position:relative; height:58px; border-radius:6px; background:#cbd5e1; overflow:hidden; }
+    .nh-mini i { position:absolute; background:#fff; border-radius:4px; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+    .nh-mini.dark i { background:#0f172a; } .nh-mini.brand i { background:#fff; border-top:6px solid #186aff; }
+    .nh-mini.modal i { left:28%; top:9px; width:44%; height:40px; }
+    .nh-mini.sheet i { left:14%; right:14%; bottom:0; height:30px; border-radius:8px 8px 0 0; }
+    .nh-mini.drawer i { right:0; top:0; bottom:0; width:42%; border-radius:0; }
+    .nh-mini.fullscreen i { inset:0; border-radius:0; }
+    .nh-mini.inline { background:var(--bg-card); border:1px dashed var(--border); } .nh-mini.inline i { left:10%; right:10%; top:14px; height:30px; box-shadow:none; border:1px solid #94a3b8; }
+
+    /* stepper */
+    .nh-step { margin-top:10px; border:1px solid var(--border); border-left:4px solid var(--border); border-radius:10px; background:var(--bg-subtle); padding:10px 12px; }
+    .nh-step.ok { border-left-color:var(--success); } .nh-step.fail { border-left-color:var(--error); } .nh-step.wait, .nh-step.running { border-left-color:var(--primary); }
+    .nh-step.skip { opacity:.65; border-style:dashed; border-left-style:dashed; }
+    .nh-sh { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .nh-n { display:inline-flex; width:22px; height:22px; border-radius:50%; background:var(--border); color:var(--text-primary); font-size:12px; font-weight:700; align-items:center; justify-content:center; flex-shrink:0; }
+    .nh-step.ok .nh-n { background:var(--success); color:#fff; } .nh-step.fail .nh-n { background:var(--error); color:#fff; } .nh-step.wait .nh-n, .nh-step.running .nh-n { background:var(--primary); color:#fff; }
+    .nh-st { font-size:14px; font-weight:700; color:var(--text-primary); }
+    .nh-api { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text-secondary); }
+    .nh-tag { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); border:1px solid var(--border); border-radius:6px; padding:1px 6px; }
+    .nh-ms { margin-left:auto; font-size:11px; color:var(--text-secondary); font-family:'JetBrains Mono', monospace; }
+    .nh-sum { margin-top:6px; font-size:12px; color:var(--text-primary); line-height:1.6; }
+    .nh-step details > summary { cursor:pointer; font-size:11px; color:var(--text-secondary); margin-top:5px; }
+    .nh-pre { margin:6px 0 0; padding:10px; max-height:260px; overflow:auto; font-size:11px; font-family:'JetBrains Mono', monospace; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; white-space:pre-wrap; word-break:break-all; }
+    .nh-final { margin-top:14px; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg-subtle); }
+    .nh-final.good { border-color:var(--success); } .nh-final.bad { border-color:var(--error); } .nh-final.warn { border-color:#f59e0b; }
+    .nh-final .t { font-size:15px; font-weight:700; color:var(--text-primary); } .nh-final .d { font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.6; }
+    .nh-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:8px; }
+    .nh-table td { padding:5px 8px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:top; }
+    .nh-table td:first-child { color:var(--text-secondary); width:34%; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+    .nh-table code { font-family:'JetBrains Mono', monospace; font-size:12px; word-break:break-all; }
+    #nh3ds-tab .main-button:disabled, #nh3ds-tab .copy-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+    /* ---- challenge host (what a merchant's page renders around the issuer's challenge) ---- */
+    .nh-ov { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,.55); animation:nhFade .18s ease; }
+    .nh-ov.nh-skin-dark { background:rgba(2,6,23,.72); backdrop-filter:blur(8px); }
+    .nh-ch { display:flex; flex-direction:column; background:#fff; color:#111827; border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.35); max-width:96vw; max-height:94vh; overflow:hidden; font-family:Inter, system-ui, sans-serif; }
+    .nh-ch-head { display:flex; gap:8px; align-items:center; padding:12px 16px; border-bottom:1px solid #e5e7eb; font-size:14px; }
+    .nh-ch-head b { flex:1; } .nh-x { border:0; background:transparent; font-size:22px; line-height:1; cursor:pointer; color:inherit; opacity:.7; } .nh-x:hover { opacity:1; }
+    .nh-ch-body { position:relative; flex:1; min-height:0; display:flex; }
+    .nh-frame { border:0; background:#fff; display:block; max-width:100%; }
+    .nh-spin { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:inherit; z-index:1; }
+    .nh-spin::after { content:''; width:28px; height:28px; border-radius:50%; border:3px solid #d1d5db; border-top-color:#186aff; animation:nhSpin .8s linear infinite; }
+    .nh-ch-foot { padding:8px 16px; border-top:1px solid #e5e7eb; font-size:11px; color:#6b7280; text-align:center; }
+    .nh-skin-dark .nh-ch, .nh-ch.nh-skin-dark { background:#0f172a; color:#e5e7eb; border:1px solid #334155; }
+    .nh-skin-dark .nh-ch-head, .nh-skin-dark .nh-ch-foot, .nh-ch.nh-skin-dark .nh-ch-head, .nh-ch.nh-skin-dark .nh-ch-foot { border-color:#334155; color:#cbd5e1; }
+    .nh-skin-dark .nh-ch-body, .nh-ch.nh-skin-dark .nh-ch-body { padding:0 16px 16px; } .nh-skin-dark .nh-frame { border-radius:10px; }
+    .nh-skin-dark .nh-spin::after { border-color:#334155; border-top-color:#60a5fa; }
+    .nh-ch.nh-skin-brand .nh-ch-head { background:linear-gradient(135deg,#186aff,#6a3cff); color:#fff; border:0; }
+    /* layouts */
+    .nh-sheet { align-items:flex-end; } .nh-sheet .nh-ch { width:100%; max-width:560px; border-radius:20px 20px 0 0; animation:nhUp .25s ease; }
+    .nh-sheet .nh-ch-head::before { content:''; position:absolute; left:50%; top:6px; width:40px; height:4px; margin-left:-20px; border-radius:2px; background:#cbd5e1; }
+    .nh-sheet .nh-ch-head { position:relative; padding-top:18px; }
+    .nh-drawer { justify-content:flex-end; align-items:stretch; } .nh-drawer .nh-ch { width:min(560px,100vw); max-height:100vh; height:100vh; border-radius:0; animation:nhLeft .25s ease; }
+    .nh-drawer .nh-frame, .nh-fullscreen .nh-frame { flex:1; width:100% !important; height:auto !important; }
+    .nh-fullscreen .nh-ch { width:100vw; height:100vh; max-width:100vw; max-height:100vh; border-radius:0; }
+    .nh-inline { margin-top:10px; } .nh-inline .nh-ch { box-shadow:none; border:1px solid var(--border); max-width:100%; }
+    .nh-badge-prev { background:#fef3c7; color:#92400e; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; }
+    @keyframes nhFade { from { opacity:0 } to { opacity:1 } } @keyframes nhSpin { to { transform:rotate(360deg) } }
+    @keyframes nhUp { from { transform:translateY(40px); opacity:0 } to { transform:none; opacity:1 } } @keyframes nhLeft { from { transform:translateX(40px); opacity:0 } to { transform:none; opacity:1 } }
+</style>
+
+<div class="context-area" id="nh-root">
+    <h2 class="section-header">3DS · Non-hosted (browser channel)</h2>
+    <p class="nh-note" style="margin-top:-6px;">
+        With a <b>non-hosted</b> session the merchant's own page runs the authentication: it asks Checkout.com for a session, gathers the browser's 3DS Method fingerprint and device data, and renders the issuer's
+        challenge itself. This tab is a working reference of those six steps with a live request and response for each. The challenge is shown in the <b>presentation theme</b> you pick, so you can compare how a
+        modal, a bottom sheet or a full-screen takeover feels. <b>Browser channel only</b> — the app channel needs Checkout.com's iOS / Android 3DS SDKs.
+    </p>
+
+    <div class="nh-card">
+        <h3>1 · Pick a scenario</h3>
+        <div class="nh-grid">
+            <div>
+                <label class="l" for="nh-card">Test card (the card decides the outcome)</label>
+                <select id="nh-card" class="select-input"></select>
+            </div>
+            <div id="nh-custom-wrap" style="display:none;">
+                <label class="l" for="nh-pan">Card number</label>
+                <input id="nh-pan" class="text-input" inputmode="numeric" placeholder="Any 3DS test card">
+            </div>
+            <div><label class="l" for="nh-amount">Amount (minor units)</label><input id="nh-amount" class="text-input" type="number" min="1" value="100"></div>
+            <div><label class="l" for="nh-currency">Currency</label><select id="nh-currency" class="select-input"><option>USD</option><option>GBP</option><option>EUR</option></select></div>
+            <div>
+                <label class="l" for="nh-indicator">Challenge indicator</label>
+                <select id="nh-indicator" class="select-input">
+                    <option value="no_preference">no_preference</option>
+                    <option value="challenge_requested">challenge_requested</option>
+                    <option value="challenge_requested_mandated">challenge_requested_mandated</option>
+                    <option value="no_challenge_requested">no_challenge_requested</option>
+                </select>
+            </div>
+        </div>
+        <p class="nh-note" id="nh-card-hint" style="margin:10px 0 0;"></p>
+        <div class="nh-grid" style="margin-top:10px;">
+            <label class="nh-toggle"><input type="checkbox" id="nh-fast"><span><b>Send browser data with the session</b><small>Skips steps 3–4 (<code>channel_data</code> sent when creating)</small></span></label>
+            <label class="nh-toggle"><input type="checkbox" id="nh-stepmode"><span><b>Step through manually</b><small>Pause before each step so you can read it</small></span></label>
+        </div>
+    </div>
+
+    <div class="nh-card">
+        <h3>2 · Challenge presentation theme</h3>
+        <p class="nh-note" style="margin:0;">
+            The <b>content</b> of the challenge (password page, OTP, biometric prompt) is rendered by the <b>issuer's ACS</b> inside an iframe and cannot be restyled by the merchant. What the merchant controls — and what these
+            themes change — is the <b>container</b>: layout, colours, header, loader, window size (<code>challengeWindowSize</code>) and how a cancelled challenge is handled.
+        </p>
+        <div class="nh-themes" id="nh-themes"></div>
+        <div class="nh-grid" style="margin-top:10px;">
+            <div>
+                <label class="l" for="nh-size">Challenge window size (<code>challengeWindowSize</code>)</label>
+                <select id="nh-size" class="select-input"></select>
+            </div>
+        </div>
+        <div class="nh-actions"><button class="copy-btn" id="nh-preview" type="button">👁 Preview this theme</button><span class="nh-note">Preview uses a mock page — no session is created.</span></div>
+    </div>
+
+    <div class="nh-actions">
+        <button class="main-button" id="nh-run" type="button">▶ Run the flow</button>
+        <button class="copy-btn" id="nh-reset" type="button">Reset</button>
+        <button class="copy-btn" id="nh-gate" type="button" style="display:none;">Continue ▶</button>
+    </div>
+
+    <div id="nh-steps"></div>
+    <div id="nh-outcome"></div>
+</div>

@@ -30,6 +30,7 @@
         'cko-suite-3ds-consumed':   { label: '3DS · sessions already paid', kind: 'map', maxAgeDays: 30, maxEntries: 300, ts: (e) => e && e.at },
         'cko-suite-3ds-snapshots':  { label: '3DS · saved tab states (hosted redirect)', kind: 'map', maxAgeDays: 7, maxEntries: 10, ts: (e) => e && e.saved_at, heavy: true },
         'cko-suite-3ds-last-sid':   { label: '3DS · last session id' },
+        'cko-nh3ds-prefs':          { label: '3DS Non-hosted · last scenario & theme' },
         'cko-dunning-runs':         { label: 'Smart Dunning · recent runs', kind: 'list', maxEntries: 15 },
         'cko-wallet-onboarding-profiles': { label: 'Wallet Onboarding · merchants (sealed secret-key tokens)', kind: 'list', maxEntries: 40, sensitive: true },
         'cko-wallet-onboarding-prefs':    { label: 'Wallet Onboarding · last selections' },
