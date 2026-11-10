@@ -29,7 +29,7 @@ AI agent can wait for `[data-machine="dispute-action-wait"][data-state="found"]`
 | Webhook follower | standalone.js | idle (tab/panel hidden) ⇄ listening ⇄ paused | **migrated** (branch `refactor/webhook-follower-machine`): machine `standalone-webhook-follower` drives the `sa-wh-state` text (same words) and `data-state`; polls are now single-flight (a poll requested during one in flight runs once afterwards). Jsdom-tested against the real `standalone.js` |
 | Non-hosted 3DS run | nh3ds.js | idle → creating → fingerprint → collect → challenge → complete → done / cancelled (token `S.run` guards stale runs) | already disciplined; could adopt `Common.machine` |
 | Busy buttons | ~35 `btn.disabled = true … finally` sites; `runBusy()` in standalone.js | idle → busy → idle | **partly migrated** (branch `refactor/busy-machine`): standalone `runBusy` (20 call sites), AFT card check, Smart Dunning initial payment, Disputes pay & trigger. Remaining sites (payouts, payment-setup, forward, wallet-onboarding, vault…) have bespoke text/flow — migrate one at a time with `busyStart` |
-| Flow card mount | standalone.js (`flowMounting`, `flowNeedsMount`) | unmounted → mounting → mounted → needs-remount (theme change) | candidate |
+| Flow card mount | standalone.js | stale → mounting → ready \| failed; ready → stale once used; any → mounting on a theme change | **migrated** (branch `refactor/flow-mount-machine`): machine `standalone-flow-card` replaces the two booleans `flowNeedsMount` / `flowMounting`. Jsdom-tested against the real `standalone.js` (first mount, theme-change remount, no concurrent mounts, failure + retry, no remount when switching modes) |
 | Link countdown | links.js | ticking → expired | trivial; left |
 
 ## Rules for new work

@@ -100,7 +100,7 @@
     const state = {
         product: null,
         mode: 'saved',
-        flowComponent: null, flowNeedsMount: true, flowMounting: false,
+        flowComponent: null,
         lastToken: null,
         sid: null, session: null, redirectHref: null, sessionSource: null, prefilled: {}, pollTimer: null, pollStatus: null, pollStarted: 0,
         payAuth: 'sid',
@@ -281,7 +281,7 @@
         document.querySelectorAll('#sa-mode-pills .sa-pill').forEach(p => p.classList.toggle('active', p.dataset.saMode === mode));
         ['saved', 'new', 'raw'].forEach(m => (m === mode ? show : hide)(`sa-mode-${m}`));
         if (mode === 'saved') renderInstrumentSelect();
-        if (mode === 'new' && state.flowNeedsMount) mountFlowCard();
+        if (mode === 'new' && flowMachine.is('stale', 'failed')) mountFlowCard();
         updateActiveSource();
         refreshPreviews();
     }
@@ -328,10 +328,20 @@
     }
 
     // ----- Flow tokenization (new card) -----
+    // The card field's lifecycle as an explicit machine (modules/machine.js, "standalone-flow-card" in CkoMachines):
+    //   stale (none yet / already used) → mounting → ready | failed ;  ready → stale after it is used ;  any → mounting on a (re)mount (e.g. theme change).
+    const flowMachine = window.Common.machine('standalone-flow-card', {
+        initial: 'stale',
+        states: {
+            stale:    { MOUNT: 'mounting' },
+            mounting: { READY: 'ready', FAIL: 'failed' },
+            ready:    { MOUNT: 'mounting', USED: 'stale' },
+            failed:   { MOUNT: 'mounting' },
+        },
+    });
     async function mountFlowCard() {
-        if (state.flowMounting) return;
-        state.flowMounting = true;
-        state.flowNeedsMount = false;
+        if (flowMachine.is('mounting')) return;
+        flowMachine.send('MOUNT');
         const host = $('sa-flow-host');
         host.innerHTML = '';
         show('sa-flow-loading');
@@ -365,13 +375,13 @@
             state.flowComponent = checkout.create('card', { showPayButton: false });
             if (await state.flowComponent.isAvailable()) state.flowComponent.mount(host);
             $('sa-tokenize-btn').disabled = false;
+            flowMachine.send('READY');
         } catch (err) {
-            state.flowNeedsMount = true;
+            flowMachine.send('FAIL');
             $('sa-tokenize-hint').textContent = '❌ Failed to load card field: ' + err.message;
             showToast('Failed to load card field: ' + err.message, 'error');
         } finally {
             hide('sa-flow-loading');
-            state.flowMounting = false;
         }
     }
 
@@ -407,7 +417,7 @@
         if (!env.ok || !env.data?.id) {
             $('sa-tokenize-hint').textContent = `❌ Instrument creation failed (${env.upstream_status}) — see API log. The token above can still be used for Card Metadata.`;
             showToast('Instrument creation failed: ' + (env.data?.error_codes?.join(', ') || env.upstream_status), 'error');
-            state.flowNeedsMount = true;
+            flowMachine.send('USED');
             return;
         }
         const d = env.data;
@@ -420,7 +430,7 @@
         });
         if (customer.note) showToast(customer.note);
         showToast(`Saved ${d.id} — selected as the active card`);
-        state.flowNeedsMount = true;      // the Flow field has been used; remount a fresh one next time
+        flowMachine.send('USED');         // the Flow field has been used; remount a fresh one next time
         $('sa-tokenize-hint').textContent = '';
         setMode('saved');
         renderInstrumentSelect(d.id);
@@ -2346,7 +2356,7 @@
         state.whTimer = setInterval(pollWebhooks, 3000);
 
         // Theme change → remount Flow card field with the new appearance
-        document.addEventListener('themechange', () => { if (state.mode === 'new' && !state.flowMounting) { state.flowNeedsMount = true; mountFlowCard(); } });
+        document.addEventListener('themechange', () => { if (state.mode === 'new' && !flowMachine.is('mounting')) mountFlowCard(); });
 
         renderInstrumentSelect();
         renderNtSelect();
