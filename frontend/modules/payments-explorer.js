@@ -14,7 +14,7 @@
     const { $, val, esc, money } = window.Common;
     const tabActive = () => $('payments-tab')?.classList.contains('active');
 
-    const state = { results: [], selected: null, pay: null, actions: [], events: [], busy: false, loaded: false, lastQuery: null, watching: null };
+    const state = { results: [], selected: null, pay: null, actions: [], events: [], loaded: false, lastQuery: null, watching: null };
 
     // =====================================================================
     // HTTP — everything goes through the allowlisted proxy; only the Checkout.com exchange is logged
@@ -45,14 +45,20 @@
 
     // One request at a time (buttons are locked while it runs). A click that arrives meanwhile is not dropped: the
     // most recent one is queued and runs as soon as the current request finishes.
+    // The lock is an explicit machine (modules/machine.js, "payments-explorer-request"): idle ⇄ busy. #pe-root carries data-state.
+    const reqMachine = window.Common.machine('payments-explorer-request', {
+        initial: 'idle',
+        states: { idle: { START: 'busy' }, busy: { DONE: 'idle' } },
+    });
     async function withBusy(fn) {
-        if (state.busy) { state.queued = fn; return; }
-        state.busy = true;
+        if (reqMachine.is('busy')) { state.queued = fn; return; }
+        if (reqMachine.el !== $('pe-root')) reqMachine.bind($('pe-root'));
+        reqMachine.send('START');
         $('pe-root').classList.add('pe-busy');
         try { return await fn(); }
         catch (err) { console.error('[payments]', err); showToast(err.message || 'Request failed', 'error'); }
         finally {
-            state.busy = false; $('pe-root').classList.remove('pe-busy'); render();
+            reqMachine.send('DONE'); $('pe-root').classList.remove('pe-busy'); render();
             const next = state.queued; state.queued = null;
             if (next) withBusy(next);
         }
@@ -151,27 +157,34 @@
     // After an action, Checkout.com confirms asynchronously by webhook. Watch the (non-consuming) webhook buffer for this
     // payment and reload it whenever a new event arrives, so status, balances, buttons and the list row update by themselves.
     // Bounded: ~2 minutes, only for the payment just acted on, stops when another payment is opened.
+    // The watch is an explicit machine on the shared waitFor ("payments-explorer-watch": waiting → timeout | cancelled).
+    // It never "finds" — it keeps reloading on every new webhook until the 2 minutes are over or another payment is opened.
+    let watchWait = null;
+    function stopWatching() {
+        state.watching = null;                       // before cancel(): the settle callback must not re-render a stale state
+        if (watchWait) { watchWait.cancel(); watchWait = null; }
+    }
     function watchPayment(id) {
-        const token = state.watching = { id, stop: false };
         const seen = new Set(state.events.map(e => e.event_id));
-        const deadline = Date.now() + 120000;
-        (async function tick() {
-            while (!token.stop && state.watching === token && Date.now() < deadline) {
-                await new Promise(r => setTimeout(r, 2500));
-                if (token.stop || state.watching !== token || state.selected !== id) break;
-                try {
-                    const res = await fetch(`${API_BASE}/standalone/webhook-events?match=${encodeURIComponent(id)}`);
-                    const j = await res.json();
-                    const fresh = res.ok ? (j.events || []).filter(e => !seen.has(e.event_id)) : [];
-                    if (fresh.length) {
-                        fresh.forEach(e => seen.add(e.event_id));
-                        showToast(`Webhook: ${fresh.map(e => e.type).join(', ')}`);
-                        await withBusy(() => loadPayment(id, { quiet: true }));
-                    }
-                } catch (e) { /* transient — try again on the next tick */ }
-            }
-            if (state.watching === token) { state.watching = null; render(); }
-        })();
+        const mine = state.watching = { id };
+        watchWait = window.Common.waitFor({
+            name: 'payments-explorer-watch',
+            intervalMs: 2500,
+            timeoutMs: 120000,
+            async check() {
+                if (state.selected !== id) { if (watchWait) watchWait.cancel(); return null; }   // another payment was opened
+                const res = await fetch(`${API_BASE}/standalone/webhook-events?match=${encodeURIComponent(id)}`);
+                const j = await res.json();
+                const fresh = res.ok ? (j.events || []).filter(e => !seen.has(e.event_id)) : [];
+                if (fresh.length) {
+                    fresh.forEach(e => seen.add(e.event_id));
+                    showToast(`Webhook: ${fresh.map(e => e.type).join(', ')}`);
+                    await withBusy(() => loadPayment(id, { quiet: true }));
+                }
+                return null;
+            },
+            onSettle: () => { if (state.watching === mine) { state.watching = null; render(); } },
+        });
         render();
     }
 
@@ -361,7 +374,7 @@
         const cp = ev.target.closest('[data-pe-copy]');
         if (cp) return copy(cp);
         const row = ev.target.closest('[data-pe-select]');
-        if (row) { const id = row.dataset.peSelect; state.showRaw = false; if (state.watching && state.watching.id !== id) { state.watching.stop = true; state.watching = null; } return withBusy(() => loadPayment(id)); }
+        if (row) { const id = row.dataset.peSelect; state.showRaw = false; if (state.watching && state.watching.id !== id) stopWatching(); return withBusy(() => loadPayment(id)); }
         const act = ev.target.closest('[data-pe-act]');
         if (!act || act.disabled) return;
         const k = act.dataset.peAct;
