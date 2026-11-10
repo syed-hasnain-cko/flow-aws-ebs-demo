@@ -31,7 +31,7 @@
         { n: '5420951756276171', scheme: 'Mastercard', cc: 'TN', code: '20061', note: 'Activity amount limit exceeded' },
     ];
 
-    const state = { openRows: new Set(), rowScroll: new Map(), tlHtml: '', payId: null, first: null, pay: null, actions: [], events: [], ckoEvents: [], timer: null, startedAt: 0, endedAt: 0, cancelRequested: false, busy: false };
+    const state = { openRows: new Set(), rowScroll: new Map(), tlHtml: '', payId: null, first: null, pay: null, actions: [], events: [], ckoEvents: [], startedAt: 0, endedAt: 0, cancelRequested: false };
 
     // ---- HTTP (same allowlisted proxy as the Payments tab; only the Checkout.com exchange is logged) ------------------
     async function pcall(method, path, body, quiet) {
@@ -122,13 +122,13 @@
     function showError(msg) { const el = $('sd-error'); el.textContent = msg || ''; el.style.display = msg ? 'block' : 'none'; }
 
     async function run() {
-        if (state.busy) return;
+        if ($('sd-run').disabled) return;                                        // already running
         showError('');
         const body = buildBody();
         if (digits().length < 13) return showError('Enter a card number (13–19 digits) or load one from the test cards.');
         if (!(body.amount > 0)) return showError('Amount must be greater than 0.');
         if (!body.currency) return showError('Choose a currency.');
-        state.busy = true; $('sd-run').disabled = true; $('sd-run').textContent = 'Running…';
+        const done = window.Common.busyStart('sd-run', 'Running…'); if (!done) return;
         stopWatch();
         try {
             const res = await fetch(`${API_BASE}/payments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -142,7 +142,7 @@
         } catch (err) {
             showError('Request failed: ' + err.message);
         } finally {
-            state.busy = false; $('sd-run').disabled = false; $('sd-run').textContent = 'Run MIT with Smart Dunning';
+            done();
         }
     }
 
@@ -171,20 +171,43 @@
     // ---- Watching -----------------------------------------------------------------------------------------------------
     // Nothing here polls Checkout.com. A timer only looks at this app's own webhook buffer (not logged); when a new webhook for the
     // payment arrives, the payment is reloaded once, quietly (not written to the API log). The Refresh button reloads on demand and is logged.
-    function stopWatch() { if (state.timer) { clearInterval(state.timer); state.timer = null; } renderRun(); }
+    // The watch as an explicit machine (modules/machine.js — "smart-dunning-watch" in CkoMachines):
+    //   idle → watching → settling (the payment reached a final status; 20 s grace for trailing webhooks) → ended   (also: ended by the 6 min cap or Stop)
+    // A run token + per-call payment id keep a late response of an earlier payment out of the one now on screen; ticks never overlap.
+    const watch = window.Common.machine('smart-dunning-watch', {
+        initial: 'idle',
+        states: {
+            idle:     { START: 'watching', STOP: 'idle' },
+            watching: { START: 'watching', FINAL: 'settling', STOP: 'ended' },
+            settling: { START: 'watching', STOP: 'ended' },
+            ended:    { START: 'watching', STOP: 'ended' },
+        },
+    });
+    let watchTimer = null, watchRun = 0, ticking = false;
+    const listening = () => watch.is('watching', 'settling');
+    function stopWatch() {
+        if (watchTimer) { clearInterval(watchTimer); watchTimer = null; }
+        watchRun++;
+        watch.send('STOP');
+        renderRun();
+    }
     function startWatch() {
-        if (state.timer) clearInterval(state.timer);
+        if (watchTimer) clearInterval(watchTimer);
+        watchRun++;
         state.startedAt = Date.now(); state.endedAt = 0;
+        watch.send('START');
         renderRun();
         refreshPayment(true).then(renderRun);
-        state.timer = setInterval(tick, 3000);
+        watchTimer = setInterval(tick, 3000);
     }
     const evKey = (e) => e.event_id || `${e.type}|${e.received_at}`;
     // Deduplicated by event id — NOT by the buffer's sequence number, which restarts on every Lambda instance.
     async function pollEvents() {
+        const id = state.payId;
         try {
-            const res = await fetch(`${API_BASE}/standalone/webhook-events?match=${encodeURIComponent(state.payId)}`);
+            const res = await fetch(`${API_BASE}/standalone/webhook-events?match=${encodeURIComponent(id)}`);
             const j = await res.json();
+            if (id !== state.payId) return false;                                 // another payment is on screen now
             const seen = new Set(state.events.map(evKey));
             const fresh = res.ok ? (j.events || []).filter(e => !seen.has(evKey(e))) : [];
             if (fresh.length) {
@@ -196,23 +219,33 @@
         } catch (e) { return false; }
     }
     async function refreshPayment(quiet) {
-        if (!state.payId) return;
-        const [d, a] = await Promise.all([pcall('GET', `/payments/${encodeURIComponent(state.payId)}`, undefined, quiet), pcall('GET', `/payments/${encodeURIComponent(state.payId)}/actions`, undefined, quiet)]);
+        const id = state.payId;
+        if (!id) return;
+        const [d, a] = await Promise.all([pcall('GET', `/payments/${encodeURIComponent(id)}`, undefined, quiet), pcall('GET', `/payments/${encodeURIComponent(id)}/actions`, undefined, quiet)]);
+        if (id !== state.payId) return;                                           // another payment is on screen now
         if (d.ok && d.data) state.pay = d.data;
         if (a.ok && Array.isArray(a.data)) state.actions = a.data;
         renderRun();
     }
     // What Checkout.com generated for this payment (Events API) — covers webhooks that reached a different server instance.
     async function pullCkoEvents(quiet) {
-        const env = await pcall('GET', `/workflows/events/subject/${encodeURIComponent(state.payId)}`, undefined, quiet);
+        const id = state.payId;
+        const env = await pcall('GET', `/workflows/events/subject/${encodeURIComponent(id)}`, undefined, quiet);
+        if (id !== state.payId) return;
         if (env.ok && Array.isArray(env.data?.data)) state.ckoEvents = env.data.data.map(e => ({ event_id: e.id, type: e.type, created_on: e.timestamp }));
     }
     async function tick() {
-        if (await pollEvents()) await refreshPayment(true);
-        const fin = finalInfo();
-        if (fin && !fin.inProgress && !state.endedAt) state.endedAt = Date.now();
-        if ((state.endedAt && Date.now() - state.endedAt > 20000) || Date.now() - state.startedAt > 6 * 60 * 1000) stopWatch();
-        renderRun();
+        if (ticking) return;                                                      // never two ticks at once
+        ticking = true;
+        const run = watchRun;
+        try {
+            if (await pollEvents()) await refreshPayment(true);
+            if (run !== watchRun) return;                                         // stopped / restarted while the requests were in flight
+            const fin = finalInfo();
+            if (fin && !fin.inProgress && !state.endedAt) { state.endedAt = Date.now(); watch.send('FINAL'); }
+            if ((state.endedAt && Date.now() - state.endedAt > 20000) || Date.now() - state.startedAt > 6 * 60 * 1000) stopWatch();
+            renderRun();
+        } finally { ticking = false; }
     }
 
     async function cancelSchedule() {
@@ -220,7 +253,7 @@
         const btn = $('sd-cancel'); btn.disabled = true;
         const env = await pcall('POST', `/payments/${encodeURIComponent(state.payId)}/cancellations`, {});
         if (env.ok) { state.cancelRequested = true; showToast('Retry schedule cancel requested'); } else showToast(`Cancel failed: ${errText(env.data)}`, 'error');
-        if (!state.timer) startWatch(); else renderRun();
+        if (!listening()) startWatch(); else renderRun();
     }
 
     // ---- Interpretation -----------------------------------------------------------------------------------------------
@@ -313,9 +346,10 @@
         const fin = finalInfo();
         const st = $('sd-status'); st.textContent = (state.pay && state.pay.status) || '—'; st.className = 'sd-badge ' + (fin ? (fin.tone === 'warn' ? 'warn' : fin.tone) : '');
         $('sd-cancel').disabled = !(fin && fin.inProgress);
-        $('sd-stop').disabled = !state.timer;
+        $('sd-stop').disabled = !listening();
         const secs = Math.round((Date.now() - state.startedAt) / 1000);
-        $('sd-watch').textContent = state.timer
+        if (watch.el !== $('sd-watch')) watch.bind($('sd-watch'));
+        $('sd-watch').textContent = listening()
             ? `Listening for webhooks… ${secs}s · ${state.events.length} webhook${state.events.length === 1 ? '' : 's'} received${secs > 45 && !state.events.length ? ' — none yet: check that a workflow sends these events to this app (Webhooks tab).' : ''}`
             : `Not listening (${state.events.length} webhook${state.events.length === 1 ? '' : 's'} captured). Use Refresh to look again.`;
         $('sd-final').innerHTML = fin ? `<div class="sd-final ${fin.tone}"><div class="t">${esc(fin.title)} ${fin.status ? `<span class="sd-badge ${fin.tone === 'warn' ? 'warn' : fin.tone}" style="margin-left:6px;">${esc(fin.status)}</span>` : ''}</div><div class="d">${esc(fin.text)}</div></div>` : '';
