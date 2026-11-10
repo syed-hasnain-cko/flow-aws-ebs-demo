@@ -10,8 +10,8 @@
     // Statuses where there's nothing further to action from this UI.
     const TERMINAL_DISPUTE_STATUSES = ['won', 'lost', 'canceled', 'resolved', 'arbitration_won', 'arbitration_lost'];
 
-    let _pollInterval = null;       // polls for the dispute to first appear after the trigger payment
-    let _actionPollInterval = null; // polls for a webhook after Accept / Submit Evidence
+    let _pollWait = null;           // waitFor handle: the dispute first appearing after the trigger payment
+    let _actionWait = null;         // waitForWebhook handle: webhook after Accept / Submit Evidence
     let _currentDisputeId = null;
     let _actionsLocked = false;     // true once Accept or Submit Evidence succeeds for the current dispute
     let _lastDisputeList = [];
@@ -113,88 +113,78 @@
     }
 
     function stopPolling() {
-        if (_pollInterval) { clearInterval(_pollInterval); _pollInterval = null; }
+        if (_pollWait) { _pollWait.cancel(); _pollWait = null; }
     }
 
     function hidePollingPanel() {
         document.getElementById('dispute-polling-panel').style.display = 'none';
     }
 
+    // State machine (modules/machine.js): idle → waiting → found | timeout | failed | cancelled
     function startDisputePolling(paymentId) {
-        stopPolling();
         const panel = document.getElementById('dispute-polling-panel');
         const label = document.getElementById('dispute-polling-label');
         panel.style.display = 'block';
-        label.textContent = 'Waiting for Checkout.com to generate the test dispute (can take a few minutes)…';
 
-        const startTime = Date.now();
-        _pollInterval = setInterval(async () => {
-            if (Date.now() - startTime > 6 * 60 * 1000) {
-                stopPolling();
-                hidePollingPanel();
-                showToast('No dispute appeared within 6 minutes — use "Fetch Recent Disputes" below to check manually later.', 'error');
-                return;
-            }
-            try {
+        _pollWait = window.Common.waitFor({
+            name: 'dispute-creation-wait',
+            el: label,
+            intervalMs: 10000,
+            timeoutMs: 6 * 60 * 1000,
+            text: { waiting: 'Waiting for Checkout.com to generate the test dispute (can take a few minutes)…' },
+            async check() {
                 const res = await fetch(`${apiBase()}/disputes?payment_id=${paymentId}&limit=1`);
                 const data = await res.json();
 
-                // Don't log empty polls — only log the tick that actually finds
-                // something (a dispute) or a genuine failure, same as the
-                // webhook-polling pattern used elsewhere in this app.
+                // Don't log empty polls — only the tick that finds a dispute or a genuine failure.
                 if (!res.ok) {
                     await addToApiLog('GET', `poll disputes for payment ${paymentId} - /disputes`, res.status, {}, data);
-                    stopPolling();
-                    hidePollingPanel();
-                    showToast(`Polling failed (${res.status}) — check API Gateway route setup.`, 'error');
-                    return;
+                    throw Object.assign(new Error(`Polling failed (${res.status})`), { fatal: true, status: res.status });
                 }
-
                 if (data.total_count > 0 && data.data?.[0]) {
                     await addToApiLog('GET', `poll disputes for payment ${paymentId} - /disputes`, 200, {}, data);
-                    stopPolling();
-                    hidePollingPanel();
-                    _actionsLocked = false; // fresh dispute — any previous lock doesn't apply
-                    renderDisputeDetail(data.data[0]);
-                    showToast(`Dispute found: ${data.data[0].id}`);
+                    return data.data[0];
                 }
-            } catch (e) { /* ignore, retry next tick */ }
-        }, 10000);
+                return null;
+            },
+            onFound(dispute) {
+                hidePollingPanel();
+                _actionsLocked = false; // fresh dispute — any previous lock doesn't apply
+                renderDisputeDetail(dispute);
+                showToast(`Dispute found: ${dispute.id}`);
+            },
+            onTimeout() {
+                hidePollingPanel();
+                showToast('No dispute appeared within 6 minutes — use "Fetch Recent Disputes" below to check manually later.', 'error');
+            },
+            onFail(err) {
+                hidePollingPanel();
+                showToast(`Polling failed (${err.status}) — check API Gateway route setup.`, 'error');
+            },
+        });
     }
 
     function stopActionPoll() {
-        if (_actionPollInterval) { clearInterval(_actionPollInterval); _actionPollInterval = null; }
+        if (_actionWait) { _actionWait.cancel(); _actionWait = null; }
     }
 
-    // Polls the generic /webhook-event store (keyed by the event's own data.id —
-    // for dispute webhooks that's the dispute ID, same lookup param name as the
-    // payment-keyed polling used everywhere else in this app) after an action
-    // that should trigger a dispute_* webhook, then refreshes the dispute.
+    // Waits for the dispute_* webhook (the shared /webhook-event store is keyed by the event's own data.id — here the dispute id)
+    // after an action, then refreshes the dispute.
     function startDisputeActionWebhookPoll(disputeId, actionLabel) {
-        stopActionPoll();
         const statusEl = document.getElementById('dispute-action-webhook-status');
         statusEl.style.display = 'block';
-        statusEl.textContent = `Waiting for a webhook confirming "${actionLabel}" (up to 2 minutes)…`;
-
-        const startTime = Date.now();
-        _actionPollInterval = setInterval(async () => {
-            if (Date.now() - startTime > 2 * 60 * 1000) {
-                statusEl.textContent = 'No webhook received within 2 minutes — refreshing dispute anyway.';
-                stopActionPoll();
-                refreshDisputeDetail();
-                return;
-            }
-            try {
-                const res = await fetch(`${apiBase()}/webhook-event?paymentId=${disputeId}`);
-                if (res.status === 404) return;
-                const event = await res.json();
-                if (!event.found) return;
-                await addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
-                statusEl.textContent = `Webhook received: ${event.type}`;
-                stopActionPoll();
-                refreshDisputeDetail();
-            } catch (e) { /* ignore, retry next tick */ }
-        }, 3000);
+        _actionWait = window.Common.waitForWebhook(disputeId, {
+            name: 'dispute-action-wait',
+            el: statusEl,
+            intervalMs: 3000,
+            text: {
+                waiting: `Waiting for a webhook confirming "${actionLabel}" (up to 2 minutes)…`,
+                found: (ev) => `Webhook received: ${ev.type}`,
+                timeout: 'No webhook received within 2 minutes — refreshing dispute anyway.',
+            },
+            onFound: () => refreshDisputeDetail(),
+            onTimeout: () => refreshDisputeDetail(),
+        });
     }
 
     function renderDisputeDetail(dispute) {

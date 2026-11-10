@@ -20,7 +20,7 @@
 (function () {
     const FAILED_STATUSES_FLOW_WALLET = ['Declined', 'Canceled', 'Expired', 'Failed'];
 
-    let _webhookPollInterval = null;
+    let _webhookWait = null;
     // Captured from onAuthorized so onTokenized/submit can enrich the
     // /payments customer object with the wallet-provided contact details.
     let _lastAuthorizedContact = null;
@@ -175,31 +175,21 @@
     }
 
     function stopWebhookPolling() {
-        if (_webhookPollInterval) { clearInterval(_webhookPollInterval); _webhookPollInterval = null; }
+        if (_webhookWait) { _webhookWait.cancel(); _webhookWait = null; }
     }
 
+    // State machine (modules/machine.js): idle → waiting → found | timeout | cancelled
     function startWebhookPolling(paymentId) {
-        stopWebhookPolling();
-        const startTime = Date.now();
-        const statusEl = document.getElementById('flow-wallet-webhook-status');
-        if (statusEl) statusEl.textContent = 'Waiting for webhook (up to 2 minutes)…';
-
-        _webhookPollInterval = setInterval(async () => {
-            if (Date.now() - startTime > 120000) {
-                if (statusEl) statusEl.textContent = 'No webhook received within 2 minutes.';
-                stopWebhookPolling();
-                return;
-            }
-            try {
-                const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/webhook-event?paymentId=${paymentId}`);
-                if (res.status === 404) return;
-                const event = await res.json();
-                if (!event.found) return;
-                addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
-                if (statusEl) statusEl.textContent = `Webhook received: ${event.type}`;
-                stopWebhookPolling();
-            } catch { /* ignore, retry next tick */ }
-        }, 2000);
+        _webhookWait = window.Common.waitForWebhook(paymentId, {
+            name: 'wallet-flow-webhook-wait',
+            el: document.getElementById('flow-wallet-webhook-status'),
+            intervalMs: 2000,
+            text: {
+                waiting: 'Waiting for webhook (up to 2 minutes)…',
+                found: (ev) => `Webhook received: ${ev.type}`,
+                timeout: 'No webhook received within 2 minutes.',
+            },
+        });
     }
 
     // Submits the wallet-derived token to the existing /payments route with

@@ -23,40 +23,32 @@
     let _selectedType = null; // 'partial' | 'estimated' | 'amex' | 'discover' | 'aft'
     let _currentPaymentId = null;
     let _currentScheme = null;
-    let _actionPollInterval = null;
+    let _actionWait = null;
 
     function apiBase() { return window.APP_CONFIG.apiBaseUrl; }
 
     function $(id) { return document.getElementById(id); }
 
     function stopActionPoll() {
-        if (_actionPollInterval) { clearInterval(_actionPollInterval); _actionPollInterval = null; }
+        if (_actionWait) { _actionWait.cancel(); _actionWait = null; }
     }
 
+    // State machine: Common.waitForWebhook → idle → waiting → found | timeout | cancelled (see modules/machine.js)
     function startActionWebhookPoll(paymentId, label) {
-        stopActionPoll();
         const statusEl = $('at-action-webhook-status');
         statusEl.style.display = 'block';
-        statusEl.textContent = `Waiting for a webhook confirming "${label}" (up to 2 minutes)…`;
-        const startTime = Date.now();
-        _actionPollInterval = setInterval(async () => {
-            if (Date.now() - startTime > 2 * 60 * 1000) {
-                statusEl.textContent = 'No webhook received within 2 minutes — refreshing anyway.';
-                stopActionPoll();
-                refreshPayment();
-                return;
-            }
-            try {
-                const res = await fetch(`${apiBase()}/webhook-event?paymentId=${paymentId}`);
-                if (res.status === 404) return;
-                const event = await res.json();
-                if (!event.found) return;
-                await addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
-                statusEl.textContent = `Webhook received: ${event.type}`;
-                stopActionPoll();
-                refreshPayment();
-            } catch (e) { /* retry next tick */ }
-        }, 3000);
+        _actionWait = window.Common.waitForWebhook(paymentId, {
+            name: 'auth-types-action-wait',
+            el: statusEl,
+            intervalMs: 3000,
+            text: {
+                waiting: `Waiting for a webhook confirming "${label}" (up to 2 minutes)…`,
+                found: (ev) => `Webhook received: ${ev.type}`,
+                timeout: 'No webhook received within 2 minutes — refreshing anyway.',
+            },
+            onFound: () => refreshPayment(),
+            onTimeout: () => refreshPayment(),
+        });
     }
 
     // ─── Type selection ───────────────────────────────────────────────────

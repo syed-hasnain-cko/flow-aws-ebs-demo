@@ -5,7 +5,7 @@
 let activeSetupResponse = null;
 let _cardActiveSession = null; // stored for theme re-mount
 let currentSetupId = null;
-let setupWebhookPoller = null;
+let setupWebhookWait = null;
 let _lastPatchBody = null; // full body of the last successful PUT — reused by stc pay's OTP follow-up
 
 const FAILED_STATUSES = ['Declined', 'Canceled', 'Expired', 'Failed'];
@@ -1394,85 +1394,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
+// State machine (modules/machine.js): idle → waiting → found (payment_method_ready) | timeout | cancelled.
+// Other webhook types for the setup are read and logged, then ignored (the shared slot is consumed by the read, as before).
 function startSetupWebhookPolling(setupId) {
-    stopSetupWebhookPolling(); // clear any existing poller before starting
+    setupWebhookWait = window.Common.waitForWebhook(setupId, {
+        name: 'payment-setup-ready-wait',
+        intervalMs: 2000,
+        match: (event) => event.type === 'payment_method_ready',
+        onTimeout: () => showKlarnaToast('No payment_method_ready webhook within 2 minutes — confirm manually once the method is ready.', 'error'),
+        onFound: async (event) => {
+            try {
+                console.log('Setup webhook received:', event.type, event.data);
+                showKlarnaToast('Payment method ready — confirming automatically...', 'success');
 
-    const POLL_INTERVAL_MS = 2000;
-    const POLL_TIMEOUT_MS = 120000; // 2 minutes
-    const startTime = Date.now();
+                // Fetch latest setup state to find which method is now ready
+                const latestSetup = await getPaymentSetup(setupId);
+                if (!latestSetup || !latestSetup.payment_methods) return;
 
-    setupWebhookPoller = setInterval(async () => {
-        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-            stopSetupWebhookPolling();
-            return;
-        }
+                // Update the JSON output panel with the latest state
+                const output = document.getElementById('setup-json-output');
+                if (output) output.innerText = JSON.stringify(latestSetup, null, 2);
 
-        try {
-            const res = await fetch(`${window.APP_CONFIG.apiBaseUrl}/webhook-event?paymentId=${setupId}`);
-            if (res.status === 404) return; // no event yet, keep polling
+                // Find the method that is ready and confirm it
+                for (const methodName in latestSetup.payment_methods) {
+                    if (latestSetup.payment_methods[methodName].status === 'ready') {
+                        // If the confirm button is already rendered and enabled, click it
+                        // (covers Klarna where the button exists after SDK authorization)
+                        const finalConfirmBtn = document.getElementById('final-confirm-btn');
+                        const paypalBtn = document.getElementById('make-paypal-payment-btn');
+                        const pendingBtn = finalConfirmBtn || paypalBtn;
+                        if (pendingBtn && !pendingBtn.disabled) {
+                            showKlarnaToast('Payment method ready — confirming...', 'success');
+                            pendingBtn.click();
+                            return;
+                        }
 
-            const event = await res.json();
-            if (!event.found) return;
+                        // Otherwise confirm directly (covers Bizum and any method
+                        // where the button wasn't rendered yet)
+                        const data = await confirmPaymentSetup(setupId, methodName);
+                        if (!data) return;
 
-            console.log('Setup webhook received:', event.type, event.data);
-            addToApiLog('WEBHOOK', `${event.type} — /webhook`, 200, {}, event.data);
+                        const loader = document.getElementById('payment-loader');
+                        if (loader) loader.style.display = 'flex';
 
-            if (event.type !== 'payment_method_ready') return;
-
-            stopSetupWebhookPolling();
-            showKlarnaToast('Payment method ready — confirming automatically...', 'success');
-
-            // Fetch latest setup state to find which method is now ready
-            const latestSetup = await getPaymentSetup(setupId);
-            if (!latestSetup || !latestSetup.payment_methods) return;
-
-            // Update the JSON output panel with the latest state
-            const output = document.getElementById('setup-json-output');
-            if (output) output.innerText = JSON.stringify(latestSetup, null, 2);
-
-            // Find the method that is ready and confirm it
-            for (const methodName in latestSetup.payment_methods) {
-                if (latestSetup.payment_methods[methodName].status === 'ready') {
-                    // If the confirm button is already rendered and enabled, click it
-                    // (covers Klarna where the button exists after SDK authorization)
-                    const finalConfirmBtn = document.getElementById('final-confirm-btn');
-                    const paypalBtn = document.getElementById('make-paypal-payment-btn');
-                    const pendingBtn = finalConfirmBtn || paypalBtn;
-                    if (pendingBtn && !pendingBtn.disabled) {
-                        showKlarnaToast('Payment method ready — confirming...', 'success');
-                        pendingBtn.click();
+                        const payment = getConfirmedPayment(data);
+                        if (payment._links?.redirect) {
+                            setTimeout(() => { window.location.href = payment._links.redirect.href; }, 800);
+                        } else if (FAILED_STATUSES.includes(payment.status)) {
+                            setTimeout(() => { window.location.href = `failure.html?paymentId=${payment.id}`; }, 800);
+                        } else if (payment.id) {
+                            setTimeout(() => { window.location.href = `success.html?paymentId=${payment.id}`; }, 800);
+                        }
                         return;
                     }
-
-                    // Otherwise confirm directly (covers Bizum and any method
-                    // where the button wasn't rendered yet)
-                    const data = await confirmPaymentSetup(setupId, methodName);
-                    if (!data) return;
-
-                    const loader = document.getElementById('payment-loader');
-                    if (loader) loader.style.display = 'flex';
-
-                    const payment = getConfirmedPayment(data);
-                    if (payment._links?.redirect) {
-                        setTimeout(() => { window.location.href = payment._links.redirect.href; }, 800);
-                    } else if (FAILED_STATUSES.includes(payment.status)) {
-                        setTimeout(() => { window.location.href = `failure.html?paymentId=${payment.id}`; }, 800);
-                    } else if (payment.id) {
-                        setTimeout(() => { window.location.href = `success.html?paymentId=${payment.id}`; }, 800);
-                    }
-                    return;
                 }
+            } catch (e) {
+                console.error('Setup webhook poll error:', e);
             }
-        } catch (e) {
-            console.error('Setup webhook poll error:', e);
-        }
-    }, POLL_INTERVAL_MS);
+        },
+    });
 }
 
 function stopSetupWebhookPolling() {
-    if (setupWebhookPoller) {
-        clearInterval(setupWebhookPoller);
-        setupWebhookPoller = null;
+    if (setupWebhookWait) {
+        setupWebhookWait.cancel();
+        setupWebhookWait = null;
     }
 }
 

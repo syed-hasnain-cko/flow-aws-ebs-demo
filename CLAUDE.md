@@ -180,6 +180,7 @@ Per-feature history, design decisions, verified sandbox facts and pitfalls were 
 | [`docs/payments-links-flow.md`](docs/payments-links-flow.md) | Payments Explorer, Hosted Page & Links, Checkout Flow options |
 | [`docs/smart-dunning.md`](docs/smart-dunning.md) | Smart Dunning tab (retry schedules, webhooks, test cards) |
 | [`docs/non-hosted-3ds.md`](docs/non-hosted-3ds.md) | 3DS Non-hosted tab (browser-channel Sessions flow, challenge iframe, presentation themes, verified test cards) |
+| [`docs/state-machines.md`](docs/state-machines.md) | Implicit state machines inventory + the shared `Common.machine` / `waitFor` / `waitForWebhook` module and `window.CkoMachines` (agent-readable state) |
 | [`docs/app-shell.md`](docs/app-shell.md) | App shell: left navigation + docked API log |
 | [`docs/account-and-webhooks.md`](docs/account-and-webhooks.md) | Account Settings (BYO account) + Webhooks tab |
 | [`docs/wallet-onboarding.md`](docs/wallet-onboarding.md) | Wallet Onboarding tab (Apple Pay domains / CSR / certificate, Google Pay enrollment), merchant profiles + sealed keys |
