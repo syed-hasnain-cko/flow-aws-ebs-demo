@@ -20,8 +20,20 @@
     // Payout queue — each entry: { id, type, scheme, amount, currency, status, response, webhookType, webhookData, startTime }
     // status: 'pending' | 'paid' | 'declined' | 'returned' | 'expired' | 'failed'
     const _payoutQueue = [];
-    let _pendingCardCount = 0;
-    let _pendingBankCount = 0;
+    // One machine per payout entry (modules/machine.js): pending → paid | declined | returned | expired | <other webhook type>.
+    // The pending counts are DERIVED from the queue (no separate counters that can drift).
+    const _payoutMachines = new Map();
+    const pendingCard = () => _payoutQueue.filter(e => e.status === 'pending' && e.type === 'card').length;
+    const pendingBank = () => _payoutQueue.filter(e => e.status === 'pending' && e.type !== 'card').length;   // anything that is not a card payout
+    const pendingTotal = () => _payoutQueue.filter(e => e.status === 'pending').length;
+    function trackPayout(entry) {
+        if (!entry.id || !window.Common?.machine) return;
+        const states = { pending: { RESOLVE: (to) => to } };
+        if (!states[entry.status]) states[entry.status] = {};                    // queued already resolved (e.g. failed at creation)
+        const m = window.Common.machine(`payout:${entry.id}`, { initial: entry.status, states });
+        _payoutMachines.set(entry.id, m);
+    }
+    function disposePayoutMachines() { _payoutMachines.forEach(m => m.dispose()); _payoutMachines.clear(); }
     let _queuePollInterval = null;
 
     // ─── DOM helpers ──────────────────────────────────────────────────
@@ -620,9 +632,8 @@
             startTime:   Date.now(),
         };
         _payoutQueue.unshift(entry);
+        trackPayout(entry);
         if (entry.status === 'pending') {
-            if (entry.type === 'card') _pendingCardCount++;
-            else                       _pendingBankCount++;
             updateLockState();
             startQueuePolling();
         }
@@ -636,10 +647,9 @@
         entry.status      = status;
         entry.webhookType = webhookType;
         entry.webhookData = webhookData;
-        if (entry.type === 'card') _pendingCardCount = Math.max(0, _pendingCardCount - 1);
-        else                       _pendingBankCount = Math.max(0, _pendingBankCount - 1);
+        _payoutMachines.get(payoutId)?.send('RESOLVE', status);
         updateLockState();
-        if (_pendingCardCount + _pendingBankCount === 0) stopQueuePolling();
+        if (pendingTotal() === 0) stopQueuePolling();
         renderQueue();
     }
 
@@ -689,19 +699,21 @@
         const btn    = el('card-payout-submit-btn');
         const banner = el('payout-lock-banner');
         const lbl    = el('payout-lock-label');
-        const total  = _pendingCardCount + _pendingBankCount;
+        const nCard  = pendingCard();
+        const nBank  = pendingBank();
+        const total  = nCard + nBank;
 
-        if (scheme) scheme.disabled = _pendingCardCount > 0;
-        if (btn)    btn.disabled    = _pendingCardCount > 0 || !_payoutCardComponent;
+        if (scheme) scheme.disabled = nCard > 0;
+        if (btn)    btn.disabled    = nCard > 0 || !_payoutCardComponent;
 
         if (banner) banner.style.display = total > 0 ? 'flex' : 'none';
         if (lbl && total > 0) {
-            if (_pendingCardCount > 0 && _pendingBankCount > 0) {
-                lbl.textContent = `${_pendingCardCount} card + ${_pendingBankCount} bank payout${total > 1 ? 's' : ''} pending webhook`;
-            } else if (_pendingCardCount > 0) {
-                lbl.textContent = `${_pendingCardCount} card payout${_pendingCardCount > 1 ? 's' : ''} pending webhook — scheme & submit locked`;
+            if (nCard > 0 && nBank > 0) {
+                lbl.textContent = `${nCard} card + ${nBank} bank payout${total > 1 ? 's' : ''} pending webhook`;
+            } else if (nCard > 0) {
+                lbl.textContent = `${nCard} card payout${nCard > 1 ? 's' : ''} pending webhook — scheme & submit locked`;
             } else {
-                lbl.textContent = `${_pendingBankCount} bank payout${_pendingBankCount > 1 ? 's' : ''} pending webhook`;
+                lbl.textContent = `${nBank} bank payout${nBank > 1 ? 's' : ''} pending webhook`;
             }
         }
     }
@@ -789,8 +801,9 @@
     // ─── Clear payout result area ─────────────────────────────────────
     function clearPayoutResult() {
         // Only wipe resolved entries; if pending entries exist keep them
-        if (_pendingCardCount + _pendingBankCount > 0) return;
+        if (pendingTotal() > 0) return;
         _payoutQueue.length = 0;
+        disposePayoutMachines();
         hide('payout-queue-panel');
         hide('payout-metadata-panel');
         stopQueuePolling();
@@ -1107,12 +1120,13 @@
         const clearBtn = el('payout-queue-clear');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
-                const _pendingTotal = _pendingCardCount + _pendingBankCount;
+                const _pendingTotal = pendingTotal();
                 if (_pendingTotal > 0) {
                     showToast(`${_pendingTotal} payout${_pendingTotal > 1 ? 's' : ''} still pending — cannot clear`, 'error');
                     return;
                 }
                 _payoutQueue.length = 0;
+                disposePayoutMachines();
                 renderQueue();
             });
         }

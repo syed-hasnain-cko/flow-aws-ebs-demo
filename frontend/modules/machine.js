@@ -56,6 +56,7 @@
                 return true;
             },
             reset() { m.state = spec.initial; m.since = Date.now(); paint(); },
+            dispose() { listeners.clear(); if (registry.get(name) === m) registry.delete(name); },
         };
         function paint() {
             if (!m.el) return;

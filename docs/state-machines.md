@@ -11,6 +11,7 @@ mean "idle → waiting → done". This page lists them, says which are now expli
 | `Common.waitFor({ name, check, intervalMs, timeoutMs, el, text, onFound, onTimeout, onFail })` | the "wait until something happens" loop: `idle → waiting → found \| timeout \| failed \| cancelled` (any end state can START again). Ticks **never overlap**; a new wait with the same `name` cancels the old one; `check()` returning null keeps waiting, throwing retries, throwing with `.fatal = true` fails. |
 | `Common.waitForWebhook(id, { name, match, … })` | `waitFor` on `GET /webhook-event?paymentId=<id>` (logs the WEBHOOK entry, 2 min default, optional `match(event)`). |
 | `Common.busyStart(btns, label)` → `done()` / `Common.busy(btns, label, fn, {after})` | busy button: `idle → busy → idle`. Disables, relabels the first button, sets `aria-busy` + `data-state`; a second click while busy returns `null` (ignored). Machine `busy:<id>`. |
+| `m.dispose()` | removes a machine from the registry (use for per-item machines such as `payout:<id>`). |
 | `window.CkoMachines` | **for agents / tests / support:** `snapshot()` → `[{ name, state, since, ignored, history }]`, `get(name)`, `names()`. |
 
 On screen, a machine bound to an element sets `data-machine="<name>"` and `data-state="<state>"` (+ `aria-live="polite"`), so a script or an
@@ -22,7 +23,7 @@ AI agent can wait for `[data-machine="dispute-action-wait"][data-state="found"]`
 |---|---|---|---|
 | Wait for the payment's webhook | auth-types, disputes (action), wallets-flow, payment-setup | idle → waiting → found / timeout / cancelled | **migrated** to `waitForWebhook` (`auth-types-action-wait`, `dispute-action-wait`, `wallet-flow-webhook-wait`, `payment-setup-ready-wait`) |
 | Wait for the test dispute to appear | disputes (create) | idle → waiting (10 s, 6 min cap) → found / timeout / failed | **migrated** to `waitFor` (`dispute-creation-wait`) |
-| Payout queue entries | payouts.js | pending → paid / declined / returned / expired (+ form lock while a card payout is pending) | candidate — per-entry machine, one shared timer; left as is |
+| Payout queue entries | payouts.js | pending → paid / declined / returned / expired / <other webhook type> (+ form lock while a card payout is pending) | **migrated** (branch `refactor/payout-queue-machine`): one machine per entry (`payout:<id>`, readable in `CkoMachines`); the two hand-kept pending counters are gone — counts are derived from the queue, so they cannot drift. The shared 2 s timer is unchanged |
 | Payment watch (run) | smart-dunning.js | idle → watching → settled (20 s after a final status) / capped at 6 min / stopped | candidate — richer than `waitFor` (it keeps collecting events) |
 | 3DS session poll + "paid" gate | standalone.js | session status pending → approved / declined / …; plus `consumed` flag in localStorage | candidate |
 | Webhook follower | standalone.js | following ↔ paused | candidate |
