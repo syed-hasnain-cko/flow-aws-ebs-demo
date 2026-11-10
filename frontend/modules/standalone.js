@@ -2023,12 +2023,33 @@
             : '<div class="sa-note">No events yet — they appear here within seconds of CKO delivering them.</div>';
     }
 
+    // Webhook follower — explicit machine (modules/machine.js), readable in CkoMachines as "standalone-webhook-follower":
+    //   idle (tab / panel not visible) ⇄ listening ⇄ paused.  The state is derived from the page on every poll; same on-screen words as before.
+    const whMachine = window.Common.machine('standalone-webhook-follower', {
+        initial: 'idle',
+        states: { idle: { SYNC: (to) => to }, listening: { SYNC: (to) => to }, paused: { SYNC: (to) => to } },
+    });
+    let whInFlight = false, whAgain = false;   // one request at a time; a poll asked for meanwhile runs once afterwards
+
     async function pollWebhooks() {
         const wh = $('sa-webhooks');
         const live = tabActive() && !state.whPaused && state.product && state.product !== 'meta' && wh && wh.style.display !== 'none';
         $('sa-wh-dot')?.classList.toggle('live', !!live);
-        $('sa-wh-state').textContent = state.whPaused ? 'paused' : live ? 'listening' : 'idle';
+        const next = state.whPaused ? 'paused' : live ? 'listening' : 'idle';
+        if (whMachine.el !== $('sa-wh-state')) whMachine.bind($('sa-wh-state'), { idle: 'idle', listening: 'listening', paused: 'paused' });
+        if (whMachine.state !== next) whMachine.send('SYNC', next);
         if (!live) return;
+        if (whInFlight) { whAgain = true; return; }
+        whInFlight = true;
+        try {
+            await fetchWebhookBuffer();
+        } finally {
+            whInFlight = false;
+            if (whAgain) { whAgain = false; pollWebhooks(); }
+        }
+    }
+
+    async function fetchWebhookBuffer() {
         try {
             const q = new URLSearchParams({ since: '0' });            // always the whole buffer: containers have independent sequence numbers
             if (whTypes()) q.set('types', whTypes());
