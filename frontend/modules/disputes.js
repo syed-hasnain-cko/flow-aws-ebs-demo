@@ -337,9 +337,8 @@
                 reference: `#Dispute_Test_${Math.floor(Math.random() * 10000)}`,
             };
 
-            const btn = document.getElementById('dispute-pay-btn');
-            btn.disabled = true;
-            btn.textContent = 'Processing…';
+            const done = window.Common.busyStart('dispute-pay-btn', 'Processing…');
+            if (!done) return;
             try {
                 const res = await fetch(`${apiBase()}/disputes/create-test-payment`, {
                     method: 'POST',
@@ -363,8 +362,7 @@
             } catch (e) {
                 showToast('Test payment request failed.', 'error');
             } finally {
-                btn.disabled = false;
-                btn.textContent = 'Pay & Trigger Dispute';
+                done();
             }
         });
 

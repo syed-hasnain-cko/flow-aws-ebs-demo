@@ -10,6 +10,7 @@ mean "idle → waiting → done". This page lists them, says which are now expli
 | `Common.machine(name, { initial, states: { a: { EVENT: 'b' } } })` | tiny FSM: `send(evt)`, `is()`, `can()`, `subscribe()`, `bind(el, labels)`. An event that is not allowed from the current state is **ignored and counted** (never throws). |
 | `Common.waitFor({ name, check, intervalMs, timeoutMs, el, text, onFound, onTimeout, onFail })` | the "wait until something happens" loop: `idle → waiting → found \| timeout \| failed \| cancelled` (any end state can START again). Ticks **never overlap**; a new wait with the same `name` cancels the old one; `check()` returning null keeps waiting, throwing retries, throwing with `.fatal = true` fails. |
 | `Common.waitForWebhook(id, { name, match, … })` | `waitFor` on `GET /webhook-event?paymentId=<id>` (logs the WEBHOOK entry, 2 min default, optional `match(event)`). |
+| `Common.busyStart(btns, label)` → `done()` / `Common.busy(btns, label, fn, {after})` | busy button: `idle → busy → idle`. Disables, relabels the first button, sets `aria-busy` + `data-state`; a second click while busy returns `null` (ignored). Machine `busy:<id>`. |
 | `window.CkoMachines` | **for agents / tests / support:** `snapshot()` → `[{ name, state, since, ignored, history }]`, `get(name)`, `names()`. |
 
 On screen, a machine bound to an element sets `data-machine="<name>"` and `data-state="<state>"` (+ `aria-live="polite"`), so a script or an
@@ -26,7 +27,7 @@ AI agent can wait for `[data-machine="dispute-action-wait"][data-state="found"]`
 | 3DS session poll + "paid" gate | standalone.js | session status pending → approved / declined / …; plus `consumed` flag in localStorage | candidate |
 | Webhook follower | standalone.js | following ↔ paused | candidate |
 | Non-hosted 3DS run | nh3ds.js | idle → creating → fingerprint → collect → challenge → complete → done / cancelled (token `S.run` guards stale runs) | already disciplined; could adopt `Common.machine` |
-| Busy buttons | ~35 `btn.disabled = true … finally` sites; `runBusy()` in standalone.js | idle → busy → idle | candidate for a shared `Common.busy()` |
+| Busy buttons | ~35 `btn.disabled = true … finally` sites; `runBusy()` in standalone.js | idle → busy → idle | **partly migrated** (branch `refactor/busy-machine`): standalone `runBusy` (20 call sites), AFT card check, Smart Dunning initial payment, Disputes pay & trigger. Remaining sites (payouts, payment-setup, forward, wallet-onboarding, vault…) have bespoke text/flow — migrate one at a time with `busyStart` |
 | Flow card mount | standalone.js (`flowMounting`, `flowNeedsMount`) | unmounted → mounting → mounted → needs-remount (theme change) | candidate |
 | Link countdown | links.js | ticking → expired | trivial; left |
 

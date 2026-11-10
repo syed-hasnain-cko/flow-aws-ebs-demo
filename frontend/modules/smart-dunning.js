@@ -150,7 +150,7 @@
     async function createInitial() {
         showError('');
         if (digits().length < 13) return showError('Enter the card number first — the initial payment uses the same card.');
-        const btn = $('sd-initial'); btn.disabled = true; btn.textContent = 'Creating…';
+        const done = window.Common.busyStart('sd-initial', 'Creating…'); if (!done) return;
         const body = {
             source: { type: 'card', number: digits(), expiry_month: num('sd-exp-m', 12), expiry_year: num('sd-exp-y', new Date().getFullYear() + 3), cvv: val('sd-cvv') || '100', name: 'Smart Dunning Test', stored: true },
             amount: num('sd-amount', 1000), currency: val('sd-currency'), reference: `DUN-INIT-${Date.now()}`, payment_type: val('sd-ptype'), capture: true,
@@ -165,7 +165,7 @@
             else if (pay && pay.id) showError(`The initial payment was ${pay.status || 'declined'}: ${pay.response_code || ''} ${pay.response_summary || ''}. Previous payment id left empty.${pay.response_code === '43102' ? ' Visa customer-present payments decline 43102 on this account — use a Mastercard test card, or run without a previous payment id (a dunning MIT works without one).' : ''}`);
             else showError(`Initial payment failed: ${errText(data)}`);
         } catch (err) { showError('Request failed: ' + err.message); }
-        finally { btn.disabled = false; btn.textContent = 'Create initial payment'; }
+        finally { done(); }
     }
 
     // ---- Watching -----------------------------------------------------------------------------------------------------

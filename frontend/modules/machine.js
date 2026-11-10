@@ -16,6 +16,12 @@
 //
 //   Common.waitForWebhook(id, { name, match, … })
 //       waitFor() specialized for GET /webhook-event?paymentId=<id> (the app's shared webhook slot, 2 minutes by default).
+//
+//   Common.busyStart(btns, label)  → done() | null      idle → busy → idle for a button (group)
+//       Disables the button(s), shows `label` on the first one, sets aria-busy + data-state="busy". Returns null when it is already
+//       busy (a double click) — the caller just returns. Call done() in `finally`; it restores text, enabled state and data-state.
+//   Common.busy(btns, label, fn, { after })  → fn's result (undefined when already busy). Same, as a wrapper.
+//       `btns` = id, element or array of them. Machine name: "busy:<first id>" (visible in CkoMachines.snapshot()).
 // =============================================
 (function () {
     const registry = new Map();
@@ -153,5 +159,29 @@
         });
     }
 
-    Object.assign(window.Common, { machine, waitFor, waitForWebhook });
+    const BUSY = { initial: 'idle', states: { idle: { START: 'busy' }, busy: { DONE: 'idle' } } };
+    function busyStart(btns, label) {
+        const els = [].concat(btns).map(b => typeof b === 'string' ? document.getElementById(b) : b).filter(Boolean);
+        if (!els.length) return () => {};                                        // nothing to guard — behave like "no button"
+        if (els.some(b => b.disabled)) return null;                              // already processing
+        const name = `busy:${els[0].id || 'button'}`;
+        const m = registry.get(name) || machine(name, BUSY);
+        const originals = els.map(b => b.textContent);
+        m.send('START');
+        els.forEach((b, i) => { b.disabled = true; b.setAttribute('aria-busy', 'true'); b.dataset.state = 'busy'; if (i === 0 && label) b.textContent = label; });
+        let ended = false;
+        return function done() {
+            if (ended) return; ended = true;
+            els.forEach((b, i) => { b.disabled = false; b.removeAttribute('aria-busy'); b.dataset.state = 'idle'; if (label) b.textContent = originals[i]; });
+            m.send('DONE');
+        };
+    }
+    async function busy(btns, label, fn, opts) {
+        const done = busyStart(btns, label);
+        if (!done) return undefined;
+        try { return await fn(); }
+        finally { done(); if (opts && opts.after) opts.after(); }
+    }
+
+    Object.assign(window.Common, { machine, waitFor, waitForWebhook, busyStart, busy });
 })();

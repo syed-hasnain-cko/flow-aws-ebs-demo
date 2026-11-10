@@ -115,21 +115,16 @@
     // Busy-button wrapper — disables every listed button while work is in flight
     // =====================================================================
     async function runBusy(btnIds, label, fn) {
-        const btns = btnIds.map($).filter(Boolean);
-        if (btns.some(b => b.disabled)) return;          // already processing
-        const originals = btns.map(b => b.textContent);
-        btns.forEach((b, i) => { b.disabled = true; if (i === 0) b.textContent = label; });
-        try {
-            return await fn();
-        } catch (err) {
-            if (err.message !== 'invalid-extra-json') {
-                console.error('[standalone]', err);
-                showToast(err.message || 'Request failed', 'error');
+        return window.Common.busy(btnIds, label, async () => {
+            try {
+                return await fn();
+            } catch (err) {
+                if (err.message !== 'invalid-extra-json') {
+                    console.error('[standalone]', err);
+                    showToast(err.message || 'Request failed', 'error');
+                }
             }
-        } finally {
-            btns.forEach((b, i) => { b.disabled = false; b.textContent = originals[i]; });
-            afterBusy();
-        }
+        }, { after: afterBusy });
     }
     // Some buttons are conditionally enabled (redirect buttons need a session) — restore that.
     function afterBusy() { syncRedirectButtons(); updatePayGate(); }   // runBusy re-enables buttons — re-apply the gate

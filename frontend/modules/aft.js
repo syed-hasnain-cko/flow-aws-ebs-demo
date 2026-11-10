@@ -514,7 +514,7 @@
     async function checkCard() {
         const number = ($('at-card-number').value || '').replace(/\s+/g, '');
         if (number.length < 6) return showToast('Enter a card number first.', 'error');
-        const btn = $('aft-check'); btn.disabled = true; const o = btn.textContent; btn.textContent = 'Checking…';
+        const done = window.Common.busyStart('aft-check', 'Checking…'); if (!done) return;
         const body = { source: { type: 'card', number }, format: 'basic' };
         try {
             const res = await fetch(`${apiBase()}/card-metadata`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -524,7 +524,7 @@
             state.issuer = { country: data.issuer_country, scheme: data.scheme, type: [data.card_type, data.card_category].filter(Boolean).join(' · '), source: 'metadata', number };
             renderIssuer(); update();
         } catch (e) { showToast('Card check failed.', 'error'); }
-        finally { btn.disabled = false; btn.textContent = o; }
+        finally { done(); }
     }
     function renderIssuer() {
         const i = state.issuer;
