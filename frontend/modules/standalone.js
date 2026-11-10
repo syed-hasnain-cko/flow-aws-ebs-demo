@@ -102,7 +102,7 @@
         mode: 'saved',
         flowComponent: null,
         lastToken: null,
-        sid: null, session: null, redirectHref: null, sessionSource: null, prefilled: {}, pollTimer: null, pollStatus: null, pollStarted: 0,
+        sid: null, session: null, redirectHref: null, sessionSource: null, prefilled: {}, pollStatus: null, pollStarted: 0,
         payAuth: 'sid',
         lastPaymentId: null,
         ntcGroup: 'prov', ntcResults: {}, ntcEnv: {}, ntcRunning: null, ntcBatch: false, ntcActive: null, ntIds: [],
@@ -775,12 +775,19 @@
         }
     }
 
+    const payGateMachine = window.Common.machine('standalone-3ds-pay-gate', {
+        initial: 'none',
+        states: Object.fromEntries(['none', 'unknown', 'waiting', 'used', 'ready'].map(k => [k, { SYNC: (to) => to }])),
+    });
+
     function updatePayGate() {
         const btn = $('sa-pay-btn'), body = $('sa-pay-body'), box = $('sa-pay-gate');
         if (!btn) return;
         syncAuthModeAvailability();
         syncDetailsButton();
         const g = payGate();
+        // Expose the gate's state (none | unknown | waiting | used | ready) to agents / tests; the rules above are unchanged.
+        if (payGateMachine.state !== g.kind) payGateMachine.send('SYNC', g.kind);
         // Never fight an in-flight request: runBusy owns the disabled state while it is running.
         if (btn.textContent === 'Authorize payment') btn.disabled = g.locked;
         if (body) body.classList.toggle('sa-step-lock', g.locked);
@@ -797,6 +804,8 @@
                 + `A 3DS authentication covers a single payment — to test another, <a href="#" data-sa-newsession="1">start a new session ↑</a> and complete its redirect.`;
         } else { cls = 'info'; icon = '🔓'; msg = `<strong>Ready — one payment is allowed for this authentication</strong> (session ${esc(state.sid)}, status ${esc(g.status)}). The button locks as soon as a payment is created.`; }
         box.className = `sa-banner ${cls}`;
+        box.dataset.state = g.kind;
+        box.dataset.machine = 'standalone-3ds-pay-gate';
         box.style.display = 'flex';
         box.innerHTML = `<span>${icon}</span><div>${msg}</div>`;
     }
@@ -1060,38 +1069,54 @@
     }
 
     // Quiet polling — only status transitions reach the API log (via the visible call + a note).
+    // State machine (modules/machine.js, "standalone-3ds-session-poll"): idle → waiting → found (final status) | timeout (5 min) | failed | cancelled.
+    // A run token discards responses that arrive after the session was reset / replaced, so an old session can never be re-applied.
+    let pollWait = null, pollRun = 0;
     function startPolling() {
         stopPolling();
+        const run = ++pollRun;
+        const sid = state.sid;
         state.pollStarted = Date.now();
         state.pollStatus = state.session?.status;
-        const tick = async () => {
-            if (!state.sid || Date.now() - state.pollStarted > 5 * 60 * 1000) { stopPolling('stopped after 5 minutes'); return; }
-            try {
-                const res = await fetch(`${API_BASE}/standalone/session?id=${encodeURIComponent(state.sid)}`, {
+        const pollEl = $('sa-3ds-poll');
+        pollWait = window.Common.waitFor({
+            name: 'standalone-3ds-session-poll',
+            el: pollEl,
+            intervalMs: 3000,
+            timeoutMs: 5 * 60 * 1000,
+            text: {
+                waiting: '⏳ Polling session…',
+                found: (s) => `✓ Polling session reached final status “${s.status}”`,
+                timeout: '✓ Polling stopped after 5 minutes',
+                failed: '✓ Polling stopped — no active session',
+            },
+            async check() {
+                if (!state.sid) throw Object.assign(new Error('no session'), { fatal: true });
+                const res = await fetch(`${API_BASE}/standalone/session?id=${encodeURIComponent(sid)}`, {
                     headers: { ...(val('sa-auth-mode') ? { 'x-auth-mode': val('sa-auth-mode') } : {}) },
                 });
                 const env = await res.json();
+                if (run !== pollRun || state.sid !== sid) return null;          // stale: the session was reset or replaced meanwhile
                 const s = env?.data;
-                if (s?.id) {
-                    if (s.status !== state.pollStatus) {
-                        state.pollStatus = s.status;
-                        logCko('GET', env, undefined, `GET /sessions/${state.sid} (status → ${s.status})`);
-                        applySession(s);
-                        env.ok = true;
-                        renderResponse('sa-3ds-session-res', env, sessionSummary(s));
-                    }
-                    $('sa-3ds-poll').textContent = `⏳ Polling session — status: ${s.status}`;
-                    if (isFinalStatus(s.status)) stopPolling(`session reached final status “${s.status}”`);
+                if (!s?.id) return null;
+                if (s.status !== state.pollStatus) {
+                    state.pollStatus = s.status;
+                    logCko('GET', env, undefined, `GET /sessions/${sid} (status → ${s.status})`);
+                    applySession(s);
+                    env.ok = true;
+                    renderResponse('sa-3ds-session-res', env, sessionSummary(s));
                 }
-            } catch (e) { /* transient — try again next tick */ }
-        };
-        state.pollTimer = setInterval(tick, 3000);
-        $('sa-3ds-poll').textContent = '⏳ Polling session…';
+                if (isFinalStatus(s.status)) return s;
+                if (pollEl) pollEl.textContent = `⏳ Polling session — status: ${s.status}`;
+                return null;
+            },
+            onSettle: () => syncRedirectButtons(),
+        });
     }
 
     function stopPolling(reason) {
-        clearInterval(state.pollTimer);
-        state.pollTimer = null;
+        pollRun++;                                   // any request still in flight is now stale
+        if (pollWait) { pollWait.cancel(); pollWait = null; }
         if (reason && $('sa-3ds-poll')) $('sa-3ds-poll').textContent = `✓ Polling ${reason}`;
         syncRedirectButtons();
     }
