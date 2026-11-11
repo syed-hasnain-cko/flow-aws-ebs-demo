@@ -344,6 +344,7 @@
         flowMachine.send('MOUNT');
         const host = $('sa-flow-host');
         host.innerHTML = '';
+        const sk = window.Common.flowLoading(host, { kind: 'card' });              // placeholder until the card field is really there
         show('sa-flow-loading');
         $('sa-tokenize-btn').disabled = true;
         $('sa-tokenize-hint').textContent = '';
@@ -368,16 +369,17 @@
                 paymentSession: env.data,
                 componentOptions: { card: { data: { cardholderName: 'Test Cardholder' }, displayCardholderName: 'bottom' } },
                 appearance: getFlowAppearance(),
-                onReady: () => {},
+                onReady: () => sk.done(),
                 onChange: () => {},
                 onError: (_c, error) => console.error('Suite card tokenizer error:', error),
             });
             state.flowComponent = checkout.create('card', { showPayButton: false });
-            if (await state.flowComponent.isAvailable()) state.flowComponent.mount(host);
+            if (await state.flowComponent.isAvailable()) state.flowComponent.mount(host); else sk.fail('Card fields are not available for this session.');
             $('sa-tokenize-btn').disabled = false;
             flowMachine.send('READY');
         } catch (err) {
             flowMachine.send('FAIL');
+            sk.fail(err && err.message);
             $('sa-tokenize-hint').textContent = '❌ Failed to load card field: ' + err.message;
             showToast('Failed to load card field: ' + err.message, 'error');
         } finally {

@@ -271,6 +271,7 @@
         container.innerHTML = '';
         container.style.display = 'flex';
         resultBlock.style.display = 'block';
+        const sk = window.Common.flowLoading(container, { kind: 'wallet' });       // placeholder until the wallet button is rendered
 
         const walletLabel = walletType === 'apple' ? 'Apple Pay' : 'Google Pay';
         logStep(`Creating Flow payment session for the ${walletLabel} tokenize flow…`);
@@ -288,12 +289,14 @@
             await addToApiLog('POST', `create tokenize-mode wallet session: ${session.id} - /payment-sessions`, session.id ? 201 : 422, sessionBody, session);
         } catch (e) {
             logStep('❌ Failed to create payment session.');
+            sk.fail('The payment session could not be created.');
             showToast('Failed to create payment session for the wallet tokenize flow.', 'error');
             return;
         }
 
         if (!session.id) {
             logStep('❌ Payment session creation failed — see the API log entry for details.');
+            sk.fail('Payment session creation failed — see the API log.');
             showToast('Payment session creation failed.', 'error');
             return;
         }
@@ -324,11 +327,13 @@
                 environment: 'sandbox',
                 paymentSession: session,
                 appearance: getFlowAppearance(),
+                onReady: () => sk.done(),
                 onError,
             });
         } catch (e) {
             console.error('CheckoutWebComponents init error:', e);
             logStep('❌ Failed to initialize Checkout Web Components.');
+            sk.fail('Checkout Web Components failed to start.');
             return;
         }
 
@@ -344,6 +349,7 @@
             component.mount(container);
             logStep(`${walletLabel} button mounted in tokenize mode — authorize the payment in the wallet sheet to continue.`);
         } else {
+            sk.fail(`${walletLabel} isn't available in this browser, device or session.`);
             logStep(`⚠️ ${walletLabel} isn't available in this browser/device/session.`);
             showToast(`${walletLabel} isn't available here — try Safari for Apple Pay, or Chrome with a saved card for Google Pay.`, 'error');
         }

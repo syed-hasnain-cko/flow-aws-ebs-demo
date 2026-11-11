@@ -1959,3 +1959,29 @@ header :where(button, a[href], select, [role="button"]):focus-visible { outline-
     /* Comfortable tap targets for the small utility buttons (Clear, Remove selected, Copy …) */
     .copy-btn { min-height: 34px; }
 }
+
+/* ================================================================
+   FLOW LOADING PLACEHOLDER (2026-11-11) — Common.flowLoading() in modules/machine.js
+   Shown inside the empty div a Flow / card-tokenizer component mounts into, until it reports ready.
+   ================================================================ */
+.flow-skel { display: block; box-sizing: border-box; width: 100%; padding: 14px; margin: 0 0 10px; text-align: left;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); transition: opacity 0.2s ease; }
+.flow-skel.fs-out { opacity: 0; }
+.flow-skel .fs-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+.flow-skel .fs-spin { flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--primary); animation: fs-rotate 0.8s linear infinite; }
+.flow-skel .fs-bar { height: 44px; margin-bottom: 10px; border-radius: var(--radius-md);
+    background: linear-gradient(90deg, var(--bg-chip) 25%, var(--bg-chip-hover) 40%, var(--bg-chip) 60%); background-size: 400% 100%; animation: fs-shimmer 1.5s ease-in-out infinite; }
+.flow-skel .fs-bar:last-child { margin-bottom: 0; }
+.flow-skel .fs-row { display: flex; gap: 10px; }
+.flow-skel .fs-row .fs-bar { flex: 1; }
+.flow-skel .fs-tall { height: 52px; }
+.flow-skel .fs-btn { height: 46px; width: 60%; max-width: 260px; margin-top: 4px; }
+.flow-skel .fs-short { width: 60%; }
+.flow-skel.fs-wallet .fs-head { margin-bottom: 10px; }
+.flow-skel.fs-error { border-color: var(--status-error-border, #F87171); background: var(--status-error-bg, #FEF2F2); }
+.flow-skel.fs-error .fs-head { margin-bottom: 4px; color: var(--status-error-text, #DC2626); }
+.flow-skel .fs-hint { font-size: 12px; color: var(--text-secondary); overflow-wrap: anywhere; }
+@keyframes fs-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@keyframes fs-rotate { to { transform: rotate(360deg); } }
+/* the old one-line "⏳ Loading card field…" hints sat outside the empty div; the placeholder replaces them */
+#sa-flow-loading, #va-flow-loading, #payout-card-loading { display: none !important; }

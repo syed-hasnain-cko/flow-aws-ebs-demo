@@ -204,7 +204,8 @@
             el('fwd-tokenize-btn').disabled = true;
             return;
         }
-        host.innerHTML = '<div style="font-size:12px; color:var(--text-secondary); padding:12px 0;">Loading card field…</div>';
+        host.innerHTML = '';
+        const sk = window.Common.flowLoading(host, { kind: 'card' });              // shown immediately; the session request is the slow part
         el('fwd-tokenize-btn').disabled = true;
 
         try {
@@ -237,16 +238,17 @@
                 paymentSession,
                 componentOptions: { card: { data: { cardholderName: 'Syed Hasnain' }, displayCardholderName: 'bottom' } },
                 appearance: getFlowAppearance(),
-                onReady: () => {},
+                onReady: () => sk.done(),
                 onChange: () => {},
                 onError: (_c, error) => console.error('Forward tokenizer error:', error),
             });
 
             _tokenCardComponent = checkout.create('card', { showPayButton: false });
-            host.innerHTML = '';
-            if (await _tokenCardComponent.isAvailable()) _tokenCardComponent.mount(host);
+            window.Common.flowLoading.clear(host);                                  // keeps the placeholder
+            if (await _tokenCardComponent.isAvailable()) _tokenCardComponent.mount(host); else sk.fail('Card fields are not available for this session.');
             el('fwd-tokenize-btn').disabled = false;
         } catch (err) {
+            sk.done();
             host.innerHTML = `<div style="font-size:12px; color:var(--error); padding:12px 0;">Failed to load card field: ${err.message}</div>`;
             console.error(err);
         }

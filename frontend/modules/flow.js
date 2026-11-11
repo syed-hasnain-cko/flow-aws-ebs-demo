@@ -54,6 +54,8 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
     _flowIsTokenizeOnly = isTokenizeOnly;
 
     const appearance = getFlowAppearance();
+    // Friendly placeholder inside #flow-container until Flow reports ready (re-uses the one shown when the button was clicked)
+    const skel = window.Common.flowLoading('flow-container', { kind: isTokenizeOnly ? 'card' : 'flow' });
 
     const tokenizeButton = document.getElementById("tokenize-button");
     const payButton = document.getElementById("pay-button");
@@ -140,6 +142,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             environment: "sandbox",
             locale: (flowEffectiveBody || paymentSessionBody).locale || "en-GB",
             paymentSession,
+            onReady: () => skel.done(),
             appearance: appearance,
             showPayButton: showPayButtonLogic,
             translations: {  
@@ -380,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // below, so any config change recreates the session the same way the
     // original button click did.
     const createAndInitializeFlowSession = async function (tokenizeOnly) {
+        let skel = null;
         try {
             isTokenizeOnly = tokenizeOnly;
             // Standard flow = default payload + the "Advanced session options" the user set (none by default).
@@ -392,6 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 requestBody = cfg.body;
                 flowEffectiveBody = cfg.body;
             }
+            // The wait starts here (payment-session call, then SDK start-up, then Flow rendering): show the placeholder right away.
+            flowContainer.style.display = 'block';
+            skel = window.Common.flowLoading(flowContainer, { kind: tokenizeOnly ? 'card' : 'flow', label: 'Creating your secure payment session…' });
             const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -409,6 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await initializeFlow(getData, tokenizeOnly);
         } catch (error) {
             console.error(error);
+            if (skel) skel.fail(error && error.message);
             showToast('Failed to create payment session. Please try again.', 'error');
         }
     };

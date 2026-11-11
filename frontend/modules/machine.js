@@ -184,5 +184,90 @@
         finally { done(); if (opts && opts.after) opts.after(); }
     }
 
-    Object.assign(window.Common, { machine, waitFor, waitForWebhook, busyStart, busy });
+    // ---------------------------------------------------------------------------------------------------------------
+    // Common.flowLoading(host, { kind, label }) → { done(), fail(msg), el }
+    //   A friendly placeholder inside the (otherwise empty) element a Checkout.com Flow / card-tokenizer component will be mounted into:
+    //   shimmering rows shaped like what is coming (kind: 'card' | 'flow' | 'wallet') plus a short status line.
+    //   idle → loading → ready | failed  (machine "flow-skeleton:<host id>", data-state on the placeholder).
+    //   Call it BEFORE the backend request (that is the lag), pass  onReady: () => sk.done()  to CheckoutWebComponents, and sk.fail(msg) on error.
+    //   Calling it again for a host that is already loading returns the same handle. Without an onReady the placeholder still goes away by itself:
+    //   'card'/'flow' once the first iframe inside the host has loaded, 'wallet' once its button is in the DOM; and always after 25 s.
+    //   Common.flowLoading.clear(host) empties a host but keeps the placeholder (use it instead of host.innerHTML = '').
+    // ---------------------------------------------------------------------------------------------------------------
+    const FLOW_SKEL = {
+        initial: 'idle',
+        states: { idle: { SHOW: 'loading' }, loading: { SHOW: 'loading', READY: 'ready', FAIL: 'failed' }, ready: { SHOW: 'loading' }, failed: { SHOW: 'loading' } },
+    };
+    const SKEL_LABEL = { card: 'Loading secure card form…', flow: 'Preparing secure payment options…', wallet: 'Checking wallet availability…' };
+    const SKEL_ROWS = {
+        card:   '<div class="fs-bar"></div><div class="fs-row"><div class="fs-bar"></div><div class="fs-bar"></div></div><div class="fs-bar fs-short"></div>',
+        flow:   '<div class="fs-bar fs-tall"></div><div class="fs-bar fs-tall"></div><div class="fs-bar fs-tall"></div><div class="fs-bar fs-btn"></div>',
+        wallet: '<div class="fs-bar fs-btn"></div>',
+    };
+    const skelNode = (n) => n && n.nodeType === 1 && n.classList.contains('flow-skel');
+
+    function flowLoading(hostOrId, opts) {
+        const host = typeof hostOrId === 'string' ? document.getElementById(hostOrId) : hostOrId;
+        const noop = { el: null, done() {}, fail() {} };
+        if (!host) return noop;
+        const prev = host._flowLoading;
+        if (prev && prev.active) {
+            if (host.contains(prev.el)) return prev;                    // already loading here → same handle
+            prev.done();                                                // its node was wiped with the container → start over
+        }
+        const kind = (opts && opts.kind) || 'card';
+        const el = document.createElement('div');
+        el.className = `flow-skel fs-${kind}`;
+        el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
+        el.innerHTML = `<div class="fs-head"><span class="fs-spin" aria-hidden="true"></span><span class="fs-label"></span></div>${SKEL_ROWS[kind] || SKEL_ROWS.card}`;
+        el.querySelector('.fs-label').textContent = (opts && opts.label) || SKEL_LABEL[kind] || SKEL_LABEL.card;
+        [...host.children].forEach(n => { if (skelNode(n)) n.remove(); });     // a leftover error / placeholder from an earlier attempt
+        host.insertBefore(el, host.firstChild);
+
+        const m = registry.get(`flow-skeleton:${host.id || 'host'}`) || machine(`flow-skeleton:${host.id || 'host'}`, FLOW_SKEL);
+        m.bind(el); m.send('SHOW');
+        let timer = null, mo = null;
+        const cleanup = () => { clearTimeout(timer); if (mo) mo.disconnect(); handle.active = false; };
+        const handle = {
+            el, active: true,
+            done() {
+                if (!handle.active) return;
+                cleanup(); m.send('READY');
+                el.classList.add('fs-out');
+                setTimeout(() => el.remove(), 200);                      // short fade, then gone
+            },
+            fail(msg) {
+                if (!handle.active) return;
+                cleanup(); m.send('FAIL');
+                el.className = 'flow-skel fs-error'; el.setAttribute('role', 'alert');
+                el.innerHTML = '<div class="fs-head"><span aria-hidden="true">⚠️</span><span class="fs-label"></span></div><div class="fs-hint"></div>';
+                el.querySelector('.fs-label').textContent = 'The payment form could not be loaded';
+                el.querySelector('.fs-hint').textContent = msg ? String(msg).slice(0, 200) : 'Please try again.';
+            },
+        };
+        host._flowLoading = handle;
+        // Fallbacks for callers that cannot pass onReady, and a hard cap so a placeholder never lingers.
+        timer = setTimeout(() => handle.done(), 25000);
+        if (typeof MutationObserver === 'function') {
+            const watched = new WeakSet();
+            const scan = () => {
+                if (!handle.active) return;
+                host.querySelectorAll('iframe').forEach(f => {
+                    if (watched.has(f) || el.contains(f)) return;
+                    watched.add(f);
+                    if (kind !== 'wallet') f.addEventListener('load', () => setTimeout(() => handle.done(), 700), { once: true });
+                });
+                if (kind === 'wallet' && [...host.children].some(c => !skelNode(c) && (c.offsetHeight > 0 || c.childElementCount > 0 || /\S/.test(c.textContent)))) setTimeout(() => handle.done(), 300);
+            };
+            mo = new MutationObserver(scan);
+            mo.observe(host, { childList: true, subtree: true });
+        }
+        return handle;
+    }
+    flowLoading.clear = function (hostOrId) {
+        const host = typeof hostOrId === 'string' ? document.getElementById(hostOrId) : hostOrId;
+        if (host) [...host.childNodes].forEach(n => { if (!skelNode(n)) n.remove(); });
+    };
+
+    Object.assign(window.Common, { machine, waitFor, waitForWebhook, busyStart, busy, flowLoading });
 })();

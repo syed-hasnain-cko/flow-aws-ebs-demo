@@ -66,6 +66,9 @@ function getFlowAppearance() {
  * @returns {Promise<Object>}          - The mounted CheckoutWebComponents card component.
  */
 async function mountCardTokenizer(containerEl, paymentSession) {
+    // Placeholder in the empty container until the card fields are really there (modules/machine.js → Common.flowLoading)
+    const sk = window.Common?.flowLoading ? window.Common.flowLoading(containerEl, { kind: 'card' }) : { done() {}, fail() {} };
+    try {
     const checkout = await CheckoutWebComponents({
         publicKey:      window.APP_CONFIG.publicKey,
         environment:    "sandbox",
@@ -80,15 +83,18 @@ async function mountCardTokenizer(containerEl, paymentSession) {
                 }
             },
         appearance:     getFlowAppearance(),
-        onReady:        () => {},
+        onReady:        () => sk.done(),
         onChange:       () => {},
         onError:        (component, error) => { console.error("Card tokenizer error:", error); },
     });
     const cardComponent = checkout.create("card", { showPayButton: false });
     if (await cardComponent.isAvailable()) {
         cardComponent.mount(containerEl);
+    } else {
+        sk.fail('Card fields are not available for this session.');
     }
     return cardComponent;
+    } catch (err) { sk.fail(err && err.message); throw err; }
 }
 
 const formatJSON = (data) => {

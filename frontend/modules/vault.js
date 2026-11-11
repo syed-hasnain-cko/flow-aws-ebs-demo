@@ -354,10 +354,12 @@
         const btn = $('va-sf-btn'), label = btn.textContent;
         btn.disabled = true; btn.textContent = 'Rendering…';
         const host = $('va-sf-host');
+        let sfSkel = { done() {}, fail() {} };
         try {
             const cus = val('va-sf-cus').trim(), email = val('va-sf-email').trim();
             if (!cus) throw new Error('Enter a customer id (cus_…)');
             host.innerHTML = '';
+            sfSkel = window.Common.flowLoading(host, { kind: 'flow', label: 'Loading the customer\'s saved cards…' });   // placeholder during the session call + Flow start-up
             const body = {
                 amount: parseInt(val('va-sf-amount'), 10) || 1000,
                 currency: val('va-sf-currency'),
@@ -379,13 +381,15 @@
                 publicKey: window.APP_CONFIG.publicKey, environment: 'sandbox', locale: 'en-GB', paymentSession: env.data,
                 componentOptions: { stored_card: { displayMode: 'all', ...($('va-sf-cvv').checked ? { captureCardCvv: true } : {}) } },
                 appearance: getFlowAppearance(),
+                onReady: () => sfSkel.done(),
                 onError: (_c, e) => { console.error('Vault stored-card Flow error:', e); showToast(e?.message || 'Flow error', 'error'); },
             });
             const flow = checkout.create('flow');
-            if (await flow.isAvailable()) flow.mount(host);
+            if (await flow.isAvailable()) flow.mount(host); else sfSkel.fail('Flow is not available for this session.');
             sfRendered = true;
             $('va-sf-clear').style.display = '';
         } catch (err) {
+            sfSkel.fail(err && err.message);
             showToast(err.message || 'Failed to render Flow', 'error');
         } finally {
             btn.disabled = false; btn.textContent = label; sfBusy = false;
@@ -399,6 +403,7 @@
         f.mounting = true; f.needs = false;
         const host = $('va-flow-host');
         host.innerHTML = '';
+        const sk = window.Common.flowLoading(host, { kind: 'card' });              // placeholder until the card field is really there
         $('va-flow-loading').style.display = '';
         $('va-flow-btn').disabled = true;
         try {
@@ -414,13 +419,14 @@
                 publicKey: window.APP_CONFIG.publicKey, environment: 'sandbox', locale: 'en-GB', paymentSession: env.data,
                 componentOptions: { card: { data: { cardholderName: 'Test Cardholder' }, displayCardholderName: 'bottom' } },
                 appearance: getFlowAppearance(),
-                onReady: () => {}, onChange: () => {}, onError: (_c, e) => console.error('Vault tokenizer error:', e),
+                onReady: () => sk.done(), onChange: () => {}, onError: (_c, e) => console.error('Vault tokenizer error:', e),
             });
             f.comp = checkout.create('card', { showPayButton: false });
-            if (await f.comp.isAvailable()) f.comp.mount(host);
+            if (await f.comp.isAvailable()) f.comp.mount(host); else sk.fail('Card fields are not available for this session.');
             $('va-flow-btn').disabled = false;
         } catch (err) {
             f.needs = true;
+            sk.fail(err && err.message);
             showToast('Failed to load card field: ' + err.message, 'error');
         } finally {
             $('va-flow-loading').style.display = 'none';

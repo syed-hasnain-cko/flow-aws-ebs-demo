@@ -138,6 +138,7 @@
         if (loadingEl) loadingEl.style.display = 'flex';
         hide('payout-card-token-badge');
         host.innerHTML = '';
+        const sk = window.Common.flowLoading(host, { kind: 'card' });              // placeholder until the card field is really there
         el('card-payout-submit-btn').disabled = true;
         el('card-payout-hint').style.display = '';
         el('card-payout-hint').textContent = '⏳ Loading card field…';
@@ -193,7 +194,7 @@
                     }
                 },
                 appearance: getFlowAppearance(),
-                onReady:    () => {},
+                onReady:    () => sk.done(),
                 onChange:   () => {},
                 onError:    (_component, error) => {
                     console.error('Payout card tokenizer error:', error);
@@ -203,6 +204,8 @@
             _payoutCardComponent = checkout.create('card', { showPayButton: false });
             if (await _payoutCardComponent.isAvailable()) {
                 _payoutCardComponent.mount(host);
+            } else {
+                sk.fail('Card fields are not available for this session.');
             }
 
             if (loadingEl) loadingEl.style.display = 'none';
@@ -211,6 +214,7 @@
 
         } catch (err) {
             if (loadingEl) loadingEl.style.display = 'none';
+            sk.fail(err && err.message);
             el('card-payout-hint').textContent = '❌ Failed to load card field: ' + err.message;
             console.error('Payout card field mount error:', err);
             showToast('Failed to load card field: ' + err.message, 'error');
