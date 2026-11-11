@@ -152,6 +152,8 @@ function _applyFilter() {
     });
     const badge = document.getElementById('log-dock-badge');
     if (badge) badge.textContent = total ? String(total) : '';
+    const fab = document.getElementById('api-log-toggle-count');             // count on the floating button (phones / tablets)
+    if (fab) fab.textContent = total ? String(total) : '';
     const c = document.getElementById('log-count');
     if (c) c.textContent = total ? ((q || f) ? `${shown} of ${total} calls` : `${total} call${total === 1 ? '' : 's'}`) : '';
 }
@@ -214,11 +216,50 @@ function _ensureDock() {
     sb.insertBefore(grip, sb.firstChild);
 }
 
+// ---------------------------------------------------------------------
+// Phones / tablets (≤ 900 px): the log is a bottom sheet opened by the floating "API LOG" button.
+// toggleSidebar() / closeSidebar() live HERE because this file runs on every page. (They used to be an inline <script> inside
+// tabs/main.html — the tab loader injects that HTML with innerHTML, which never executes scripts, so on index.html the
+// button did nothing.) success.html / failure.html use these too.
+// ---------------------------------------------------------------------
+function toggleSidebar(force) {
+    const sb = document.getElementById('api-sidebar');
+    if (!sb) return;
+    const open = typeof force === 'boolean' ? force : !sb.classList.contains('sidebar-open');
+    sb.classList.toggle('sidebar-open', open);
+    document.getElementById('sidebar-backdrop')?.classList.toggle('active', open);
+    document.body.classList.toggle('log-open', open);                        // locks the page behind the sheet
+    document.getElementById('api-log-toggle')?.setAttribute('aria-expanded', String(open));
+    if (open) { const list = document.getElementById('log-entries'); if (list) list.scrollTop = 0; }
+}
+function closeSidebar() { toggleSidebar(false); }
+
+function _ensureMobileBits() {
+    const header = document.querySelector('#api-sidebar .sidebar-header');
+    if (header && !document.getElementById('log-close')) {
+        const c = document.createElement('button');
+        c.id = 'log-close'; c.type = 'button'; c.setAttribute('aria-label', 'Close API log'); c.textContent = '✕';
+        c.addEventListener('click', closeSidebar);
+        header.appendChild(c);
+    }
+    const fab = document.getElementById('api-log-toggle');
+    if (fab && !document.getElementById('api-log-toggle-count')) {
+        const n = document.createElement('span'); n.id = 'api-log-toggle-count'; n.className = 'log-fab-count';
+        fab.appendChild(n);
+        fab.setAttribute('aria-controls', 'api-sidebar'); fab.setAttribute('aria-expanded', 'false');
+    }
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('api-sidebar')?.classList.contains('sidebar-open')
+        && document.getElementById('log-modal')?.style.display !== 'flex') closeSidebar();
+});
+
 // Restore persisted log entries on page load (oldest first so newest ends up on top)
 document.addEventListener('DOMContentLoaded', () => {
     _injectStyles();
     _ensureToolbar();
     _ensureDock();
+    _ensureMobileBits();
     const stored = _loadFromStorage();
     stored.forEach(e => _renderEntry({ ...e, at: e.at || new Date(e.id).toISOString(), request: e.request, response: e.response }));
     _applyFilter();

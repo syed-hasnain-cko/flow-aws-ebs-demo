@@ -1870,3 +1870,51 @@ header :where(button, a[href], select, [role="button"]):focus-visible { outline-
     .status-container .details-container > .detail-box { width: 100%; }
     .status-container .button-group { width: 100%; }
 }
+
+/* ================================================================
+   PHONES / TABLETS — API log bottom sheet + the "add src_ id" row (2026-11-11)
+   ================================================================ */
+#log-close { display: none; }
+.log-fab-count { min-width: 18px; padding: 1px 6px; border-radius: 20px; background: #1e293b; border: 1px solid #334155; color: #e2e8f0; font-size: 10px; text-align: center; }
+.log-fab-count:empty { display: none; }
+
+@media (max-width: 900px) {
+    body.log-open { overflow: hidden; }                                    /* the page behind the sheet does not scroll */
+    body.log-open .api-log-toggle { display: none; }                       /* closed with ✕ / the backdrop / Esc instead */
+
+    .api-log-sidebar.sidebar-open {
+        height: 86vh; max-height: 86vh; overflow: hidden;                  /* header + filters stay put, only the list scrolls */
+        box-shadow: 0 -14px 44px rgba(0, 0, 0, 0.55);
+    }
+    @supports (height: 1dvh) { .api-log-sidebar.sidebar-open { height: 86dvh; max-height: 86dvh; } }
+
+    .api-log-sidebar .sidebar-header { position: relative; flex: 0 0 auto; padding: 18px 14px 12px; }
+    .api-log-sidebar .sidebar-header::before {                              /* grab handle */
+        content: ''; position: absolute; top: 7px; left: 50%; width: 38px; height: 4px; margin-left: -19px; border-radius: 2px; background: #475569;
+    }
+    .api-log-sidebar .sidebar-header .header-label { font-size: 11px; }
+    .api-log-sidebar .clear-logs-btn { padding: 7px 12px; font-size: 10px; margin-left: auto; margin-right: 8px; }
+    #log-close { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;
+        background: rgba(51, 65, 85, 0.6); border: 1px solid #334155; color: #e2e8f0; font-size: 15px; cursor: pointer; font-family: inherit; }
+    #log-collapse, #log-resizer, #log-dock-tab { display: none !important; }   /* desktop-only controls */
+
+    #log-toolbar { flex: 0 0 auto; padding: 10px 12px; }
+    #log-toolbar .row { flex-wrap: wrap; }
+    #log-toolbar input, #log-toolbar select { font-size: 16px; padding: 9px 10px; }   /* 16px: iOS does not zoom the page on focus */
+    #log-toolbar select { flex: 0 0 auto; }
+    #log-toolbar button { padding: 8px 12px; font-size: 11px; }
+
+    .api-log-sidebar .log-entries-container {
+        flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+        padding: 10px 12px calc(16px + env(safe-area-inset-bottom));
+    }
+    .api-log-sidebar .log-entry { padding: 12px; margin-bottom: 8px; font-size: 12px; background: rgba(30, 41, 59, 0.5); border: 1px solid #1e293b; border-radius: 10px; }
+    .api-log-sidebar .log-entry .endpoint-text { font-size: 11.5px; line-height: 1.45; margin-top: 6px; }
+    .api-log-sidebar .log-time { font-size: 10px; }
+}
+
+@media (max-width: 600px) {
+    /* "Add an existing src_ id": the global mobile rule makes every .main-button 100% wide, which squeezed this input to a sliver */
+    #sa-instrument-add-btn { width: auto; flex: 0 0 auto; align-self: stretch; }
+    #sa-instrument-manual { min-width: 0; }
+}

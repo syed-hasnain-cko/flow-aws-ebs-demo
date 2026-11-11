@@ -6,7 +6,7 @@
     <title>Payment Success</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20261111b">
+    <link rel="stylesheet" href="style.css?v=20261111c">
     <script>
         (function () {
             var t = localStorage.getItem('cko-demo-theme') || 'light';
@@ -122,7 +122,7 @@
     <script src="frontend-config.js"></script>
     <script src="modules/account-config.js?v=20261105a"></script>
     <script src="utils.js"></script>
-    <script src="modules/api-log.js?v=20261102o"></script>
+    <script src="modules/api-log.js?v=20261111c"></script>
     <script src="modules/payment-actions.js"></script>
     <script src="modules/competitors/stripe-shared.js"></script>
     <script src="modules/competitors/adyen-shared.js"></script>
@@ -300,25 +300,5 @@
             if (sel) sel.value = t;
         })();
     </script>
-    <script>
-        function toggleSidebar() {
-            var sidebar = document.getElementById('api-sidebar');
-            var backdrop = document.getElementById('sidebar-backdrop');
-            var btn = document.getElementById('api-log-toggle');
-            var isOpen = sidebar.classList.toggle('sidebar-open');
-            backdrop.classList.toggle('active', isOpen);
-            btn.textContent = isOpen ? '✕ CLOSE' : '📋 API LOG';
-            btn.style.bottom = isOpen ? '4px' : '20px';
-        }
-        function closeSidebar() {
-            var sidebar = document.getElementById('api-sidebar');
-            var backdrop = document.getElementById('sidebar-backdrop');
-            var btn = document.getElementById('api-log-toggle');
-            sidebar.classList.remove('sidebar-open');
-            backdrop.classList.remove('active');
-            btn.textContent = '📋 API LOG';
-            btn.style.bottom = '20px';
-        }
-    </script>
-</body>
+    </body>
 </html>
