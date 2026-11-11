@@ -1985,3 +1985,9 @@ header :where(button, a[href], select, [role="button"]):focus-visible { outline-
 @keyframes fs-rotate { to { transform: rotate(360deg); } }
 /* the old one-line "⏳ Loading card field…" hints sat outside the empty div; the placeholder replaces them */
 #sa-flow-loading, #va-flow-loading, #payout-card-loading { display: none !important; }
+
+/* FLOW LOADING — correction (2026-11-11): the placeholder is now a SIBLING placed just before the host (Flow's mount() adopted a placeholder
+   that lived inside the host and the widget was then removed with it). While it shows, the host is collapsed — zero height, same width — so
+   Flow still lays out and loads normally; the class is removed when the placeholder is. */
+.flow-host-loading { height: 0 !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border-width: 0 !important;
+    overflow: hidden !important; opacity: 0; pointer-events: none; }

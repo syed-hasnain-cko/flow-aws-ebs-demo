@@ -244,7 +244,7 @@
             });
 
             _tokenCardComponent = checkout.create('card', { showPayButton: false });
-            window.Common.flowLoading.clear(host);                                  // keeps the placeholder
+            window.Common.flowLoading.clear(host);                                  
             if (await _tokenCardComponent.isAvailable()) _tokenCardComponent.mount(host); else sk.fail('Card fields are not available for this session.');
             el('fwd-tokenize-btn').disabled = false;
         } catch (err) {

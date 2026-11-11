@@ -186,13 +186,19 @@
 
     // ---------------------------------------------------------------------------------------------------------------
     // Common.flowLoading(host, { kind, label }) → { done(), fail(msg), el }
-    //   A friendly placeholder inside the (otherwise empty) element a Checkout.com Flow / card-tokenizer component will be mounted into:
+    //   A friendly placeholder for the (otherwise empty) element a Checkout.com Flow / card-tokenizer component will be mounted into:
     //   shimmering rows shaped like what is coming (kind: 'card' | 'flow' | 'wallet') plus a short status line.
     //   idle → loading → ready | failed  (machine "flow-skeleton:<host id>", data-state on the placeholder).
     //   Call it BEFORE the backend request (that is the lag), pass  onReady: () => sk.done()  to CheckoutWebComponents, and sk.fail(msg) on error.
+    //
+    //   !! The placeholder is a SIBLING placed just before the host — never a child of it. Flow's mount() ADOPTS the first <div> it finds
+    //   inside its container (rewrites its classes and renders into it), so a placeholder inside the host got turned into the Flow widget and
+    //   was then deleted by done() → an empty box. While loading, the host is collapsed (class flow-host-loading: zero height, same width),
+    //   so only the placeholder is visible; done() reveals the host and removes the placeholder in the same moment.
+    //
     //   Calling it again for a host that is already loading returns the same handle. Without an onReady the placeholder still goes away by itself:
-    //   'card'/'flow' once the first iframe inside the host has loaded, 'wallet' once its button is in the DOM; and always after 25 s.
-    //   Common.flowLoading.clear(host) empties a host but keeps the placeholder (use it instead of host.innerHTML = '').
+    //   'card'/'flow' 700 ms after the first iframe inside the host has loaded, 'wallet' once its button is in the DOM; and always after 15 s.
+    //   Common.flowLoading.clear(host) just empties the host.
     // ---------------------------------------------------------------------------------------------------------------
     const FLOW_SKEL = {
         initial: 'idle',
@@ -204,37 +210,37 @@
         flow:   '<div class="fs-bar fs-tall"></div><div class="fs-bar fs-tall"></div><div class="fs-bar fs-tall"></div><div class="fs-bar fs-btn"></div>',
         wallet: '<div class="fs-bar fs-btn"></div>',
     };
-    const skelNode = (n) => n && n.nodeType === 1 && n.classList.contains('flow-skel');
 
     function flowLoading(hostOrId, opts) {
         const host = typeof hostOrId === 'string' ? document.getElementById(hostOrId) : hostOrId;
         const noop = { el: null, done() {}, fail() {} };
-        if (!host) return noop;
+        if (!host || !host.parentNode) return noop;
         const prev = host._flowLoading;
         if (prev && prev.active) {
-            if (host.contains(prev.el)) return prev;                    // already loading here → same handle
-            prev.done();                                                // its node was wiped with the container → start over
+            if (prev.el.isConnected) return prev;                       // already loading here → same handle
+            prev.done();                                                // its node was wiped → start over
         }
+        if (prev && prev.el && prev.el.isConnected) prev.el.remove();   // a leftover error / faded placeholder from an earlier attempt
         const kind = (opts && opts.kind) || 'card';
         const el = document.createElement('div');
         el.className = `flow-skel fs-${kind}`;
         el.setAttribute('role', 'status'); el.setAttribute('aria-live', 'polite');
         el.innerHTML = `<div class="fs-head"><span class="fs-spin" aria-hidden="true"></span><span class="fs-label"></span></div>${SKEL_ROWS[kind] || SKEL_ROWS.card}`;
         el.querySelector('.fs-label').textContent = (opts && opts.label) || SKEL_LABEL[kind] || SKEL_LABEL.card;
-        [...host.children].forEach(n => { if (skelNode(n)) n.remove(); });     // a leftover error / placeholder from an earlier attempt
-        host.insertBefore(el, host.firstChild);
+        host.parentNode.insertBefore(el, host);                         // sibling, NOT a child (see above)
+        host.classList.add('flow-host-loading');
 
         const m = registry.get(`flow-skeleton:${host.id || 'host'}`) || machine(`flow-skeleton:${host.id || 'host'}`, FLOW_SKEL);
         m.bind(el); m.send('SHOW');
         let timer = null, mo = null;
-        const cleanup = () => { clearTimeout(timer); if (mo) mo.disconnect(); handle.active = false; };
+        const cleanup = () => { clearTimeout(timer); if (mo) mo.disconnect(); handle.active = false; host.classList.remove('flow-host-loading'); };
         const handle = {
             el, active: true,
             done() {
                 if (!handle.active) return;
                 cleanup(); m.send('READY');
                 el.classList.add('fs-out');
-                setTimeout(() => el.remove(), 200);                      // short fade, then gone
+                setTimeout(() => el.remove(), 200);                      // short fade, then gone — it is a separate element, Flow's widget is untouched
             },
             fail(msg) {
                 if (!handle.active) return;
@@ -247,17 +253,25 @@
         };
         host._flowLoading = handle;
         // Fallbacks for callers that cannot pass onReady, and a hard cap so a placeholder never lingers.
-        timer = setTimeout(() => handle.done(), 25000);
+        timer = setTimeout(() => handle.done(), 15000);
+        if (kind !== 'wallet') {                                         // content really rendered (tall enough) twice in a row → reveal it
+            let tall = 0;
+            const poll = setInterval(() => {
+                if (!handle.active) return clearInterval(poll);
+                tall = host.scrollHeight > 120 ? tall + 1 : 0;
+                if (tall >= 2) { clearInterval(poll); handle.done(); }
+            }, 500);
+        }
         if (typeof MutationObserver === 'function') {
             const watched = new WeakSet();
             const scan = () => {
                 if (!handle.active) return;
                 host.querySelectorAll('iframe').forEach(f => {
-                    if (watched.has(f) || el.contains(f)) return;
+                    if (watched.has(f)) return;
                     watched.add(f);
                     if (kind !== 'wallet') f.addEventListener('load', () => setTimeout(() => handle.done(), 700), { once: true });
                 });
-                if (kind === 'wallet' && [...host.children].some(c => !skelNode(c) && (c.offsetHeight > 0 || c.childElementCount > 0 || /\S/.test(c.textContent)))) setTimeout(() => handle.done(), 300);
+                if (kind === 'wallet' && [...host.children].some(c => c.offsetHeight > 0 || c.childElementCount > 0 || /\S/.test(c.textContent))) setTimeout(() => handle.done(), 300);
             };
             mo = new MutationObserver(scan);
             mo.observe(host, { childList: true, subtree: true });
@@ -266,7 +280,7 @@
     }
     flowLoading.clear = function (hostOrId) {
         const host = typeof hostOrId === 'string' ? document.getElementById(hostOrId) : hostOrId;
-        if (host) [...host.childNodes].forEach(n => { if (!skelNode(n)) n.remove(); });
+        if (host) host.replaceChildren();
     };
 
     Object.assign(window.Common, { machine, waitFor, waitForWebhook, busyStart, busy, flowLoading });

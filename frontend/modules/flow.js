@@ -12,6 +12,20 @@ let flowEffectiveBody = null;
 
 // Track mounted session for theme re-init
 let _flowActiveSession = null;
+let _flowActiveComponent = null;   // the Flow / card component currently mounted in #flow-container
+
+// Flow's mount() ADOPTS any <div> that is already inside its container, so rendering a second time on top of an earlier widget left an
+// empty box (the old widget's root got re-used). Before every (re-)render: unmount the previous component and clear the container,
+// keeping only the static Tokenize / Pay buttons and the result message that live inside it.
+function resetFlowContainer(container) {
+    try { if (_flowActiveComponent && typeof _flowActiveComponent.unmount === 'function') _flowActiveComponent.unmount(); } catch (e) { /* already gone */ }
+    _flowActiveComponent = null;
+    if (!container) return;
+    [...container.children].forEach(c => {
+        if (c.id === 'tokenize-button' || c.id === 'pay-button' || c.classList.contains('success-payment-message')) return;
+        c.remove();
+    });
+}
 let _flowIsTokenizeOnly = false;
 
 const performPaymentSubmission = async (submitData) => {
@@ -54,7 +68,8 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
     _flowIsTokenizeOnly = isTokenizeOnly;
 
     const appearance = getFlowAppearance();
-    // Friendly placeholder inside #flow-container until Flow reports ready (re-uses the one shown when the button was clicked)
+    resetFlowContainer(document.getElementById('flow-container'));
+    // Friendly placeholder for #flow-container until Flow reports ready (re-uses the one shown when the button was clicked)
     const skel = window.Common.flowLoading('flow-container', { kind: isTokenizeOnly ? 'card' : 'flow' });
 
     const tokenizeButton = document.getElementById("tokenize-button");
@@ -267,6 +282,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
             }
         );
 
+        _flowActiveComponent = flowComponent;
         flowComponent.mount(document.getElementById("flow-container"));
 
     } else {
@@ -277,6 +293,7 @@ let initializeFlow = async (paymentSession, isTokenizeOnly) => {
 
         // Mount the card form first, then show the button below it
         const cardComponent = await mountCardTokenizer(document.getElementById("flow-container"), paymentSession);
+        _flowActiveComponent = cardComponent;
 
         // Move button below the card form, then successMsg below the button
         const flowContainer = document.getElementById("flow-container");
@@ -397,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 flowEffectiveBody = cfg.body;
             }
             // The wait starts here (payment-session call, then SDK start-up, then Flow rendering): show the placeholder right away.
+            resetFlowContainer(flowContainer);
             flowContainer.style.display = 'block';
             skel = window.Common.flowLoading(flowContainer, { kind: tokenizeOnly ? 'card' : 'flow', label: 'Creating your secure payment session…' });
             const getResponse = await fetch(`${window.APP_CONFIG.apiBaseUrl}/payment-sessions`, {
