@@ -1813,3 +1813,42 @@ body.app-docked .header-inner { max-width: none; }
 .wh-btn:disabled { opacity:.5; cursor:not-allowed; }
 .wh-state { font-size:12px; color:var(--text-secondary); margin-left:4px; }
 #wh-list { overflow-x:auto; }
+
+/* ================================================================
+   POLISH (2026-11-11) — small, additive, no layout changes
+   ================================================================ */
+
+/* Native controls + scrollbars follow the theme (the three dark themes were showing light scrollbars) */
+:root, [data-theme="light"] { color-scheme: light; }
+[data-theme="dark"], [data-theme="midnight"], [data-theme="neon"] { color-scheme: dark; }
+:root { scrollbar-color: var(--border-strong) transparent; }
+
+/* Keyboard focus ring — only for keyboard users (:focus-visible); :where() keeps specificity at 0, so inputs and
+   any control that already styles its own focus keep exactly what they have today. */
+:where(button, a[href], summary, select, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+header :where(button, a[href], select, [role="button"]):focus-visible { outline-color: var(--header-text); }
+
+/* Disabled / busy buttons must not look or react as clickable (hover used to lift and glow them) */
+.main-button:disabled,
+.main-button[aria-busy="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.main-button:disabled:hover,
+.main-button[aria-busy="true"]:hover { transform: none; box-shadow: none; opacity: 0.55; }
+.copy-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+[aria-busy="true"] { cursor: progress; }
+
+/* Respect "reduce motion" */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

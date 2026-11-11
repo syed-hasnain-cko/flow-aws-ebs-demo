@@ -164,6 +164,7 @@ async function copyToClipboard(elementId) {
 
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast-container');
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');   // read out by screen readers / agents
     toast.textContent = message;
     toast.className = `toast-container toast-${type}`;
     toast.style.display = 'block';
@@ -175,6 +176,7 @@ function showToast(message, type = 'success') {
 
 function showKlarnaToast(message, type = 'success') {
     const toast = document.getElementById('toast-container-klarna');
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');   // read out by screen readers / agents
     toast.textContent = message;
     toast.className = `toast-container toast-${type}`;
     toast.style.display = 'block';
