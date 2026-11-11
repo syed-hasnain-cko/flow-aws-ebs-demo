@@ -1918,3 +1918,44 @@ header :where(button, a[href], select, [role="button"]):focus-visible { outline-
     #sa-instrument-add-btn { width: auto; flex: 0 0 auto; align-self: stretch; }
     #sa-instrument-manual { min-width: 0; }
 }
+
+/* ================================================================
+   PHONES — the other tabs (2026-11-11). Everything is inside a max-width media query, so desktop is untouched.
+   Found with a headless-Chrome audit of every tab at 390 px (docs/app-shell.md).
+   ================================================================ */
+@media (max-width: 900px) {
+    /* The floating API LOG button no longer covers the last controls on a page */
+    .wrapper, .app-body .wrapper { padding-bottom: 88px; }
+}
+
+@media (max-width: 760px) {
+    /* Standalone: a field with an inline "grid-column: span 2/3" inside a grid that collapses to one column made the browser create
+       extra implicit columns, squeezing every field in that grid (labels wrapped letter by letter). Span the real column instead. */
+    .sa-grid > [style*="grid-column"] { grid-column: 1 / -1 !important; }
+}
+
+@media (max-width: 600px) {
+    /* Standalone: the auth-mode select (long option text) and its note pushed the whole page wider than the screen */
+    #standalone-tab .inline-form { grid-template-columns: minmax(0, 1fr) !important; }
+    #standalone-tab .inline-form > * { min-width: 0 !important; max-width: 100%; }
+    #sa-auth-mode { width: 100%; max-width: 100%; }
+    #standalone-tab .button-group { margin-top: 14px; }                 /* buttons were flush against the field above */
+
+    /* Smart Dunning: the test-card table is wider than a phone → scroll inside the card, not the page */
+    .sd-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+    /* …and "Previous payment id" + "Create initial payment": the field takes its own line, the button the next */
+    div:has(> #sd-prev) { flex-wrap: wrap; }
+    #sd-prev { flex: 1 1 100% !important; }
+    #sd-initial { flex: 1 1 100% !important; padding: 10px 14px; }
+
+    /* Payments: tidy filters (two per row) and a search box that can shrink */
+    #pe-root .pe-bar .text-input { min-width: 0; flex: 1 1 100%; max-width: none; }
+    #pe-root .pe-filters { display: grid; grid-template-columns: 1fr 1fr; }
+    #pe-root .pe-filters .select-input { width: 100%; min-width: 0; }
+
+    /* Text of at least 16px in fields: iOS Safari zooms the page when a smaller field is focused, which is what made screens
+       "jump wider" while typing. Theme/header selects keep their own size. */
+    .text-input, .select-input, .sa-textarea { font-size: 16px; }
+    /* Comfortable tap targets for the small utility buttons (Clear, Remove selected, Copy …) */
+    .copy-btn { min-height: 34px; }
+}
