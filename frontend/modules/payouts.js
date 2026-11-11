@@ -361,8 +361,8 @@
         }
 
         const btn = el('card-payout-submit-btn');
-        btn.disabled = true;
-        btn.textContent = 'Tokenizing…';
+        const done = window.Common.busyStart('card-payout-submit-btn', 'Tokenizing…');
+        if (!done) return;                                                       // already submitting
 
         try {
             // Step 1: Tokenize the card
@@ -379,9 +379,7 @@
                 const actual   = tokenData.scheme;
                 const expected = _activeScheme === 'visa' ? 'Visa' : 'Mastercard';
                 showToast(`Wrong scheme: Card is ${actual} but ${expected} payout is selected for testing. Please enter a ${expected} card.`, 'error');
-                btn.disabled = false;
-                btn.textContent = 'Submit Card Payout';
-                return;
+                return;                                                          // finally → done()
             }
 
             // Show token badge
@@ -449,17 +447,17 @@
             console.error('Card payout error:', err);
             showToast('Card payout failed: ' + err.message, 'error');
         } finally {
-            btn.disabled = false;
-            btn.textContent = 'Submit Card Payout';
+            done();
+            updateLockState();   // queuePayout() locked the submit button while a card payout is pending — do not undo that here
         }
     }
 
     async function onBankPayoutSubmit() {
-        const btn = el('bank-payout-submit-btn');
-        btn.disabled = true;
-        btn.textContent = 'Submitting…';
+        const done = window.Common.busyStart('bank-payout-submit-btn', 'Submitting…');
+        if (!done) return;                                                       // already submitting
 
-        const body = buildBankPayoutBody();
+        let body;
+        try { body = buildBankPayoutBody(); } catch (err) { done(); throw err; }
         const fullLogBody = {
             ...body,
             source: { type: 'currency_account', id: window.APP_CONFIG?.currencyAccountId || '(backend: CURRENCY_ACCOUNT_ID)' },
@@ -500,8 +498,7 @@
             console.error('Bank payout error:', err);
             showToast('Bank payout failed: ' + err.message, 'error');
         } finally {
-            btn.disabled = false;
-            btn.textContent = 'Submit Bank Payout';
+            done();
         }
     }
 
