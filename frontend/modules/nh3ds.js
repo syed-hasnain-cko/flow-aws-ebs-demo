@@ -51,7 +51,20 @@
 
     const st = {};                    // step id → { state, summary, req, res, ms }
     const open = new Set();           // <details> that are open ("step:req"), survive re-renders
-    const S = { busy: false, run: 0, themeId: 'classic', session: null, gateResolve: null, host: null };
+    // The run's lifecycle as an explicit machine (modules/machine.js, "nh3ds-run" in CkoMachines; #nh-root carries data-state):
+    //   idle → running ⇄ gated (step-by-step mode: waiting for “Continue”) → finished | cancelled (Reset).  S.run stays the stale-run token.
+    const runM = window.Common.machine('nh3ds-run', {
+        initial: 'idle',
+        states: {
+            idle:      { START: 'running' },
+            running:   { GATE: 'gated', FINISH: 'finished', CANCEL: 'cancelled' },
+            gated:     { RESUME: 'running', FINISH: 'finished', CANCEL: 'cancelled' },
+            finished:  { START: 'running', CANCEL: 'finished' },
+            cancelled: { START: 'running', CANCEL: 'cancelled' },
+        },
+    });
+    const busy = () => runM.is('running', 'gated');
+    const S = { run: 0, themeId: 'classic', session: null, gateResolve: null, host: null };
 
     // ---- helpers -----------------------------------------------------------------------------------------------------
     const prefs = () => window.Common.Store.getJSON(PREF_KEY, {});
@@ -115,7 +128,9 @@
         if (!$('nh-stepmode').checked) return;
         const b = $('nh-gate');
         b.textContent = `Continue ▶ ${label}`; b.style.display = '';
+        runM.send('GATE');
         await new Promise(r => { S.gateResolve = r; });
+        runM.send('RESUME');
         b.style.display = 'none';
     }
 
@@ -196,10 +211,11 @@
     }
 
     async function run() {
-        if (S.busy) return;
+        if (busy()) return;
         if (!/^\d{12,19}$/.test(pan())) { showToast('Enter a valid card number', 'error'); return; }
         const tok = ++S.run, dead = () => tok !== S.run;
-        S.busy = true; savePrefs(); resetSteps(); refreshButtons();
+        if (runM.el !== $('nh-root')) runM.bind($('nh-root'));
+        runM.send('START'); savePrefs(); resetSteps(); refreshButtons();
         const fast = $('nh-fast').checked, t = theme();
         try {
             // 1 — create
@@ -292,7 +308,7 @@
             showToast('3DS flow error: ' + e.message, 'error');
         } finally {
             if (S.host) S.host.close();
-            if (!dead()) { S.busy = false; $('nh-gate').style.display = 'none'; refreshButtons(); }
+            if (!dead()) { runM.send('FINISH'); $('nh-gate').style.display = 'none'; refreshButtons(); }
         }
     }
 
@@ -320,7 +336,7 @@
     }
 
     // ---- UI wiring -----------------------------------------------------------------------------------------------------------
-    function refreshButtons() { $('nh-run').disabled = S.busy; $('nh-run').textContent = S.busy ? 'Running…' : '▶ Run the flow'; }
+    function refreshButtons() { $('nh-run').disabled = busy(); $('nh-run').textContent = busy() ? 'Running…' : '▶ Run the flow'; }
     function selectTheme(id) {
         S.themeId = id;
         document.querySelectorAll('#nh-themes .nh-theme').forEach(e => e.classList.toggle('on', e.dataset.theme === id));
@@ -349,7 +365,7 @@
         $('nh-themes').addEventListener('keydown', (e) => { const t = e.target.closest('.nh-theme'); if (t && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectTheme(t.dataset.theme); } });
         $('nh-preview').addEventListener('click', preview);
         $('nh-run').addEventListener('click', run);
-        $('nh-reset').addEventListener('click', () => { S.run++; waiter = null; if (S.host) S.host.cancel(); S.busy = false; if (S.gateResolve) { const r = S.gateResolve; S.gateResolve = null; r(); } $('nh-gate').style.display = 'none'; resetSteps(); refreshButtons(); });
+        $('nh-reset').addEventListener('click', () => { S.run++; waiter = null; if (S.host) S.host.cancel(); runM.send('CANCEL'); if (S.gateResolve) { const r = S.gateResolve; S.gateResolve = null; r(); } $('nh-gate').style.display = 'none'; resetSteps(); refreshButtons(); });
         $('nh-gate').addEventListener('click', () => { if (S.gateResolve) { const r = S.gateResolve; S.gateResolve = null; r(); } });
         $('nh-steps').addEventListener('toggle', (e) => { const k = e.target.dataset && e.target.dataset.k; if (k) { if (e.target.open) open.add(k); else open.delete(k); } }, true);
     }
