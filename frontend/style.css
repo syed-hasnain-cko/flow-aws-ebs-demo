@@ -1852,3 +1852,21 @@ header :where(button, a[href], select, [role="button"]):focus-visible { outline-
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ================================================================
+   SUCCESS / FAILURE PAGES — keep the card inside the screen (2026-11-11)
+   The JSON rows contain long unbreakable strings (ids, tokens, URLs). A card sized to its content then became wider than the
+   phone as soon as the details loaded, dragging the buttons and the JSON panel past the edges. Desktop sizing is unchanged.
+   Every selector is scoped to .status-container, so no other tab is affected.
+   ================================================================ */
+.wrapper > .status-container { box-sizing: border-box; max-width: 100%; min-width: 0; }
+.status-container > *, .status-container .details-container > *, .status-container .detail-box, .status-container .detail-box > * { min-width: 0; max-width: 100%; }
+.status-container p, .status-container h2, .status-container .detail-box { overflow-wrap: anywhere; }
+.status-container .detail-header { flex-wrap: wrap; gap: 8px; }
+.status-container pre { max-width: 100%; overflow-x: auto; }
+
+@media (max-width: 600px) {
+    .wrapper > .status-container { align-self: stretch; }     /* exactly the page width minus the page padding */
+    .status-container .details-container > .detail-box { width: 100%; }
+    .status-container .button-group { width: 100%; }
+}

@@ -20,3 +20,7 @@ The horizontal tab bar (10 tabs, last one hidden under the floating log) was rep
 - Toasts get `role="alert"` (errors) / `role="status"` (others) in `showToast` / `showKlarnaToast`.
 - The unused Roboto font request was removed from `index.html` (Inter is the page font; Roboto stays only as a fallback name).
 Rule: the existing CSS above the block is untouched — new polish goes in the same trailing block so it is easy to revert as one piece.
+
+## Success / failure pages on phones (2026-11-11)
+Problem: once the payment details / webhook text arrived, the card became wider than the phone (the JSON rows hold long unbreakable ids, tokens and URLs, and the card was sized to its content), so the buttons and the JSON panel ran to the screen edges. Fix: a trailing block in `style.css`, every selector scoped to `.status-container` — `max-width: 100%`, `min-width: 0` on the card and its children, `overflow-wrap: anywhere`, and `align-self: stretch` under 600 px. Desktop is pixel-identical (checked with headless Chrome before/after). `success.html` / `failure.html` now load `style.css?v=…` so phones do not keep a cached copy.
+Lesson: when editing `style.css` programmatically never search for a section title — "SUCCESS / FAILURE PAGES" already exists earlier in the file (a first attempt truncated the file there; caught before commit). Only append, and compare with `git show main:frontend/style.css`.
