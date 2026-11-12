@@ -30,7 +30,7 @@
     document.getElementById('nh3ds-tab').innerHTML = loadSync('tabs/nh3ds.html?v=20261109a');
     document.getElementById('wallet-onboarding-tab').innerHTML = loadSync('tabs/wallet-onboarding.html?v=20261106k');
     document.getElementById('standalone-tab').innerHTML = loadSync('tabs/standalone.html?v=20261103c');
-    document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html?v=20261106j');
+    document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html?v=20261112a');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
     document.getElementById('webhooks-tab').innerHTML = loadSync('tabs/webhooks.html?v=20261105c');
     document.getElementById('testdata-tab').innerHTML = loadSync('tabs/testdata.html?v=20261112d');

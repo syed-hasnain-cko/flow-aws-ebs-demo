@@ -902,6 +902,15 @@
     }
 
     // ─── Editor viewer ────────────────────────────────────────────────────
+    // The panels follow the journey of a call: Forward Request → Destination Request → Destination Response → Forward Response.
+    // The destination's body arrives as a JSON *string* inside the forward response; show it as real JSON everywhere (a non-JSON body, e.g. HTML, stays text).
+    function parseDestinationBody(dr) {
+        if (!dr || typeof dr.body !== 'string') return dr;
+        try { return { ...dr, body: JSON.parse(dr.body) }; } catch { return dr; }
+    }
+    function forwardResponseForDisplay(data) {
+        return data && data.destination_response ? { ...data, destination_response: parseDestinationBody(data.destination_response) } : data;
+    }
     function switchEditorTab(tab) {
         _activeEditorTab = tab;
         document.querySelectorAll('.fwd-tab-btn').forEach(b => b.classList.toggle('fwd-tab-active', b.dataset.tab === tab));
@@ -922,22 +931,14 @@
             case 'response':
                 if (!_lastForwardResponse && !_lastForwardError) content = '// Submit a request to see the Forward API response here.';
                 else if (_lastForwardError) content = JSON.stringify(_lastForwardError, null, 2);
-                else {
-                    const { destination_response, ...rest } = _lastForwardResponse;
-                    content = JSON.stringify(rest, null, 2);
-                }
+                else content = JSON.stringify(forwardResponseForDisplay(_lastForwardResponse), null, 2);      // the FULL payload, destination_response included
                 break;
             case 'dest-request':
                 content = JSON.stringify(buildDestinationRequest(), null, 2);
                 break;
             case 'dest-response':
                 if (!_lastForwardResponse?.destination_response) content = '// Submit a request to see the destination\'s response here.';
-                else {
-                    const dr = _lastForwardResponse.destination_response;
-                    let body = dr.body;
-                    try { body = JSON.parse(dr.body); } catch { /* leave as string */ }
-                    content = JSON.stringify({ status: dr.status, headers: dr.headers, body }, null, 2);
-                }
+                else content = JSON.stringify(parseDestinationBody(_lastForwardResponse.destination_response), null, 2);
                 break;
         }
 
@@ -1083,8 +1084,7 @@
                 } else {
                     showToast(`Forwarded successfully (${data.request_id || 'no id'})${destStatus ? ` — destination returned ${destStatus}` : ''}`, 'success');
                 }
-                switchEditorTab('response');
-                setTimeout(() => switchEditorTab('dest-response'), 1600);
+                switchEditorTab('response');       // the last step of the journey — it now holds everything, including the parsed destination response
             } else {
                 _lastForwardResponse = null;
                 _lastForwardError = data;
