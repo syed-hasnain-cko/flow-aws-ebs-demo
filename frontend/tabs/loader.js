@@ -13,7 +13,7 @@
     }
 
     // 1. Inject the main shell (header, tab buttons, sidebar, modal, loader overlay)
-    document.getElementById('app').innerHTML = loadSync('tabs/main.html');
+    document.getElementById('app').innerHTML = loadSync('tabs/main.html?v=20261112a');
 
     document.body.classList.add('app-docked');   // docked API log + side nav layout (index.html only)
 
@@ -33,6 +33,7 @@
     document.getElementById('forward-tab').innerHTML = loadSync('tabs/forward.html?v=20261106j');
     document.getElementById('competitors-tab').innerHTML = loadSync('tabs/competitors/index.html');
     document.getElementById('webhooks-tab').innerHTML = loadSync('tabs/webhooks.html?v=20261105c');
+    document.getElementById('testdata-tab').innerHTML = loadSync('tabs/testdata.html?v=20261112d');
     document.getElementById('settings-tab').innerHTML = loadSync('tabs/settings.html?v=20261106c');
 
     // 3. Inject each partner's content into its panel div (index.html above must load first)

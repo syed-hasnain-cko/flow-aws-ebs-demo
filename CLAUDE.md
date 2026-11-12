@@ -102,6 +102,7 @@ All routes defined in `amplify/backend/function/src/flowDemoSyedLambda/api-route
 - `GET /.well-known/apple-developer-merchantid-domain-association.txt` — Apple Pay domain association
 - `POST /payouts` — Create payout (proxies to CKO `/payments`, injects `source.type: currency_account`)
 - `POST /card-metadata` — Proxy to CKO `POST /metadata/card`; used for payout eligibility pre-check (Beta API)
+- `GET /testdata/config`, `POST /testdata/seal`, `POST /testdata/call` — Test Data Generator (allowlisted sandbox-only operations, see `docs/test-data-generator.md`; file `testdata/testdata-routes.js`)
 
 ### Competitor Testing — Stripe Endpoints
 
@@ -181,6 +182,7 @@ Per-feature history, design decisions, verified sandbox facts and pitfalls were 
 | [`docs/smart-dunning.md`](docs/smart-dunning.md) | Smart Dunning tab (retry schedules, webhooks, test cards) |
 | [`docs/non-hosted-3ds.md`](docs/non-hosted-3ds.md) | 3DS Non-hosted tab (browser-channel Sessions flow, challenge iframe, presentation themes, verified test cards) |
 | [`docs/state-machines.md`](docs/state-machines.md) | Implicit state machines inventory + the shared `Common.machine` / `waitFor` / `waitForWebhook` module and `window.CkoMachines` (agent-readable state) |
+| [`docs/test-data-generator.md`](docs/test-data-generator.md) | Test Data tab: generate sandbox CIT/MIT/recurring/PTC/PTB/declines/disputes/follow-ups; sealed merchant profiles; **verified sandbox facts (Visa 43102, fpan for declines, payout cards)** |
 | [`docs/app-shell.md`](docs/app-shell.md) | App shell: left navigation + docked API log |
 | [`docs/account-and-webhooks.md`](docs/account-and-webhooks.md) | Account Settings (BYO account) + Webhooks tab |
 | [`docs/wallet-onboarding.md`](docs/wallet-onboarding.md) | Wallet Onboarding tab (Apple Pay domains / CSR / certificate, Google Pay enrollment), merchant profiles + sealed keys |

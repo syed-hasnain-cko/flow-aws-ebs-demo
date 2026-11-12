@@ -28,7 +28,7 @@
     <div id="app"></div>
 
     <!-- 1. Inject all tab HTML before any module script runs -->
-    <script src="tabs/loader.js"></script>
+    <script src="tabs/loader.js?v=20261112a"></script>
     <!-- Sync theme selector to saved value after it's injected -->
     <script>
         (function () {
@@ -40,7 +40,7 @@
 
     <!-- 2. App config: sets window.APP_CONFIG with env-specific values -->
     <script src="frontend-config.js"></script>
-    <script src="modules/common.js?v=20261106k"></script>
+    <script src="modules/common.js?v=20261112a"></script>
     <script src="modules/machine.js?v=20261111f"></script>
     <script src="modules/account-config.js?v=20261105a"></script>
 
@@ -95,6 +95,7 @@
     <script src="modules/links.js?v=20261106c"></script>
     <script src="modules/settings.js?v=20261106c"></script>
     <script src="modules/webhooks.js?v=20261106a"></script>
+    <script src="modules/testdata.js?v=20261112d"></script>
     <script src="modules/forward-config.js?v=20261106j"></script>
 
     <!-- JWE encryption bridge for the Forward API tab. The app otherwise uses

@@ -1,0 +1,187 @@
+<style>
+    #td-root .td-note { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    #td-root .td-note code, #td-root .td-card code { font-family:'JetBrains Mono', monospace; font-size:11px; background:var(--bg-subtle); border:1px solid var(--border); border-radius:4px; padding:0 5px; }
+    #td-root .td-card { border:1px solid var(--border); border-radius:10px; background:var(--bg-card); padding:14px 16px; margin-top:14px; }
+    #td-root .td-card > h3 { margin:0 0 4px; font-size:14px; color:var(--text-primary); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    #td-root .td-step { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--primary); color:#fff; font-size:12px; font-weight:700; }
+    #td-root .td-bar { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+    #td-root .td-bar .select-input { width:auto; min-width:230px; }
+    #td-root label.l { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
+    #td-root .td-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px 16px; margin-top:10px; }
+    #td-root .td-grid .text-input, #td-root .td-grid .select-input { width:100%; box-sizing:border-box; }
+    #td-root .td-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; }
+    #td-root .td-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    #td-root .td-chip { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-family:'JetBrains Mono', monospace; padding:3px 6px 3px 10px; border-radius:20px; border:1px solid var(--border); background:var(--bg-subtle); color:var(--text-primary); }
+    #td-root .td-chip button { border:0; background:transparent; color:var(--text-secondary); cursor:pointer; font-size:14px; line-height:1; padding:0 4px; }
+    #td-root .td-pill { font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; border:1px solid var(--border); color:var(--text-secondary); background:var(--bg-subtle); white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
+    #td-root .td-pill.good { background:var(--success); border-color:var(--success); color:#fff; } #td-root .td-pill.bad { background:var(--error); border-color:var(--error); color:#fff; }
+    #td-root .td-pill.warn { background:#f59e0b; border-color:#f59e0b; color:#fff; } #td-root .td-pill.info { background:var(--primary); border-color:var(--primary); color:#fff; }
+    #td-root .td-flag { margin-top:10px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg-subtle); font-size:12px; line-height:1.6; color:var(--text-secondary); }
+    #td-root .td-flag.warn { border-color:#f59e0b; } #td-root .td-flag.bad { border-color:var(--error); } #td-root .td-flag.good { border-color:var(--success); }
+    #td-root .td-total { display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+    #td-root .td-total .text-input { width:110px; }
+    #td-root .td-assign { flex:1; min-width:220px; }
+    #td-root .td-meter { height:8px; border-radius:6px; background:var(--bg-subtle); border:1px solid var(--border); overflow:hidden; margin-top:6px; }
+    #td-root .td-meter > i { display:block; height:100%; width:0; background:var(--primary); transition:width .25s ease; }
+    #td-root .td-meter.over > i { background:var(--error); } #td-root .td-meter.done > i { background:var(--success); }
+    #td-root .td-cats { display:grid; grid-template-columns:1fr; gap:0; margin-top:12px; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    #td-root .td-cat { display:grid; grid-template-columns:34px 1fr 96px; gap:10px; align-items:center; padding:10px 12px; border-top:1px solid var(--border); }
+    #td-root .td-cat:first-child { border-top:0; }
+    #td-root .td-cat .ico { font-size:20px; text-align:center; }
+    #td-root .td-cat .t { font-weight:700; font-size:13px; color:var(--text-primary); }
+    #td-root .td-cat .h { font-size:12px; color:var(--text-secondary); line-height:1.5; margin-top:2px; }
+    #td-root .td-cat input { width:100%; box-sizing:border-box; text-align:center; }
+    #td-root details.td-d { margin-top:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-subtle); }
+    #td-root details.td-d > summary { cursor:pointer; padding:10px 14px; font-size:13px; font-weight:700; color:var(--text-primary); }
+    #td-root details.td-d > summary small { font-weight:400; color:var(--text-secondary); margin-left:6px; }
+    #td-root details.td-d > .in { padding:2px 14px 14px; }
+    #td-root .td-checks { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:6px 14px; margin-top:8px; }
+    #td-root .td-checks label { display:flex; gap:8px; align-items:flex-start; font-size:12px; color:var(--text-primary); line-height:1.45; cursor:pointer; }
+    #td-root .td-checks label small { color:var(--text-secondary); }
+    #td-root .td-checks input[type=checkbox] { margin-top:2px; flex:0 0 auto; }
+    #td-root .td-sub { margin-top:12px; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary); }
+    #td-root .td-prog { margin-top:12px; }
+    #td-root .td-counts { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    #td-root .td-table-wrap { overflow-x:auto; margin-top:10px; border:1px solid var(--border); border-radius:10px; }
+    #td-root table.td-table { width:100%; border-collapse:collapse; font-size:12px; min-width:640px; }
+    #td-root .td-table th { text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary); padding:6px 8px; border-bottom:1px solid var(--border); background:var(--bg-subtle); position:sticky; top:0; }
+    #td-root .td-table td { padding:6px 8px; border-bottom:1px solid var(--border); color:var(--text-primary); vertical-align:top; overflow-wrap:anywhere; }
+    #td-root .td-table tr.run td { background:var(--bg-subtle); }
+    #td-root .td-table th:first-child, #td-root .td-table td:first-child { white-space:nowrap; width:1%; }
+    #td-root .td-copy { cursor:pointer; font-family:'JetBrains Mono', monospace; font-size:11px; padding:1px 7px; border-radius:6px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); }
+    #td-root .td-copy:hover { border-color:var(--primary); }
+    #td-root .td-modal-back { position:fixed; inset:0; z-index:100000; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px; }
+    #td-root .td-modal, .td-modal { width:100%; max-width:560px; max-height:92vh; overflow:auto; background:var(--bg-card); color:var(--text-primary); border:1px solid var(--border); border-radius:14px; padding:18px 20px; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+    .td-modal h3 { margin:0 0 6px; font-size:17px; }
+    .td-modal .err { color:var(--error); font-size:12px; margin-top:8px; min-height:16px; }
+    .td-modal ul { margin:8px 0 0; padding-left:18px; font-size:13px; line-height:1.7; }
+    .td-modal .td-note { font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:8px; }
+    .td-modal .td-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px 16px; margin-top:10px; }
+    .td-modal label.l { display:block; font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:4px; }
+    .td-modal .text-input, .td-modal .select-input { width:100%; box-sizing:border-box; }
+    .td-modal .td-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+    #td-root .main-button:disabled, #td-root .copy-btn:disabled { opacity:.4; cursor:not-allowed; }
+    @media (max-width:600px) { #td-root .td-cat { grid-template-columns:28px 1fr 78px; gap:8px; padding:10px; } #td-root .td-card { padding:12px; } }
+</style>
+
+<div class="context-area" id="td-root">
+    <h2 class="section-header">🧪 Test Data Generator</h2>
+    <p class="td-note" style="margin-top:-6px;">Create realistic <b>sandbox</b> transactions in an account, with no one at the keyboard — card payments (customer-initiated and merchant-initiated), payouts to cards and banks, declines and disputes.
+        Nobody can complete a 3D Secure challenge here, so customer payments are sent <b>without 3DS</b> and merchant-initiated payments are backend-only. Every transaction is tagged with a batch reference so you can find it again. <b>Sandbox only</b> — a live key is refused.</p>
+    <div id="td-sandbox-flag" class="td-flag bad" hidden></div>
+
+    <!-- 1 · account -->
+    <div class="td-card">
+        <h3><span class="td-step">1</span> Which account?</h3>
+        <div class="td-bar">
+            <div><label class="l" for="td-profile">Merchant account</label><select id="td-profile" class="select-input"></select></div>
+            <div class="td-actions" style="margin-top:0;">
+                <button type="button" id="td-prof-new" class="copy-btn">+ New merchant</button>
+                <button type="button" id="td-prof-edit" class="copy-btn">Edit</button>
+                <button type="button" id="td-prof-del" class="copy-btn">Remove</button>
+            </div>
+        </div>
+        <div id="td-prof-info" class="td-note" style="margin-top:8px;"></div>
+        <div class="td-grid">
+            <div style="grid-column:1/-1;">
+                <label class="l" for="td-ch-input">Processing channels <small style="font-weight:400;">— payments are spread evenly across these</small></label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;"><input id="td-ch-input" class="text-input" placeholder="pc_…" autocomplete="off" spellcheck="false" style="flex:1; min-width:200px; max-width:420px;"><button type="button" id="td-ch-add" class="copy-btn">Add channel</button></div>
+                <div id="td-channels" class="td-chips"></div>
+            </div>
+            <div>
+                <label class="l" for="td-ca">Currency account ID <small style="font-weight:400;">— for Pay to card / Pay to bank</small></label>
+                <input id="td-ca" class="text-input" placeholder="ca_…" autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+        <div class="td-actions">
+            <button type="button" id="td-check" class="copy-btn" title="Makes one tiny sandbox payment per card brand and ticks only the brands this account approves">Check which cards this account accepts</button>
+            <span id="td-check-res" class="td-note"></span>
+        </div>
+    </div>
+
+    <!-- 2 · what -->
+    <div class="td-card">
+        <h3><span class="td-step">2</span> What should be generated?</h3>
+        <div class="td-total">
+            <div><label class="l" for="td-total">Number of transactions</label><input id="td-total" class="text-input" type="number" min="1" max="500" value="25"></div>
+            <div class="td-actions" style="margin-top:0;"><button type="button" id="td-rebalance" class="copy-btn" title="Spread the total over the types in the default proportions">Reset split</button></div>
+            <div class="td-assign"><div id="td-assigned" class="td-note"></div><div class="td-meter" id="td-meter"><i></i></div></div>
+        </div>
+        <div id="td-cats" class="td-cats"></div>
+    </div>
+
+    <!-- 3 · details -->
+    <div class="td-card">
+        <h3><span class="td-step">3</span> Details <small style="font-weight:400; color:var(--text-secondary);">— sensible defaults, change only what you care about</small></h3>
+
+        <details class="td-d" open><summary>Amounts &amp; currencies <small>what the payments look like</small></summary><div class="in">
+            <div class="td-grid">
+                <div><label class="l" for="td-amin">Smallest payment (major units)</label><input id="td-amin" class="text-input" type="number" min="0.01" step="0.01" value="5"></div>
+                <div><label class="l" for="td-amax">Largest payment (major units)</label><input id="td-amax" class="text-input" type="number" min="0.01" step="0.01" value="250"></div>
+                <div><label class="l" for="td-pmin">Smallest payout</label><input id="td-pmin" class="text-input" type="number" min="0.01" step="0.01" value="5"></div>
+                <div><label class="l" for="td-pmax">Largest payout</label><input id="td-pmax" class="text-input" type="number" min="0.01" step="0.01" value="50"></div>
+            </div>
+            <div class="td-sub">Payment currencies</div><div id="td-ccys" class="td-checks"></div>
+            <div class="td-note" style="margin-top:6px;">Disputes always use <b>GBP</b> (the sandbox only simulates them in GBP). Payouts use <b>EUR</b> — Pay to bank is EUR-only, and Pay to card was accepted in EUR on the demo account.</div>
+        </div></details>
+
+        <details class="td-d" open><summary>Cards <small>which brands to use</small></summary><div class="in">
+            <div class="td-flag warn" style="margin-top:6px;">⚠️ <b>Only tick brands that are enabled for your sandbox account</b> (and its processing channel) — ask your Checkout.com contact to enable a brand first. If the API refuses a ticked brand, the generator skips that brand and carries on with the ones that work. A brand that is enabled but whose payments are <i>declined</i> is not skipped: those show up as “unexpected” in the results.</div>
+            <div id="td-schemes" class="td-checks"></div>
+        </div></details>
+
+        <details class="td-d" id="td-d-declines"><summary>Declined payments <small>which decline codes can appear</small></summary><div class="in">
+            <div class="td-note">Each declined payment gets a code picked at random from the ticked ones, so a merchant sees a realistic mix in their reports. <b>verified</b> = tried on the demo account; <b>documented</b> = from the Checkout.com test-cards page. Only codes whose card brand is ticked in “Cards” are used.</div>
+            <div class="td-actions"><button type="button" class="copy-btn" data-td-all="decl:1">All verified</button><button type="button" class="copy-btn" data-td-all="decl:all">All</button><button type="button" class="copy-btn" data-td-all="decl:0">None</button></div>
+            <div id="td-decl" class="td-checks"></div>
+        </div></details>
+
+        <details class="td-d" id="td-d-disputes"><summary>Disputes <small>which dispute outcomes to simulate</small></summary><div class="in">
+            <div class="td-note">Sandbox disputes are triggered by a payment with a special amount, card <code>01/2099</code> expiry and currency GBP. Checkout.com raises each dispute a few minutes after the payment (in testing between about 6 and 10), so they appear in the dashboard shortly after generation — use “Check disputes now” on the results.</div>
+            <div id="td-disp" class="td-checks"></div>
+        </div></details>
+
+        <details class="td-d" id="td-d-follow"><summary>Follow-up actions <small>what happens to the one-off customer payments afterwards</small></summary><div class="in">
+            <div class="td-note">Out of the <b id="td-follow-of">0</b> approved one-off payments, how many should end up in each state? The rest are simply captured right away.</div>
+            <div class="td-grid">
+                <div><label class="l" for="td-f-auth">Stay authorized only</label><input id="td-f-auth" class="text-input" type="number" min="0" value="0"></div>
+                <div><label class="l" for="td-f-void">Authorized, then voided</label><input id="td-f-void" class="text-input" type="number" min="0" value="0"></div>
+                <div><label class="l" for="td-f-cap">Authorized, captured later</label><input id="td-f-cap" class="text-input" type="number" min="0" value="0"></div>
+                <div><label class="l" for="td-f-ref">Captured, then fully refunded</label><input id="td-f-ref" class="text-input" type="number" min="0" value="0"></div>
+                <div><label class="l" for="td-f-pref">Captured, then partly refunded</label><input id="td-f-pref" class="text-input" type="number" min="0" value="0"></div>
+            </div>
+            <div id="td-follow-note" class="td-note" style="margin-top:6px;"></div>
+        </div></details>
+
+        <details class="td-d"><summary>Advanced <small>pace, naming, logging</small></summary><div class="in">
+            <div class="td-grid">
+                <div><label class="l" for="td-conc">Requests at the same time</label><select id="td-conc" class="select-input"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+                <div><label class="l" for="td-prefix">Reference prefix</label><input id="td-prefix" class="text-input" value="GEN" maxlength="12" autocomplete="off"></div>
+            </div>
+            <div class="td-checks">
+                <label><input type="checkbox" id="td-fpan" checked><span>Send the real card number for declines <small>(<code>processing.pan_preference: fpan</code>) — on accounts that swap cards for network tokens the sandbox otherwise approves the decline test cards</small></span></label>
+                <label><input type="checkbox" id="td-logall"><span>Show every call in the API log <small>(otherwise one summary entry per batch)</small></span></label>
+            </div>
+        </div></details>
+    </div>
+
+    <!-- 4 · go -->
+    <div class="td-card">
+        <h3><span class="td-step">4</span> Generate</h3>
+        <div class="td-actions" style="margin-top:6px;">
+            <button type="button" id="td-generate" class="main-button">Generate sample data</button>
+            <button type="button" id="td-stop" class="copy-btn" hidden>Stop</button>
+            <span id="td-state" class="td-note"></span>
+        </div>
+        <div id="td-errors" class="td-flag bad" hidden></div>
+        <div id="td-brands" class="td-flag warn" hidden></div>
+        <div id="td-progress" class="td-prog" hidden>
+            <div class="td-meter" id="td-pmeter"><i></i></div>
+            <div id="td-counts" class="td-counts"></div>
+        </div>
+        <div id="td-summary" hidden></div>
+        <div id="td-results-wrap" class="td-table-wrap" hidden>
+            <table class="td-table"><thead><tr><th>#</th><th>Type</th><th>Detail</th><th>Result</th><th>ID</th><th>Notes</th></tr></thead><tbody id="td-results"></tbody></table>
+        </div>
+    </div>
+</div>

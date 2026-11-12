@@ -853,6 +853,7 @@ router.use('/competitors/stripe', require('./competitors/stripe-routes'));
 router.use('/competitors/adyen', require('./competitors/adyen-routes'));
 router.use('/disputes', require('./disputes/disputes-routes'));
 router.use('/wallet-onboarding', require('./wallet-onboarding/wallet-onboarding-routes'));
+router.use('/testdata', require('./testdata/testdata-routes'));
 const standaloneRoutes = require('./standalone/standalone-routes');
 router.use('/standalone', standaloneRoutes);
 
